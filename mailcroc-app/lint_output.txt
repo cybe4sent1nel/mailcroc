@@ -1,0 +1,64 @@
+
+> mailcroc-app@0.1.0 lint
+> eslint
+
+
+C:\MAILCROC\mailcroc-app\server\mail-server.js
+  1:24  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  2:26  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  3:18  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\MAILCROC\mailcroc-app\src\app\api\emails\route.ts
+  17:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\sms\route.ts
+  14:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\page.tsx
+  15:45  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  49:51  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\MAILCROC\mailcroc-app\src\components\MailBox\MailBox.tsx
+   4:41  warning  'Loader' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  46:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\MAILCROC\mailcroc-app\src\components\MailBox\MailBox.tsx:46:13
+  44 |         const stored = localStorage.getItem('mailcroc_email');
+  45 |         if (stored) {
+> 46 |             setEmailAddress(stored);
+     |             ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  47 |         } else {
+  48 |             generateNewEmail();
+  49 |         }                                        react-hooks/set-state-in-effect
+  54:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\MAILCROC\mailcroc-app\src\components\MailBox\MailBox.tsx:54:9
+  52 |     useEffect(() => {
+  53 |         if (!emailAddress) return;
+> 54 |         fetchMessages();
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  55 |         const interval = setInterval(fetchMessages, 5000);
+  56 |         return () => clearInterval(interval);
+  57 |     }, [emailAddress, fetchMessages]);  react-hooks/set-state-in-effect
+
+C:\MAILCROC\mailcroc-app\src\components\PhoneBox\PhoneBox.tsx
+   4:10  warning  'Smartphone' is defined but never used             @typescript-eslint/no-unused-vars
+  23:11  warning  'fetchNumbers' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\lib\db.ts
+  13:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 13 problems (8 errors, 5 warnings)
+

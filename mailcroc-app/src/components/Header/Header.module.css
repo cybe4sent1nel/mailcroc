@@ -1,0 +1,96 @@
+.header {
+    background-color: var(--color-bg-creme);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 64px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--color-text-main);
+}
+
+.logoImage {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+}
+
+.logoText {
+    font-weight: 700;
+}
+
+.nav {
+    display: flex;
+    gap: 2rem;
+}
+
+.navLink {
+    color: var(--color-text-muted);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    transition: color 0.15s ease;
+}
+
+.navLink:hover {
+    color: var(--color-text-main);
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.loginBtn {
+    color: var(--color-text-main);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border);
+    transition: border-color 0.15s ease;
+}
+
+.loginBtn:hover {
+    border-color: var(--color-text-main);
+}
+
+.startBtn {
+    background-color: var(--color-text-main);
+    color: var(--color-white);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: var(--radius-full);
+    transition: background-color 0.15s ease;
+}
+
+.startBtn:hover {
+    background-color: #333;
+}
+
+@media (max-width: 768px) {
+    .nav {
+        display: none;
+    }
+
+    .loginBtn {
+        display: none;
+    }
+}

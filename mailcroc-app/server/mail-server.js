@@ -1,0 +1,212 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { SMTPServer } = require("smtp-server");
+const { simpleParser } = require("mailparser");
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+
+// Configuration
+const SMTP_PORT = process.env.SMTP_PORT || 25;
+const SOCKET_PORT = 3001;
+const WEBHOOK_URL = process.env.WEBHOOK_URL || "http://localhost:3000/api/webhook/email";
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "dev-secret";
+
+// Setup Socket.IO Server
+const httpServer = createServer((req, res) => {
+    // Enable CORS for localhost
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+
+    if (req.method === 'POST' && req.url === '/notify') {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                // Validate payload
+                if (!data || !data.to || !Array.isArray(data.to)) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid payload' }));
+                    return;
+                }
+
+                // Emit to Socket.IO
+                console.log(`[API] Received notify request for: ${data.to.join(', ')}`);
+
+                data.to.forEach(recipient => {
+                    const exact = recipient.toLowerCase().trim();
+                    const normalized = normalizeEmail(exact);
+
+                    io.to(exact).emit("new_email", data);
+                    if (normalized !== exact) {
+                        io.to(normalized).emit("new_email", data);
+                    }
+                });
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+            } catch (err) {
+                console.error('[API] Error processing notify:', err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: err.message }));
+            }
+        });
+        return;
+    }
+
+    // Default response
+    res.writeHead(404);
+    res.end();
+});
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+/**
+ * Normalize email for room matching:
+ * Remove dots and +tag from local part for dot/plus trick support.
+ */
+function normalizeEmail(email) {
+    const parts = email.toLowerCase().split('@');
+    if (parts.length !== 2) return email.toLowerCase();
+    const local = parts[0].split('+')[0].replace(/\./g, '');
+    return `${local}@${parts[1]}`;
+}
+
+io.on("connection", (socket) => {
+    socket.on("join", (emailAddress) => {
+        if (emailAddress) {
+            const exact = emailAddress.toLowerCase().trim();
+            const normalized = normalizeEmail(emailAddress);
+            socket.join(exact);
+            socket.join(normalized);
+            console.log(`Socket ${socket.id} joined: ${exact}${normalized !== exact ? ` + ${normalized}` : ''}`);
+        }
+    });
+
+    socket.on("leave", (emailAddress) => {
+        if (emailAddress) {
+            socket.leave(emailAddress.toLowerCase().trim());
+            socket.leave(normalizeEmail(emailAddress));
+        }
+    });
+});
+
+httpServer.listen(SOCKET_PORT, () => {
+    console.log(`Socket.IO Server running on port ${SOCKET_PORT}`);
+});
+
+// Create SMTP Server (Catch-All)
+const server = new SMTPServer({
+    authOptional: true,
+    disabledCommands: ['STARTTLS'],
+    size: 10 * 1024 * 1024,
+
+    onRcptTo(address, session, callback) {
+        console.log(`RCPT TO: ${address.address}`);
+        return callback();
+    },
+
+    onData(stream, session, callback) {
+        simpleParser(stream, async (err, parsed) => {
+            if (err) {
+                console.error("Error parsing email:", err);
+                return callback(new Error("Message parse error"));
+            }
+
+            console.log(`Received email from: ${parsed.from?.text} subject: ${parsed.subject}`);
+
+            try {
+                // Determine recipients
+                let recipients = [];
+                if (Array.isArray(parsed.to)) {
+                    recipients = parsed.to.flatMap(t => t.value ? t.value.map(v => v.address) : [t.text]);
+                } else if (parsed.to) {
+                    recipients = parsed.to.value ? parsed.to.value.map(v => v.address) : [parsed.to.text];
+                }
+                if (recipients.length === 0 && session.envelope.rcptTo) {
+                    recipients = session.envelope.rcptTo.map(r => r.address);
+                }
+                recipients = recipients.map(r => {
+                    const match = r.match(/<(.+)>/);
+                    return (match ? match[1] : r).trim().toLowerCase();
+                }).filter(Boolean);
+
+                console.log(`Recipients: ${recipients.join(', ')}`);
+
+                const emailData = {
+                    from: parsed.from?.text || 'unknown',
+                    to: recipients,
+                    subject: parsed.subject || '(No Subject)',
+                    text: parsed.text || '',
+                    html: parsed.html || '',
+                    messageId: parsed.messageId || '',
+                };
+
+                // Save via webhook (GitHub DB)
+                const webhookRes = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${WEBHOOK_SECRET}`,
+                    },
+                    body: JSON.stringify(emailData),
+                });
+
+                let savedId = '';
+                if (webhookRes.ok) {
+                    const result = await webhookRes.json();
+                    savedId = result.id || '';
+                    console.log("Email saved via webhook.");
+                } else {
+                    console.error("Webhook save failed:", webhookRes.status);
+                }
+
+                // Build the object to emit via Socket.IO
+                const emitData = {
+                    _id: savedId || `${Date.now()}`,
+                    ...emailData,
+                    receivedAt: new Date().toISOString(),
+                    pinned: false,
+                };
+
+                // Emit to Socket rooms
+                recipients.forEach(recipient => {
+                    const exact = recipient;
+                    const normalized = normalizeEmail(recipient);
+                    console.log(`Emitting to: ${exact}${normalized !== exact ? ` + ${normalized}` : ''}`);
+                    io.to(exact).emit("new_email", emitData);
+                    if (normalized !== exact) {
+                        io.to(normalized).emit("new_email", emitData);
+                    }
+                });
+
+                callback();
+            } catch (dbErr) {
+                console.error("Error:", dbErr);
+                callback(new Error("Internal server error"));
+            }
+        });
+    },
+});
+
+server.on("error", (err) => {
+    console.log("Error %s", err.message);
+});
+
+server.listen(SMTP_PORT, () => {
+    console.log(`SMTP Server running on port ${SMTP_PORT}`);
+    console.log(`Webhook: ${WEBHOOK_URL}`);
+});

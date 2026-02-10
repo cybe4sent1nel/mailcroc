@@ -1,0 +1,9 @@
+name = "mailcroc-email-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Use the .vercel.app domain as it's always stable
+WEBHOOK_URL = "https://mailcroc.vercel.app/api/webhook/email"
+
+# Add WEBHOOK_SECRET via: npx wrangler secret put WEBHOOK_SECRET

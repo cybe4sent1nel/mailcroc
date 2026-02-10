@@ -1,0 +1,16 @@
+{
+    "name": "mailcroc-root",
+    "version": "1.0.0",
+    "description": "Root project for MailCroc",
+    "private": true,
+    "scripts": {
+        "dev:all": "npm run dev:all --prefix mailcroc-app",
+        "dev": "npm run dev --prefix mailcroc-app",
+        "build": "npm run build --prefix mailcroc-app",
+        "start": "npm run start --prefix mailcroc-app",
+        "lint": "npm run lint --prefix mailcroc-app"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}

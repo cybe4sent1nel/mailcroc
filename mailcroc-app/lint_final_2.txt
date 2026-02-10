@@ -1,0 +1,22 @@
+
+> mailcroc-app@0.1.0 lint
+> eslint
+
+
+C:\MAILCROC\mailcroc-app\src\app\api\emails\route.ts
+  17:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\sms\route.ts
+  14:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\page.tsx
+  15:45  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  49:51  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\MAILCROC\mailcroc-app\src\lib\db.ts
+   9:1   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  14:25  error    Unexpected any. Specify a different type                                                               @typescript-eslint/no-explicit-any
+
+Γ£û 6 problems (3 errors, 3 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+

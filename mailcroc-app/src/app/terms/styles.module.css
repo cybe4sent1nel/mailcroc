@@ -1,0 +1,42 @@
+.pageWrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #0f172a;
+    color: #fff;
+}
+
+.main {
+    flex: 1;
+    padding: 4rem 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.date {
+    color: #64748b;
+    margin-bottom: 3rem;
+}
+
+.content h2 {
+    color: #f8fafc;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.content h3 {
+    color: #e2e8f0;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.content p,
+.content ul {
+    color: #94a3b8;
+    line-height: 1.7;
+    margin-bottom: 1rem;
+}
+
+.content ul {
+    padding-left: 1.5rem;
+}

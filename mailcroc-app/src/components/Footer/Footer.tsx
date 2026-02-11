@@ -24,8 +24,9 @@ const Footer = () => {
                     <div className={styles.col}>
                         <h4>Product</h4>
                         <Link href="/mail">Temp Mail</Link>
-                        <Link href="/#features">Features</Link>
-                        <Link href="/mail">Get Started</Link>
+                        <Link href="/features">Features</Link>
+                        <Link href="/pricing">Pricing</Link>
+                        <Link href="/docs">API Docs</Link>
                     </div>
                     <div className={styles.col}>
                         <h4>Company</h4>
@@ -35,8 +36,8 @@ const Footer = () => {
                     </div>
                     <div className={styles.col}>
                         <h4>Legal</h4>
-                        <Link href="#">Privacy Policy</Link>
-                        <Link href="#">Terms of Service</Link>
+                        <Link href="/privacy">Privacy Policy</Link>
+                        <Link href="/terms">Terms of Service</Link>
                     </div>
                 </div>
             </div>

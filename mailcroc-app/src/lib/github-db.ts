@@ -284,3 +284,18 @@ async function deleteFile(path: string, sha: string): Promise<boolean> {
     });
     return res.ok;
 }
+
+/**
+ * Delete all emails for a specific address
+ */
+export async function deleteInbox(address: string): Promise<boolean> {
+    const emails = await getEmailsByAddress(address);
+    if (emails.length === 0) return true;
+
+    // Delete in parallel
+    const results = await Promise.all(
+        emails.map(email => deleteEmail(email._id, address))
+    );
+
+    return results.every(Boolean);
+}

@@ -12,4 +12,8 @@ export interface IEmail {
     pinned: boolean;
     read?: boolean;
     expiresAt?: Date | string | null;
+    folder?: 'inbox' | 'sent' | 'trash' | 'spam' | 'drafts';
+    category?: 'primary' | 'social' | 'updates' | 'promotions' | 'spam';
+    isThreat?: boolean;
+    summary?: string;
 }

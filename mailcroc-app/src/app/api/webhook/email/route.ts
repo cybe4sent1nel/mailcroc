@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveEmail } from '@/lib/github-db';
+import { analyzeEmail } from '@/lib/ai';
 
 /**
  * Webhook endpoint for Cloudflare Email Worker.
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
 
+        // Analyze content
+        const analysis = await analyzeEmail(body.subject || '', body.text || '');
+
         const savedEmail = await saveEmail({
             from: body.from || 'unknown',
             to: Array.isArray(body.to) ? body.to : [body.to],
@@ -39,6 +43,9 @@ export async function POST(req: NextRequest) {
             text: body.text || '',
             html: body.html || '',
             messageId: body.messageId || '',
+            category: analysis.category,
+            isThreat: analysis.isThreat,
+            summary: analysis.summary,
         });
 
         console.log(`Webhook: saved email from ${body.from} to ${body.to}`);
@@ -58,6 +65,9 @@ export async function POST(req: NextRequest) {
                     html: savedEmail.html,
                     receivedAt: savedEmail.receivedAt,
                     pinned: savedEmail.pinned,
+                    category: savedEmail.category,
+                    isThreat: savedEmail.isThreat,
+                    summary: savedEmail.summary
                 }),
             }).catch(e => console.error('Failed to notify socket server:', e.message));
         } catch (err) {

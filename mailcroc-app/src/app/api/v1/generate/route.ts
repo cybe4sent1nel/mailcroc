@@ -1,19 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { validateApiKey, unauthorizedResponse, rateLimitResponse } from '@/lib/apiAuth';
+import { generateEmailAddress, GenerationMode } from '@/lib/domains';
 
 export const runtime = 'edge';
-
-// Random names for email generation
-const ADJECTIVES = ['happy', 'clever', 'brave', 'calm', 'swift', 'silent', 'eager', 'proud', 'wild', 'bold'];
-const NOUNS = ['fox', 'wolf', 'bear', 'eagle', 'hawk', 'lion', 'tiger', 'shark', 'whale', 'panda'];
-
-function generateRandomEmail(domain: string = 'mailcroc.qzz.io'): string {
-    const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-    const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-    const num = Math.floor(Math.random() * 9999);
-    return `${adj}-${noun}-${num}@${domain}`;
-}
 
 export async function POST(req: NextRequest) {
     // 1. Auth Check
@@ -23,14 +12,13 @@ export async function POST(req: NextRequest) {
 
     // 2. Parse Body
     let count = 1;
-    let domain = 'mailcroc.qzz.io';
+    let mode: GenerationMode = 'standard';
 
     try {
         const body = await req.json();
         if (body.count) count = Math.min(Math.max(1, Number(body.count)), 50); // Cap at 50
-        if (body.domain === 'random') {
-            // logic for random domain if we had multiple
-        }
+        // Map domain param to mode if possible, or just use mode param
+        if (body.mode) mode = body.mode as GenerationMode;
     } catch (e) {
         // ignore json parse error, use defaults
     }
@@ -38,7 +26,7 @@ export async function POST(req: NextRequest) {
     // 3. Generate Emails
     const emails = [];
     for (let i = 0; i < count; i++) {
-        emails.push(generateRandomEmail(domain));
+        emails.push(generateEmailAddress(mode));
     }
 
     return NextResponse.json({

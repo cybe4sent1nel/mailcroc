@@ -45,6 +45,41 @@ export async function GET(req: NextRequest) {
 }
 
 /**
+ * POST /api/emails
+ * Save an email directly (e.g. Drafts)
+ */
+export async function POST(req: NextRequest) {
+    if (!await validateRequest(req)) {
+        return NextResponse.json({ error: 'Unauthorized: Invalid API Key' }, { status: 401 });
+    }
+    try {
+        const body = await req.json();
+
+        // Basic validation
+        if (!body.from || !body.folder) {
+            return NextResponse.json({ error: 'from and folder required' }, { status: 400 });
+        }
+
+        const success = await import('@/lib/github-db').then(m => m.saveEmail({
+            from: body.from,
+            to: body.to || [],
+            subject: body.subject || '(No Subject)',
+            text: body.text || '',
+            html: body.html || '',
+            messageId: body.messageId || `draft-${Date.now()}`,
+            receivedAt: new Date(),
+            folder: body.folder,
+            pinned: body.pinned || false
+        }, body.from)); // Store in sender's folder if draft/sent
+
+        return NextResponse.json({ success: true, daa: success });
+    } catch (e) {
+        console.error('POST emails error:', e);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+/**
  * PATCH /api/emails
  * Pin/unpin emails or update expiry
  */

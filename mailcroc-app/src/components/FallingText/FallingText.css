@@ -1,0 +1,78 @@
+/* FallingText Component Styles v6 (Coordinate & Stability Fix) */
+
+.falling-text-container-v6 {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    min-height: 250px;
+    max-height: 250px;
+    cursor: crosshair;
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    overflow: hidden;
+    background-color: #000000;
+    border-radius: 12px;
+    box-sizing: border-box;
+    /* Crucial for height stability */
+}
+
+.falling-text-inner-v6 {
+    display: inline-block;
+    max-width: 95%;
+    margin: 0 auto;
+    position: relative;
+    z-index: 5;
+    transition: opacity 0.2s ease;
+}
+
+/* When physics starts, words take absolute coordinates relative to the CONTAINER */
+/* We force the inner div to cover the container top-left to align coordinates */
+.falling-text-inner-v6.is-physics {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    max-width: none;
+}
+
+.falling-text-canvas-v6 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+    width: 100%;
+    height: 100%;
+}
+
+.word-v6 {
+    display: inline-block;
+    user-select: none;
+    cursor: grab;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 1.1em;
+    filter: drop-shadow(0 0 10px currentColor);
+    transition: filter 0.2s ease, transform 0.1s ease;
+    vertical-align: middle;
+}
+
+.word-v6:hover {
+    filter: drop-shadow(0 0 18px currentColor) brightness(1.4);
+    transform: scale(1.1);
+}
+
+.word-v6:active {
+    cursor: grabbing;
+}
+
+/* Default highlight mapping */
+.highlighted {
+    text-shadow: 0 0 15px currentColor, 0 0 30px currentColor;
+    border-bottom: 2px solid #fff;
+}

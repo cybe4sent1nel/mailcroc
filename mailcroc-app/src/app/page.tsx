@@ -2,6 +2,11 @@ import styles from "./page.module.css";
 import Link from 'next/link';
 import { Mail } from 'lucide-react';
 import LottiePlayer from '@/components/LottiePlayer';
+import FallingText from '@/components/FallingText/FallingText';
+import ScrollFloat from '@/components/ScrollFloat/ScrollFloat';
+import TrustedBrands from '@/components/TrustedBrands/TrustedBrands';
+import Testimonials from '@/components/Testimonials/Testimonials';
+import PixelBlast from '@/components/PixelBlast/PixelBlast';
 
 import heroAnim from '../../public/animations/herosection.json';
 import instDelAnim from '../../public/animations/card1.json';
@@ -22,6 +27,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
+      {/* Hero Section */}
       <section className={styles.hero}>
         <div className={styles.floatingShapes}>
           <div className={styles.shape1}></div>
@@ -34,13 +40,28 @@ export default function Home() {
             <LottiePlayer animationData={heroAnim} style={{ width: 300, height: 300 }} />
           </div>
           <h1 className={styles.title}>
-            Disposable emails<br />
+            <ScrollFloat as="span">Disposable emails</ScrollFloat><br />
             <span className={styles.highlight}>in one place</span>
           </h1>
           <p className={styles.subtitle}>
             Generate instant temporary email addresses with reply, compose, and forwarding.
             Protect your privacy online. No signup, no limits, totally free.
           </p>
+
+          <div style={{ margin: '2rem 0', textAlign: 'center' }}>
+            <ScrollFloat as="h3" style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#475569' }}>Keep your mail clutter free</ScrollFloat>
+            <div style={{ height: '250px', width: '100%', position: 'relative', overflow: 'hidden', borderRadius: '12px' }}>
+              <FallingText
+                text="Spam Ads Junk Trackers Phishing Clutter Marketing Scams Bots Updates Promos Social Verify Blocked Suspicious Malware Spyware Popups Banners Offers Deals Newsletters Invites Requests Alerts Notices"
+                trigger="hover"
+                backgroundColor="#000000"
+                wireframes={false}
+                gravity={0.6}
+                fontSize="1.2rem"
+                mouseConstraintStiffness={0.2}
+              />
+            </div>
+          </div>
 
           <div className={styles.actions}>
             <Link href="/mail" className={styles.primaryBtn}>
@@ -56,9 +77,11 @@ export default function Home() {
         </div>
       </section>
 
+      <TrustedBrands />
+
       {/* Feature Cards */}
       <section id="features" className={styles.features}>
-        <h2 className={styles.sectionTitle}>Everything you need</h2>
+        <ScrollFloat as="h2" containerClassName={styles.sectionTitle}>Everything you need</ScrollFloat>
         <p className={styles.sectionSubtitle}>Built for privacy, designed for speed</p>
 
         <div className={styles.featureGrid}>
@@ -132,9 +155,11 @@ export default function Home() {
         </div>
       </section>
 
+      <Testimonials />
+
       {/* How It Works */}
       <section className={styles.howItWorks}>
-        <h2 className={styles.sectionTitle}>How it works</h2>
+        <ScrollFloat as="h2" containerClassName={styles.sectionTitle}>How it works</ScrollFloat>
         <p className={styles.sectionSubtitle}>Three steps to privacy</p>
 
         <div className={styles.stepsGrid}>
@@ -161,13 +186,13 @@ export default function Home() {
       {/* CTA Banner */}
       <section className={styles.ctaBanner}>
         <div className={styles.ctaInner}>
-          <h2>Ready to protect your inbox?</h2>
+          <ScrollFloat as="h2">Ready to protect your inbox?</ScrollFloat>
           <p>Start using MailCroc for free. No account required.</p>
           <div className={styles.ctaActions}>
             <Link href="/mail" className={styles.ctaPrimary}>Get Started</Link>
           </div>
         </div>
       </section>
-    </div>
+    </div >
   );
 }

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import MailBox from "@/components/MailBox/MailBox";
 import styles from "./mail.module.css";
 import { Mail, ShieldCheck, Zap } from 'lucide-react';
@@ -42,7 +43,9 @@ export default function MailPage() {
 
             {/* Inbox Component */}
             <div className={styles.inboxWrapper}>
-                <MailBox />
+                <Suspense fallback={<div style={{ textAlign: 'center', padding: '2rem' }}>Loading Inbox...</div>}>
+                    <MailBox />
+                </Suspense>
             </div>
         </div>
     );

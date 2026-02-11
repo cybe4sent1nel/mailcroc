@@ -1,0 +1,47 @@
+.logo-loop-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    padding: 2rem 0;
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.logo-loop-track {
+    display: flex;
+    gap: 4rem;
+    width: max-content;
+    animation: scroll 40s linear infinite;
+}
+
+.logo-item img {
+    height: 32px;
+    width: auto;
+    opacity: 0.6;
+    transition: opacity 0.3s;
+    filter: grayscale(100%);
+}
+
+.logo-item img:hover {
+    opacity: 1;
+    filter: grayscale(0%);
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-25%);
+    }
+}
+
+/* If we duplicated 4 times, and we want to scroll 1 full set... */
+/* Wait, simple trick: duplicate list ONE time and scroll -50%? 
+   No, usually duplicate enough to fill screen + scroll.
+   If displayLogos has 4 sets of logos. 
+   Scrolling -25% would be one set. 
+   Ideally we just want smooth infinite scroll.
+   Let's assume the logos are enough to fill screen.
+*/

@@ -60,10 +60,11 @@ function generateId(): string {
 /**
  * Save a new email to the GitHub repo
  */
-export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & { receivedAt?: Date; pinned?: boolean }): Promise<IEmail & { _id: string }> {
+export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & { receivedAt?: Date; pinned?: boolean }, storageOwner?: string): Promise<IEmail & { _id: string }> {
     const id = generateId();
-    const toAddress = Array.isArray(email.to) ? email.to[0] : email.to;
-    const folder = encodeAddress(toAddress || 'unknown');
+    // specific owner (e.g. sender for Sent box) or default to recipient
+    const ownerAddress = storageOwner || (Array.isArray(email.to) ? email.to[0] : email.to);
+    const folder = encodeAddress(ownerAddress || 'unknown');
     const path = `emails/${folder}/${id}.json`;
 
     const emailData = {
@@ -77,6 +78,10 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
         receivedAt: email.receivedAt || new Date().toISOString(),
         pinned: email.pinned ?? false,
         expiresAt: email.expiresAt || null,
+        folder: email.folder || 'inbox',
+        category: email.category || 'primary',
+        isThreat: email.isThreat || false,
+        summary: email.summary || '',
     };
 
     const content = Buffer.from(JSON.stringify(emailData, null, 2)).toString('base64');

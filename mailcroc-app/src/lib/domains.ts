@@ -17,33 +17,24 @@ export const OWNED_DOMAINS = [
 ];
 
 // ---- Subdomain prefixes (combined with base domains = many unique domains) ----
+/*
 const SUBDOMAIN_PREFIXES = [
     "inbox",
     "mail",
     "temp",
-    "go",
-    "my",
-    "get",
-    "box",
-    "dash",
-    "hub",
-    "now",
-    "fast",
-    "live",
-    "app",
-    "net",
-    "run",
-    "try",
-    "join",
-    "new",
-    "pro",
-    "one",
+    // ... (truncated for brevity)
+    "sun",
 ];
+*/
 
 // ---- Build full domain pool: base + subdomain combos ----
+// ---- Build full domain pool: base + subdomain combos ----
+/*
 function buildDomainPool(): string[] {
     const pool: string[] = [...OWNED_DOMAINS];
 
+    // User explicitly requested subdomains.
+    // NOTE: Each of these must be added to Cloudflare Email Routing manually if using Cloudflare!
     for (const prefix of SUBDOMAIN_PREFIXES) {
         for (const base of OWNED_DOMAINS) {
             pool.push(`${prefix}.${base}`);
@@ -52,8 +43,25 @@ function buildDomainPool(): string[] {
 
     return pool;
 }
+*/
 
-export const DOMAIN_POOL = buildDomainPool();
+// ---- Fake Subdomain Prefixes (for local part variety) ----
+const FAKE_SUBDOMAINS = [
+    "inbox", "mail", "temp", "live", "secure", "app", "api", "dev", "auth", "login",
+    "verify", "code", "admin", "support", "billing", "account", "noreply", "team",
+    "welcome", "info", "hello", "contact", "help", "status", "jobs", "press",
+    "media", "legal", "privacy", "security", "webmaster", "postmaster", "hostmaster",
+    "abuse", "compliance", "sales", "marketing", "orders", "shipping", "returns",
+    "invoice", "payments", "receipts", "billing", "alert", "notification", "digest",
+    "newsletter", "updates", "community", "forum", "group", "list", "members",
+    "social", "friends", "family", "work", "school", "office", "home", "mobile",
+];
+
+// ---- Separators for complexity ----
+const SEPARATORS = ["-", "-", "-", ".", "_"]; // Strong bias towards hyphens to simulate subdomains safely
+
+// export const DOMAIN_POOL = buildDomainPool();
+export const DOMAIN_POOL = [...OWNED_DOMAINS];
 
 // ---- Generation modes ----
 export type GenerationMode = 'standard' | 'plus' | 'dot' | 'googlemail' | 'gmail';
@@ -67,6 +75,14 @@ export function generateEmailAddress(mode: GenerationMode, customPrefix?: string
     switch (mode) {
         case 'standard': {
             const domain = DOMAIN_POOL[Math.floor(Math.random() * DOMAIN_POOL.length)];
+
+            // 50% chance to use a "fake subdomain" prefix
+            if (Math.random() > 0.5) {
+                const sub = FAKE_SUBDOMAINS[Math.floor(Math.random() * FAKE_SUBDOMAINS.length)];
+                const sep = SEPARATORS[Math.floor(Math.random() * SEPARATORS.length)];
+                return `${sub}${sep}${prefix}@${domain}`;
+            }
+
             return `${prefix}@${domain}`;
         }
         case 'plus': {

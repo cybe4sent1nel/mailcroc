@@ -10,17 +10,28 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/matter-js": "^0.20.2",
+    "@types/three": "^0.182.0",
+    "gsap": "^3.14.2",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.563.0",
     "mailparser": "^3.9.3",
+    "mailslurp-client": "^16.0.0",
+    "matter-js": "^0.20.0",
     "mongoose": "^9.2.0",
     "next": "16.1.6",
     "nodemailer": "^8.0.1",
+    "postprocessing": "^6.38.2",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
     "smtp-server": "^3.18.1",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "three": "^0.182.0"
   },
   "devDependencies": {
     "@types/node": "^20",

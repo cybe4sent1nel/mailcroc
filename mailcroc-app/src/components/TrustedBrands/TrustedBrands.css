@@ -1,0 +1,35 @@
+.trusted-brands-section {
+    padding: 3rem 0;
+    background: #ffffff;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.trusted-brands-title {
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    margin-bottom: 2rem;
+}
+
+.trusted-brands-loop {
+    max-width: 1200px;
+    margin: 0 auto;
+    /* Ensure fade effect works against background */
+    --logoloop-fadeColor: #ffffff;
+}
+
+/* Grayscale for premium look, color on hover */
+.logoloop img {
+    filter: grayscale(100%);
+    opacity: 0.6;
+    transition: filter 0.3s, opacity 0.3s, transform 0.3s;
+}
+
+.logoloop:hover img:hover {
+    filter: grayscale(0%);
+    opacity: 1;
+    transform: scale(1.05);
+}

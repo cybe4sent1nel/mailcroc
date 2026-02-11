@@ -39,21 +39,31 @@ export default function RootLayout({
             <Footer />
           </div>
         </ToastProvider>
+        <Script id="pwa-install-handler" strategy="beforeInteractive">
+          {`
+          window.deferredPrompt = null;
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+            console.log('Global: beforeinstallprompt captured');
+          });
+        `}
+        </Script>
         <Script id="register-sw" strategy="afterInteractive">
           {`
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(
-                  function(registration) {
-                    console.log('Service Worker registration successful with scope: ', registration.scope);
-                  },
-                  function(err) {
-                    console.log('Service Worker registration failed: ', err);
-                  }
-                );
-              });
-            }
-          `}
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js').then(
+                function(registration) {
+                  console.log('Service Worker registration successful with scope: ', registration.scope);
+                },
+                function(err) {
+                  console.log('Service Worker registration failed: ', err);
+                }
+              );
+            });
+          }
+        `}
         </Script>
       </body>
     </html>

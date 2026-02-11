@@ -24,8 +24,8 @@ const Footer = () => {
                     <div className={styles.col}>
                         <h4>Product</h4>
                         <Link href="/mail">Temp Mail</Link>
-                        <Link href="/features">Features</Link>
-                        <Link href="/pricing">Pricing</Link>
+                        <Link href="/#features">Features</Link>
+                        <Link href="/mail">Get Started</Link>
                     </div>
                     <div className={styles.col}>
                         <h4>Company</h4>

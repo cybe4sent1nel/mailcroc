@@ -43,11 +43,10 @@ export async function POST(req: NextRequest) {
 
         console.log(`Webhook: saved email from ${body.from} to ${body.to}`);
 
-        // Notify Socket.IO server for real-time updates
+        // Notify Socket.IO server (Render backend) for real-time updates
         try {
-            // Fire and forget - don't await/block response if socket server is down
-            // Use 127.0.0.1 instead of localhost to avoid IPv6 issues in Node
-            fetch(`${process.env.NEXT_PUBLIC_SOCKET_URL || 'http://127.0.0.1:3001'}/notify`, {
+            const socketServerUrl = process.env.SOCKET_SERVER_URL || process.env.NEXT_PUBLIC_SOCKET_URL || 'http://127.0.0.1:3001';
+            fetch(`${socketServerUrl}/notify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

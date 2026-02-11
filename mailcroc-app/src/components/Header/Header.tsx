@@ -19,8 +19,8 @@ const Header = () => {
 
                 <nav className={styles.nav}>
                     <Link href="/mail" className={styles.navLink}>Temp Mail</Link>
-                    <Link href="/features" className={styles.navLink}>Features</Link>
-                    <Link href="/pricing" className={styles.navLink}>Pricing</Link>
+                    <Link href="/#features" className={styles.navLink}>Features</Link>
+                    <Link href="/mail" className={styles.navLink}>Get Started</Link>
                 </nav>
 
                 <div className={styles.actions}>

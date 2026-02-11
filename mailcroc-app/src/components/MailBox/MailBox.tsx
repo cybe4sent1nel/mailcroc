@@ -129,10 +129,11 @@ const MailBox = () => {
 
     const emailAddress = currentConfig?.address || '';
 
-    // Socket.IO Connection
+    // Socket.IO Connection (only if server URL is configured)
     useEffect(() => {
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+        if (!socketUrl) return; // Skip socket on Vercel (no socket server)
         if (!socket) {
-            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
             socket = io(socketUrl);
             socket.on('connect', () => setIsConnected(true));
             socket.on('disconnect', () => setIsConnected(false));

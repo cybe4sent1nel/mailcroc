@@ -57,7 +57,7 @@ export default function Home() {
       </section>
 
       {/* Feature Cards */}
-      <section className={styles.features}>
+      <section id="features" className={styles.features}>
         <h2 className={styles.sectionTitle}>Everything you need</h2>
         <p className={styles.sectionSubtitle}>Built for privacy, designed for speed</p>
 

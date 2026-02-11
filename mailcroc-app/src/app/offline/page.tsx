@@ -13,9 +13,9 @@ export default function Offline() {
                 <div className={styles.animWrapper}>
                     <LottiePlayer animationData={offlineAnim} style={{ width: '100%', maxWidth: 400, height: 'auto' }} />
                 </div>
-                <h1 className={styles.title}>You are offline</h1>
+                <h1 className={styles.title}>Signal Lost...</h1>
                 <p className={styles.description}>
-                    Please check your internet connection and try again.
+                    We've lost contact with the server. Waiting for a signal (or just your Wi-Fi).
                 </p>
                 <button onClick={() => window.location.reload()} className={styles.homeBtn}>
                     <RefreshCw size={18} />

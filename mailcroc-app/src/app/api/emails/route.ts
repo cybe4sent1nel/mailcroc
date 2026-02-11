@@ -1,11 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getEmailsByAddress, updateEmail, updateEmailsByAddress, findEmailById } from '@/lib/github-db';
+import { getEmailsByAddress, updateEmail, updateEmailsByAddress, findEmailById, getApiKey } from '@/lib/github-db';
+import crypto from 'crypto';
+
+/**
+ * Validate API Key
+ */
+async function validateRequest(req: NextRequest) {
+    const apiKey = req.headers.get('x-api-key');
+    if (!apiKey) return false;
+
+    // Special Public Key for Frontend (should be in env, but hardcoding for demo stability)
+    // In production, this would be NEXT_PUBLIC_FRONTEND_KEY and checked here
+    if (apiKey === 'public_beta_key_v1') return true;
+
+    // Validate against DB
+    const hash = crypto.createHash('sha256').update(apiKey).digest('hex');
+    const keyMeta = await getApiKey(hash);
+
+    return !!keyMeta;
+}
 
 /**
  * GET /api/emails?address=user@example.com
  * Fetch all emails for an address from GitHub repo
  */
 export async function GET(req: NextRequest) {
+    if (!await validateRequest(req)) {
+        return NextResponse.json({ error: 'Unauthorized: Invalid API Key' }, { status: 401 });
+    }
     const { searchParams } = new URL(req.url);
     const address = searchParams.get('address');
 
@@ -27,6 +49,9 @@ export async function GET(req: NextRequest) {
  * Pin/unpin emails or update expiry
  */
 export async function PATCH(req: NextRequest) {
+    if (!await validateRequest(req)) {
+        return NextResponse.json({ error: 'Unauthorized: Invalid API Key' }, { status: 401 });
+    }
     try {
         const body = await req.json();
         const { emailId, action, value, address } = body;
@@ -66,6 +91,9 @@ export async function PATCH(req: NextRequest) {
  * Delete an email
  */
 export async function DELETE(req: NextRequest) {
+    if (!await validateRequest(req)) {
+        return NextResponse.json({ error: 'Unauthorized: Invalid API Key' }, { status: 401 });
+    }
     try {
         const body = await req.json();
         const { emailId, address } = body;

@@ -360,8 +360,8 @@
 
 .messageItem {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    align-items: flex-start;
+    gap: 0.75rem;
     padding: 0.875rem 1rem;
     border-bottom: 1px solid var(--color-border);
     cursor: pointer;
@@ -369,7 +369,48 @@
 }
 
 .messageItem:hover {
-    background: #FAFAF8;
+    background: #f1f5f9;
+}
+
+.messageItem.active {
+    background: rgba(139, 92, 246, 0.1);
+    border-left: 3px solid #8b5cf6;
+}
+
+.messageItem.unread {
+    background: #fff;
+    font-weight: 600;
+}
+
+/* Avatar */
+.unreadIcon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    margin-right: -4px;
+    /* Slight overlap or tight spacing */
+    flex-shrink: 0;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: white;
+    font-size: 1rem;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.avatarLarge {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
 }
 
 .messageItem.active {
@@ -404,31 +445,82 @@
 .msgContent {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.msgHeaderRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
 }
 
 .msgSender {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-text-main);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #1e293b;
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.messageItem.unread .msgSender {
+    font-weight: 700;
+    color: #000;
+}
+
+.msgDate {
+    font-size: 0.75rem;
+    color: #64748b;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.msgSubjectRow {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    color: #475569;
+    overflow: hidden;
+    white-space: nowrap;
     text-overflow: ellipsis;
 }
 
 .msgSubject {
-    font-size: 0.8125rem;
-    color: var(--color-text-muted);
-    white-space: nowrap;
+    flex-shrink: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
-.msgTime {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
+.messageItem.unread .msgSubject {
+    font-weight: 600;
+    color: #000;
+}
+
+.msgSnippet {
+    color: #94a3b8;
+    margin-left: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
-    flex-shrink: 0;
+    font-weight: 400;
+    flex: 1;
+}
+
+/* Email Body Links */
+.emailBody a {
+    color: #2563eb;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.emailBody a:hover {
+    color: #1d4ed8;
 }
 
 /* Empty State */
@@ -487,6 +579,41 @@
 .emailActions {
     display: flex;
     gap: 0.5rem;
+}
+
+.newMsgOverlay {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+}
+
+.newMsgText {
+    font-weight: 700;
+    color: var(--color-text-main);
+    margin-top: 0.5rem;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .emailActionBtn {
@@ -671,7 +798,7 @@
 .progressBar {
     width: 100%;
     height: 6px;
-    background-color: var(--color-bg-mesh);
+    background-color: var(--color-border);
     border-radius: 3px;
     overflow: hidden;
     position: relative;
@@ -776,8 +903,9 @@
 .headerActions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 1rem;
 }
+
 
 .menuContainer {
     position: relative;

@@ -13,9 +13,9 @@ export default function NotFound() {
                 <div className={styles.animWrapper}>
                     <LottiePlayer animationData={notFoundAnim} style={{ width: '100%', maxWidth: 500, height: 'auto' }} />
                 </div>
-                <h1 className={styles.title}>oops! page not found</h1>
+                <h1 className={styles.title}>Lost in the Mail?</h1>
                 <p className={styles.description}>
-                    The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+                    Looks like this page took a wrong turn at the server. We've dispatched a search party (of crocs).
                 </p>
                 <Link href="/" className={styles.homeBtn}>
                     <Home size={18} />

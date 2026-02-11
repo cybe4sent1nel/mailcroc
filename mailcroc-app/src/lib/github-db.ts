@@ -299,3 +299,113 @@ export async function deleteInbox(address: string): Promise<boolean> {
 
     return results.every(Boolean);
 }
+
+// ============================================
+//  API Key Management
+// ============================================
+
+export interface ApiKeyMeta {
+    id: string;
+    hash: string;
+    ownerId: string;
+    name: string;
+    prefix: string;
+    createdAt: string;
+    revoked?: boolean;
+}
+
+/**
+ * Save an API Key (Hashed)
+ */
+export async function saveApiKey(hash: string, meta: ApiKeyMeta): Promise<boolean> {
+    const path = `api_keys/${hash}.json`;
+    const content = Buffer.from(JSON.stringify(meta, null, 2)).toString('base64');
+
+    const res = await fetch(repoUrl(path), {
+        method: 'PUT',
+        headers: headers(),
+        body: JSON.stringify({
+            message: `🔑 New API Key ${meta.prefix}...`,
+            content,
+        }),
+    });
+    return res.ok;
+}
+
+/**
+ * Get API Key Metadata by Hash
+ */
+export async function getApiKey(hash: string): Promise<ApiKeyMeta | null> {
+    try {
+        const path = `api_keys/${hash}.json`;
+        const res = await fetch(repoUrl(path), { headers: headers() });
+        if (!res.ok) return null;
+
+        const fileData = await res.json();
+        const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        return JSON.parse(content);
+    } catch { return null; }
+}
+
+/**
+ * Revoke API Key (Delete from valid keys)
+ */
+export async function revokeApiKeyFile(hash: string): Promise<boolean> {
+    const path = `api_keys/${hash}.json`;
+    // Get sha first
+    const getRes = await fetch(repoUrl(path), { headers: headers() });
+    if (!getRes.ok) return false;
+    const fileData = await getRes.json();
+
+    const res = await fetch(repoUrl(path), {
+        method: 'DELETE',
+        headers: headers(),
+        body: JSON.stringify({
+            message: `🗑️ Revoked API Key`,
+            sha: fileData.sha,
+        }),
+    });
+    return res.ok;
+}
+
+/**
+ * Save Developer's Key List
+ */
+export async function saveDeveloperKeys(ownerId: string, keys: ApiKeyMeta[]): Promise<boolean> {
+    const path = `developers/${ownerId}.json`;
+    const content = Buffer.from(JSON.stringify(keys, null, 2)).toString('base64');
+
+    // Check if exists to get sha
+    const getRes = await fetch(repoUrl(path), { headers: headers() });
+    let sha;
+    if (getRes.ok) {
+        const fileData = await getRes.json();
+        sha = fileData.sha;
+    }
+
+    const res = await fetch(repoUrl(path), {
+        method: 'PUT',
+        headers: headers(),
+        body: JSON.stringify({
+            message: `👤 Updated developer keys for ${ownerId}`,
+            content,
+            sha,
+        }),
+    });
+    return res.ok;
+}
+
+/**
+ * Get Developer's Key List
+ */
+export async function getDeveloperKeys(ownerId: string): Promise<ApiKeyMeta[]> {
+    try {
+        const path = `developers/${ownerId}.json`;
+        const res = await fetch(repoUrl(path), { headers: headers() });
+        if (!res.ok) return [];
+
+        const fileData = await res.json();
+        const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        return JSON.parse(content);
+    } catch { return []; }
+}

@@ -2,8 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Header from '@/components/Header/Header';
-import Footer from '@/components/Footer/Footer';
 import styles from './styles.module.css';
 import { Copy, Terminal, Code, Check } from 'lucide-react';
 
@@ -67,12 +65,69 @@ res = requests.get(
     "${baseUrl}/inbox/test@mailcroc.qzz.io", 
     headers=headers
 )
-print(res.json())`
+print(res.json())`,
+
+        go: `
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+)
+
+func main() {
+	url := "${baseUrl}/inbox/test@mailcroc.qzz.io"
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("x-api-key", "${apiKey}")
+
+	res, _ := http.DefaultClient.Do(req)
+	defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+
+	fmt.Println(string(body))
+}`,
+
+        php: `
+<?php
+
+$curl = curl_init();
+
+curl_setopt_array($curl, array(
+  CURLOPT_URL => "${baseUrl}/inbox/test@mailcroc.qzz.io",
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => array(
+    "x-api-key: ${apiKey}"
+  ),
+));
+
+$response = curl_exec($curl);
+curl_close($curl);
+echo $response;
+`,
+
+        java: `
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("${baseUrl}/inbox/test@mailcroc.qzz.io"))
+                .header("x-api-key", "${apiKey}")
+                .method("GET", HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println(response.body());
+    }
+}
+`
     };
 
     return (
         <div className={styles.pageWrapper}>
-            <Header />
             <main className={styles.main}>
                 <div className={styles.intro}>
                     <h1>API <span className={styles.highlight}>Documentation</span></h1>
@@ -106,13 +161,15 @@ print(res.json())`
                         <button className={activeTab === 'curl' ? styles.active : ''} onClick={() => setActiveTab('curl')}>cURL</button>
                         <button className={activeTab === 'js' ? styles.active : ''} onClick={() => setActiveTab('js')}>Node.js</button>
                         <button className={activeTab === 'python' ? styles.active : ''} onClick={() => setActiveTab('python')}>Python</button>
+                        <button className={activeTab === 'go' ? styles.active : ''} onClick={() => setActiveTab('go')}>Go</button>
+                        <button className={activeTab === 'php' ? styles.active : ''} onClick={() => setActiveTab('php')}>PHP</button>
+                        <button className={activeTab === 'java' ? styles.active : ''} onClick={() => setActiveTab('java')}>Java</button>
                     </div>
                     <pre className={styles.codeSnippet}>
                         {codeExamples[activeTab as keyof typeof codeExamples]}
                     </pre>
                 </section>
             </main>
-            <Footer />
         </div>
     );
 }

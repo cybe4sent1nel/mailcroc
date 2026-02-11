@@ -7,9 +7,13 @@ import { generateEmailAddress, type GenerationMode } from '@/lib/domains';
 import LottiePlayer from '@/components/LottiePlayer';
 import { useToast } from '@/components/Toast/ToastContext'; // Import useToast
 
+import Link from 'next/link';
+import ConfirmationModal from '@/components/Modal/ConfirmationModal';
+import mailRefreshAnim from '../../../public/animations/mailrefresh.json';
 import noMsgAnim from '../../../public/animations/nomesage_inbox.json';
 import mailSentAnim from '../../../public/animations/Email_sent.json';
 import sessionExpAnim from '../../../public/animations/sessionexpire.json';
+import newMsgAnim from '../../../public/animations/Mailbox.json';
 
 interface EmailMessage {
     _id: string;
@@ -64,6 +68,7 @@ const MailBox = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [copied, setCopied] = useState(false);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Premium feature states
     const [showCompose, setShowCompose] = useState(false);
@@ -75,11 +80,18 @@ const MailBox = () => {
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isSessionExpired, setIsSessionExpired] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [showNewMsgAnim, setShowNewMsgAnim] = useState(false);
+
+    // Confirmation Modal State
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
 
     const { addToast } = useToast(); // Hook
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const generateNewIdentity = useCallback(() => {
+        if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
         const modes: GenerationMode[] = [];
         if (toggles.standard) modes.push('standard');
         if (toggles.plus) modes.push('plus');
@@ -97,6 +109,7 @@ const MailBox = () => {
         setMessages([]);
         setSelectedMessage(null);
         setIsSessionExpired(false);
+        setExpiryMinutes(null); // Reset expiry UI
         return config;
     }, [toggles]);
 
@@ -144,6 +157,16 @@ const MailBox = () => {
                 setMessages(prev => {
                     // Avoid duplicates
                     if (prev.some(m => m._id === newMsg._id)) return prev;
+
+                    // Trigger Animation and Sound for new message
+                    setShowNewMsgAnim(true);
+                    try {
+                        const audio = new Audio('/animations/notification.wav');
+                        audio.play().catch(e => console.error('Audio play failed', e));
+                    } catch (e) { console.error(e); }
+
+                    setTimeout(() => setShowNewMsgAnim(false), 3000); // Hide after 3s
+
                     return [newMsg, ...prev];
                 });
             };
@@ -164,10 +187,15 @@ const MailBox = () => {
     // Fetch messages from API
     const fetchMessages = useCallback(async () => {
         if (!emailAddress) return;
+        setIsRefreshing(true);
         try {
-            const res = await fetch(`/api/emails?address=${encodeURIComponent(emailAddress)}`);
+            const [res] = await Promise.all([
+                fetch(`/api/emails?address=${encodeURIComponent(emailAddress)}`, { headers: { 'x-api-key': 'public_beta_key_v1' } }),
+                new Promise(resolve => setTimeout(resolve, 1000))
+            ]);
             if (res.ok) setMessages(await res.json());
         } catch (err) { console.error('Fetch error:', err); }
+        finally { setIsRefreshing(false); }
     }, [emailAddress]);
 
     useEffect(() => { if (emailAddress) fetchMessages(); }, [emailAddress, fetchMessages]);
@@ -185,7 +213,7 @@ const MailBox = () => {
     // Premium: Pin/Unpin
     const togglePin = async (emailId: string, currentPinned: boolean) => {
         try {
-            await fetch('/api/emails', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailId, action: 'pin', value: !currentPinned }) });
+            await fetch('/api/emails', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' }, body: JSON.stringify({ emailId, action: 'pin', value: !currentPinned }) });
             setMessages(prev => prev.map(m => m._id === emailId ? { ...m, pinned: !currentPinned } : m));
             if (selectedMessage?._id === emailId) setSelectedMessage({ ...selectedMessage, pinned: !currentPinned });
         } catch (err) { console.error(err); }
@@ -195,9 +223,12 @@ const MailBox = () => {
     const setExpiry = async (minutes: number | null) => {
         setExpiryMinutes(minutes);
         try {
-            await fetch('/api/emails', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'expiry', value: minutes, address: emailAddress }) });
+            await fetch('/api/emails', { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' }, body: JSON.stringify({ action: 'expiry', value: minutes, address: emailAddress }) });
+
+            if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+
             if (minutes && minutes > 0) {
-                setTimeout(() => {
+                expiryTimerRef.current = setTimeout(() => {
                     setIsSessionExpired(true);
                     setMessages([]);
                     setSelectedMessage(null);
@@ -208,17 +239,25 @@ const MailBox = () => {
 
     // New: Delete Email
     const handleDelete = async (emailId: string) => {
-        if (!confirm('Delete this email?')) return;
+        setEmailToDelete(emailId);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!emailToDelete) return;
         try {
             await fetch('/api/emails', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ emailId, address: emailAddress })
+                headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' },
+                body: JSON.stringify({ emailId: emailToDelete, address: emailAddress })
             });
-            setMessages(prev => prev.filter(m => m._id !== emailId));
-            if (selectedMessage?._id === emailId) setSelectedMessage(null);
+            setMessages(prev => prev.filter(m => m._id !== emailToDelete));
+            if (selectedMessage?._id === emailToDelete) setSelectedMessage(null);
             setOpenMenuId(null);
-        } catch (err) { console.error(err); }
+            addToast('Email deleted successfully', 'success');
+        } catch (err) { console.error(err); addToast('Failed to delete email', 'error'); }
+        setShowDeleteConfirm(false);
+        setEmailToDelete(null);
     };
 
     // New: Toggle Read Status
@@ -226,7 +265,7 @@ const MailBox = () => {
         try {
             await fetch('/api/emails', {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' },
                 body: JSON.stringify({ emailId, action: 'read', value: !currentRead })
             });
             setMessages(prev => prev.map(m => m._id === emailId ? { ...m, read: !currentRead } : m));
@@ -278,6 +317,7 @@ const MailBox = () => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', url);
             xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('x-api-key', 'public_beta_key_v1');
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
@@ -366,6 +406,48 @@ const MailBox = () => {
         if (activeTabIndex >= newTabs.length) setActiveTabIndex(Math.max(0, newTabs.length - 1));
     };
 
+    // Helper: Generate consistent color for avatar
+    const getAvatarColor = (email: string) => {
+        const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e'];
+        let hash = 0;
+        for (let i = 0; i < email.length; i++) hash = email.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    };
+
+    const getInitials = (email: string) => {
+        return email.slice(0, 2).toUpperCase();
+    };
+
+    // Helper: Enhance HTML with target="_blank" for links and linkify plain text URLs
+    const processHtml = (html: string) => {
+        if (!html) return '';
+
+        // 1. If content has no HTML tags, or just basic text, try to linkify URLs
+        // Simple heuristic: check if it contains <a href or other common tags. 
+        // If it looks like plain text with URLs, we wrap it.
+        // But to be safe, we can just run a replacement on text nodes if we entered a full parser, 
+        // but here we are doing string manipulation.
+
+        let processed = html;
+
+        // If it doesn't look like HTML (no tags), treat as plain text and linkify
+        // OR if it's mixed, we might break attributes. 
+        // Safest: If no <a> tags, linkify URLs. 
+        if (!processed.includes('<a ')) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            processed = processed.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">${url}</a>`);
+            // Also replace newlines with <br> if it's plain text being rendered as HTML
+            if (!processed.includes('<br') && !processed.includes('<p>')) {
+                processed = processed.replace(/\n/g, '<br/>');
+            }
+        } else {
+            // It has <a> tags. Just ensure they are target="_blank"
+            processed = processed.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
+        }
+
+        return processed;
+    };
+
     if (isSessionExpired) {
         return (
             <div className={styles.container}>
@@ -444,7 +526,14 @@ const MailBox = () => {
 
                 {/* Action Buttons */}
                 <div className={styles.actionRow}>
-                    <button onClick={fetchMessages} className={styles.actionBtn} title="Refresh"><RefreshCw size={16} /> Refresh</button>
+                    <button onClick={fetchMessages} className={styles.actionBtn} title="Refresh" disabled={isRefreshing}>
+                        {isRefreshing ? (
+                            <LottiePlayer animationData={mailRefreshAnim} style={{ width: 24, height: 24 }} loop={true} />
+                        ) : (
+                            <RefreshCw size={16} />
+                        )}
+                        Refresh
+                    </button>
                     {!isCustomMode && <button onClick={generateNewIdentity} className={styles.actionBtnAccent} title="Generate New"><Shuffle size={16} /> Generate New</button>}
                     <button onClick={() => { setShowCompose(true); setComposeData({ to: '', subject: '', body: '' }); }} className={styles.actionBtn} title="Compose"><Send size={16} /> Compose</button>
                     {inboxTabs.length === 0 && <button onClick={addInboxTab} className={styles.actionBtn} title="Pin inbox as tab"><Plus size={16} /> Add Tab</button>}
@@ -460,6 +549,16 @@ const MailBox = () => {
                 </div>
             </div>
 
+            {/* New Message Animation Overlay */}
+            {
+                showNewMsgAnim && (
+                    <div className={styles.newMsgOverlay}>
+                        <LottiePlayer animationData={newMsgAnim} style={{ width: 200, height: 200 }} loop={false} />
+                        <div className={styles.newMsgText}>New Message!</div>
+                    </div>
+                )
+            }
+
             {/* Content Area */}
             <div className={styles.contentArea}>
                 <div className={`${styles.messageList} ${selectedMessage ? styles.hiddenMobile : ''}`}>
@@ -473,14 +572,27 @@ const MailBox = () => {
                     ) : (
                         messages.map((msg) => (
                             <div key={msg._id} className={`${styles.messageItem} ${selectedMessage?._id === msg._id ? styles.active : ''} ${msg.pinned ? styles.pinned : ''} ${!msg.read ? styles.unread : ''}`} onClick={() => { setSelectedMessage(msg); if (!msg.read) toggleRead(msg._id, false); }}>
-                                <button className={`${styles.pinBtn} ${msg.pinned ? styles.pinActive : ''}`} onClick={(e) => { e.stopPropagation(); togglePin(msg._id, !!msg.pinned); }} title={msg.pinned ? 'Unpin' : 'Pin'}>
-                                    <Star size={14} fill={msg.pinned ? "currentColor" : "none"} />
-                                </button>
-                                <div className={styles.msgContent}>
-                                    <div className={styles.msgSender}>{msg.from}</div>
-                                    <div className={styles.msgSubject}>{msg.subject || '(No Subject)'}</div>
+                                {/* Unread Icon */}
+                                {!msg.read && <img src="/unread icon.svg" alt="Unread" className={styles.unreadIcon} />}
+
+                                {/* Avatar */}
+                                <div className={styles.avatar} style={{ backgroundColor: getAvatarColor(msg.from) }}>
+                                    {getInitials(msg.from)}
                                 </div>
-                                <div className={styles.msgTime}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                <div className={styles.msgContent}>
+                                    <div className={styles.msgHeaderRow}>
+                                        <div className={styles.msgSender}>{msg.from}</div>
+                                        <div className={styles.msgDate}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                    </div>
+                                    <div className={styles.msgSubjectRow}>
+                                        <div className={styles.msgSubject}>{msg.subject || '(No Subject)'}</div>
+                                        <div className={styles.msgSnippet}>- {msg.text?.slice(0, 40) || 'No preview'}...</div>
+                                    </div>
+
+                                    {msg.pinned && (
+                                        <Star size={12} fill="#10b981" color="#10b981" style={{ marginTop: 4 }} />
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}
@@ -516,11 +628,19 @@ const MailBox = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <h2>{selectedMessage.subject || '(No Subject)'}</h2>
-                                <div className={styles.meta}>
-                                    <span>From: <strong>{selectedMessage.from}</strong></span>
-                                    <span>{new Date(selectedMessage.receivedAt).toLocaleString()}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                                    <div className={`${styles.avatar} ${styles.avatarLarge}`} style={{ backgroundColor: getAvatarColor(selectedMessage.from) }}>
+                                        {getInitials(selectedMessage.from)}
+                                    </div>
+                                    <div>
+                                        <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{selectedMessage.subject || '(No Subject)'}</h2>
+                                        <div className={styles.meta} style={{ margin: 0 }}>
+                                            <span>{selectedMessage.from}</span>
+                                            <span>{new Date(selectedMessage.receivedAt).toLocaleString()}</span>
+                                        </div>
+                                    </div>
                                 </div>
+
                                 <div className={styles.emailActions}>
                                     <button className={styles.emailActionBtn} onClick={() => { setShowReply(true); setComposeData({ to: selectedMessage.from, subject: `Re: ${selectedMessage.subject}`, body: '' }); }}>
                                         <Reply size={14} /> Reply
@@ -530,7 +650,7 @@ const MailBox = () => {
                                     </button>
                                 </div>
                             </div>
-                            <div className={styles.emailBody} dangerouslySetInnerHTML={{ __html: selectedMessage.html || selectedMessage.text }} />
+                            <div className={styles.emailBody} dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html || selectedMessage.text) }} />
                         </div>
                     ) : (
                         <div className={styles.placeholder}><p>Select a message to read</p></div>
@@ -539,84 +659,97 @@ const MailBox = () => {
             </div>
 
             {/* Compose / Reply / Forward Modal */}
-            {(showCompose || showReply || showForward) && (
-                <div className={styles.modalOverlay} onClick={() => { setShowCompose(false); setShowReply(false); setShowForward(false); }}>
-                    <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3>{showReply ? 'Reply' : showForward ? 'Forward' : 'Compose'}</h3>
-                            <button className={styles.modalClose} onClick={() => { setShowCompose(false); setShowReply(false); setShowForward(false); }}><X size={18} /></button>
-                        </div>
-                        <div className={styles.modalBody}>
-                            {/* Success State */}
-                            {sendStatus === 'Sent!' ? (
-                                <div className={styles.successState}>
-                                    <LottiePlayer animationData={mailSentAnim} style={{ width: 150, height: 150 }} loop={false} />
-                                    <p>Sent Successfully!</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className={styles.modalField}><label>From</label><input type="text" value={emailAddress} disabled className={styles.modalInput} /></div>
-                                    <div className={styles.modalField}><label>To</label><input type="text" value={composeData.to} onChange={(e) => setComposeData({ ...composeData, to: e.target.value })} className={styles.modalInput} placeholder="recipient@example.com" /></div>
-                                    <div className={styles.modalField}><label>Subject</label><input type="text" value={composeData.subject} onChange={(e) => setComposeData({ ...composeData, subject: e.target.value })} className={styles.modalInput} placeholder="Subject" /></div>
-                                    <div className={styles.modalField}>
-                                        <label>Message</label>
-                                        <textarea value={composeData.body} onChange={(e) => setComposeData({ ...composeData, body: e.target.value })} className={styles.modalTextarea} placeholder="Write your message..." rows={6} />
+            {
+                (showCompose || showReply || showForward) && (
+                    <div className={styles.modalOverlay} onClick={() => { setShowCompose(false); setShowReply(false); setShowForward(false); }}>
+                        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+                            <div className={styles.modalHeader}>
+                                <h3>{showReply ? 'Reply' : showForward ? 'Forward' : 'Compose'}</h3>
+                                <button className={styles.modalClose} onClick={() => { setShowCompose(false); setShowReply(false); setShowForward(false); }}><X size={18} /></button>
+                            </div>
+                            <div className={styles.modalBody}>
+                                {/* Success State */}
+                                {sendStatus === 'Sent!' ? (
+                                    <div className={styles.successState}>
+                                        <LottiePlayer animationData={mailSentAnim} style={{ width: 150, height: 150 }} loop={false} />
+                                        <p>Sent Successfully!</p>
                                     </div>
-
-                                    {/* Attachment Section */}
-                                    <div className={styles.modalField}>
-                                        <label>Attachments</label>
-                                        <div className={styles.attachmentArea}>
-                                            <input
-                                                type="file"
-                                                multiple
-                                                ref={fileInputRef}
-                                                onChange={handleFileChange}
-                                                className={styles.fileInput}
-                                                style={{ display: 'none' }}
-                                            />
-                                            <button className={styles.attachBtn} onClick={() => fileInputRef.current?.click()}>
-                                                <Paperclip size={14} /> Attach Files
-                                            </button>
-                                            <span className={styles.attachHint}>Max 25MB total</span>
+                                ) : (
+                                    <>
+                                        <div className={styles.modalField}><label>From</label><input type="text" value={emailAddress} disabled className={styles.modalInput} /></div>
+                                        <div className={styles.modalField}><label>To</label><input type="text" value={composeData.to} onChange={(e) => setComposeData({ ...composeData, to: e.target.value })} className={styles.modalInput} placeholder="recipient@example.com" /></div>
+                                        <div className={styles.modalField}><label>Subject</label><input type="text" value={composeData.subject} onChange={(e) => setComposeData({ ...composeData, subject: e.target.value })} className={styles.modalInput} placeholder="Subject" /></div>
+                                        <div className={styles.modalField}>
+                                            <label>Message</label>
+                                            <textarea value={composeData.body} onChange={(e) => setComposeData({ ...composeData, body: e.target.value })} className={styles.modalTextarea} placeholder="Write your message..." rows={6} />
                                         </div>
-                                        {attachments.length > 0 && (
-                                            <div className={styles.attachmentList}>
-                                                {attachments.map((file, i) => (
-                                                    <div key={i} className={styles.attachmentItem}>
-                                                        <span className={styles.truncName}>{file.name}</span>
-                                                        <span className={styles.fileSize}>({(file.size / 1024).toFixed(1)} KB)</span>
-                                                        <button onClick={() => removeAttachment(i)} className={styles.removeAttach}><X size={12} /></button>
-                                                    </div>
-                                                ))}
+
+                                        {/* Attachment Section */}
+                                        <div className={styles.modalField}>
+                                            <label>Attachments</label>
+                                            <div className={styles.attachmentArea}>
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileChange}
+                                                    className={styles.fileInput}
+                                                    style={{ display: 'none' }}
+                                                />
+                                                <button className={styles.attachBtn} onClick={() => fileInputRef.current?.click()}>
+                                                    <Paperclip size={14} /> Attach Files
+                                                </button>
+                                                <span className={styles.attachHint}>Max 25MB total</span>
                                             </div>
-                                        )}
-                                    </div>
-                                </>
+                                            {attachments.length > 0 && (
+                                                <div className={styles.attachmentList}>
+                                                    {attachments.map((file, i) => (
+                                                        <div key={i} className={styles.attachmentItem}>
+                                                            <span className={styles.truncName}>{file.name}</span>
+                                                            <span className={styles.fileSize}>({(file.size / 1024).toFixed(1)} KB)</span>
+                                                            <button onClick={() => removeAttachment(i)} className={styles.removeAttach}><X size={12} /></button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {sendStatus !== 'Sent!' && (
+                                <div className={styles.modalFooter}>
+                                    {sendStatus && (
+                                        <div className={styles.statusContainer}>
+                                            <span className={styles.sendStatus}>{sendStatus}</span>
+                                            {uploadProgress > 0 && uploadProgress < 100 && (
+                                                <div className={styles.progressBar}>
+                                                    <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }}></div>
+                                                    <span className={styles.progressText}>{uploadProgress}%</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    <button className={styles.sendBtn} onClick={() => handleSend(showReply ? 'reply' : showForward ? 'forward' : 'compose', composeData.to, composeData.subject, composeData.body, showReply ? selectedMessage?._id : undefined)} disabled={!!sendStatus}>
+                                        <Send size={16} /> Send
+                                    </button>
+                                </div>
                             )}
                         </div>
-                        {sendStatus !== 'Sent!' && (
-                            <div className={styles.modalFooter}>
-                                {sendStatus && (
-                                    <div className={styles.statusContainer}>
-                                        <span className={styles.sendStatus}>{sendStatus}</span>
-                                        {uploadProgress > 0 && uploadProgress < 100 && (
-                                            <div className={styles.progressBar}>
-                                                <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }}></div>
-                                                <span className={styles.progressText}>{uploadProgress}%</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                <button className={styles.sendBtn} onClick={() => handleSend(showReply ? 'reply' : showForward ? 'forward' : 'compose', composeData.to, composeData.subject, composeData.body, showReply ? selectedMessage?._id : undefined)} disabled={!!sendStatus}>
-                                    <Send size={16} /> Send
-                                </button>
-                            </div>
-                        )}
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteConfirm}
+                onClose={() => { setShowDeleteConfirm(false); setEmailToDelete(null); }}
+                onConfirm={confirmDelete}
+                title="Delete Email"
+                message="Are you sure you want to delete this email? This action cannot be undone."
+                confirmText="Delete"
+                isDestructive={true}
+            />
+        </div >
     );
 };
 

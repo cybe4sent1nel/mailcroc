@@ -5,10 +5,10 @@ import { findEmailById } from '@/lib/github-db';
 
 export const runtime = 'edge';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     if (!validateApiKey(req)) return unauthorizedResponse();
 
-    const { id } = params;
+    const { id } = await params;
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
     try {

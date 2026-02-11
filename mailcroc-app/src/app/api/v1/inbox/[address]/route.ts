@@ -5,10 +5,10 @@ import { getEmailsByAddress, deleteInbox } from '@/lib/github-db';
 
 export const runtime = 'edge';
 
-export async function GET(req: NextRequest, { params }: { params: { address: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ address: string }> }) {
     if (!validateApiKey(req)) return unauthorizedResponse();
 
-    const { address } = params;
+    const { address } = await params;
     if (!address) return NextResponse.json({ error: 'Address required' }, { status: 400 });
 
     try {
@@ -23,10 +23,10 @@ export async function GET(req: NextRequest, { params }: { params: { address: str
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { address: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ address: string }> }) {
     if (!validateApiKey(req)) return unauthorizedResponse();
 
-    const { address } = params;
+    const { address } = await params;
     if (!address) return NextResponse.json({ error: 'Address required' }, { status: 400 });
 
     try {

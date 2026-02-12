@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     shortcut: "/logo.png",
     apple: "/logo.png",
   },
+  other: {
+    "google-adsense-account": "ca-pub-2332002596329232",
+  },
 };
 
 import { ToastProvider } from "@/components/Toast/ToastContext"; // Import Provider
@@ -65,6 +68,13 @@ export default function RootLayout({
           }
         `}
         </Script>
+        <Script
+          id="adsense-init"
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2332002596329232"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

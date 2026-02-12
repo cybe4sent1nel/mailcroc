@@ -27,7 +27,10 @@ export default function TermsPage() {
                         <li>Distributing malware or viruses.</li>
                     </ul>
 
-                    <h2>4. Disclaimer</h2>
+                    <h2>4. Advertisements</h2>
+                    <p>This website uses Google AdSense to display advertisements. By using the site, you agree to the use of cookies by Google and its partners for ad personalization.</p>
+
+                    <h2>5. Disclaimer</h2>
                     <p>The service is provided "as is" without warranties of any kind. We are not responsible for any messages lost due to system failure or auto-deletion.</p>
                 </section>
             </main>

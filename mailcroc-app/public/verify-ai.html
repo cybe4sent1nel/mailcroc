@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Puter AI - Kimi & ElevenLabs</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #f8fafc;
+            color: #334155;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #475569;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 0.5rem;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        button.secondary {
+            background: #64748b;
+        }
+
+        .output {
+            margin-top: 10px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            min-height: 40px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.9rem;
+        }
+
+        .status {
+            font-size: 0.8rem;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .status.wait {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status.success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>AI Model Verification</h1>
+    <p>Testing specific configurations for MailCroc integration.</p>
+
+    <!-- 1. Text Generation -->
+    <div class="card">
+        <h2>1. Text Generation (Kimi) <span id="status-text" class="status">Idle</span></h2>
+        <p>Model: <strong>Kimi (Moonshot AI)</strong></p>
+        <textarea id="prompt-text" rows="2">Draft a professional email reply accepting a job offer.</textarea>
+        <br />
+        <button onclick="testText()">Generate Response</button>
+        <div id="out-text" class="output">Waiting...</div>
+    </div>
+
+    <!-- 2. Speech -->
+    <div class="card">
+        <h2>2. Speech Synthesis (ElevenLabs) <span id="status-speech" class="status">Idle</span></h2>
+        <textarea id="prompt-speech"
+            rows="2">Hello! This is a demo of the premium Eleven Labs voice synthesis.</textarea>
+        <br />
+        <!-- Using common ElevenLabs voice IDs or names that Puter likely maps to -->
+        <button onclick="testSpeech('Rachel')">Female (Rachel)</button>
+        <button onclick="testSpeech('Drew')">Male (Drew)</button>
+        <button class="secondary" onclick="testSpeech('Clyde')">Deep (Clyde)</button>
+        <button class="secondary" onclick="testSpeech('Mimi')">Soft (Mimi)</button>
+        <div id="out-speech" class="output">Waiting...</div>
+    </div>
+
+    <!-- 3. Vision -->
+    <div class="card">
+        <h2>3. Vision Analysis <span id="status-vision" class="status">Idle</span></h2>
+        <p>Model: <strong>GPT-4o / Vision Capable</strong></p>
+        <input type="file" id="imageInput" accept="image/*">
+        <div id="imagePreview"></div>
+        <br />
+        <button onclick="testVision()">Analyze Image</button>
+        <div id="out-vision" class="output">Waiting...</div>
+    </div>
+
+    <script>
+        // --- TEXT ---
+        async function testText() {
+            const out = document.getElementById('out-text');
+            const status = document.getElementById('status-text');
+            const prompt = document.getElementById('prompt-text').value;
+
+            out.innerText = "Connecting to Moonshot AI (Kimi)...";
+            status.className = 'status wait'; status.innerText = 'Running';
+
+            try {
+                // Specifying 'kimi' usually defaults to their latest stable model
+                const resp = await puter.ai.chat(prompt, { model: 'kimi' });
+                const text = resp?.message?.content || JSON.stringify(resp);
+                out.innerText = text;
+                status.className = 'status success'; status.innerText = 'Success';
+            } catch (e) {
+                out.innerText = "Error: " + e.message;
+                status.className = 'status error'; status.innerText = 'Failed';
+                console.error(e);
+            }
+        }
+
+        // --- SPEECH ---
+        async function testSpeech(voiceName) {
+            const out = document.getElementById('out-speech');
+            const status = document.getElementById('status-speech');
+            const text = document.getElementById('prompt-speech').value;
+
+            out.innerText = `Synthesizing with Voice: ${voiceName}...`;
+            status.className = 'status wait'; status.innerText = 'Running';
+
+            try {
+                // If Puter supports voice selection, it's usually via the 'voice' param
+                const audio = await puter.ai.txt2speech(text, {
+                    model: 'eleven_turbo_v2', // High quality, low latency
+                    voice: voiceName
+                });
+
+                out.innerHTML = '';
+                if (audio instanceof HTMLAudioElement) {
+                    audio.controls = true;
+                    out.appendChild(audio);
+                    audio.play();
+                } else if (typeof audio === 'string') {
+                    const el = document.createElement('audio');
+                    el.src = audio;
+                    el.controls = true;
+                    out.appendChild(el);
+                    el.play();
+                } else {
+                    out.innerText = "Unknown output format.";
+                }
+                status.className = 'status success'; status.innerText = 'Success';
+            } catch (e) {
+                out.innerText = "Error: " + e.message;
+                status.className = 'status error'; status.innerText = 'Failed';
+                console.error(e);
+            }
+        }
+
+        // --- VISION ---
+        async function testVision() {
+            const out = document.getElementById('out-vision');
+            const status = document.getElementById('status-vision');
+            const fileInput = document.getElementById('imageInput');
+
+            if (!fileInput.files.length) { alert("Please select an image."); return; }
+
+            const file = fileInput.files[0];
+            const imgPreview = document.getElementById('imagePreview');
+            imgPreview.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.maxHeight = '200px';
+            imgPreview.appendChild(img);
+
+            out.innerText = "Analyzing image content...";
+            status.className = 'status wait'; status.innerText = 'Running';
+
+            try {
+                const resp = await puter.ai.chat("Describe this image in detail.", {
+                    model: 'gpt-4o',
+                    images: [file]
+                });
+
+                const text = resp?.message?.content || JSON.stringify(resp);
+                out.innerText = text;
+                status.className = 'status success'; status.innerText = 'Success';
+            } catch (e) {
+                out.innerText = "Error: " + e.message;
+                status.className = 'status error'; status.innerText = 'Failed';
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+
+</html>

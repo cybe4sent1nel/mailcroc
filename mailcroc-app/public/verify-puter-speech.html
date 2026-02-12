@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Puter.js Speech (ElevenLabs)</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Verify Puter.js - Text to Speech</h1>
+    <p>Testing model: <strong>ElevenLabs</strong></p>
+
+    <button onclick="testTTS()">Generate & Play Speech</button>
+    <div id="output">Waiting to start...</div>
+
+    <script>
+        async function testTTS() {
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = "Initializing Puter...";
+            outputDiv.style.color = "black";
+
+            try {
+                if (!window.puter) {
+                    throw new Error("Puter.js not loaded!");
+                }
+
+                outputDiv.innerHTML = "Puter loaded. Requesting TTS (ElevenLabs)...";
+
+                // Usage for ElevenLabs via Puter
+                // According to general docs, might be puter.ai.txt2speech
+                const audio = await puter.ai.txt2speech("Hello! This is a test of the Eleven Labs integration in Mail Croc.", {
+                    model: 'eleven_turbo_v2' // Common model ID
+                });
+
+                if (audio) {
+                    outputDiv.innerHTML = `<strong>Success!</strong> Audio generated.<br/>`;
+                    // Puter usually returns an Audio object or URL. 
+                    // If it plays automatically, great. If not, we append controls.
+
+                    if (audio instanceof HTMLAudioElement) {
+                        audio.controls = true;
+                        outputDiv.appendChild(audio);
+                        audio.play();
+                    } else if (typeof audio === 'string') {
+                        // Likely a URL
+                        const audioEl = document.createElement('audio');
+                        audioEl.src = audio;
+                        audioEl.controls = true;
+                        outputDiv.appendChild(audioEl);
+                        audioEl.play();
+                    } else {
+                        outputDiv.innerHTML += "Unknown response format (check console).";
+                        console.log(audio);
+                    }
+                } else {
+                    throw new Error("No audio returned.");
+                }
+
+            } catch (error) {
+                console.error(error);
+                outputDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

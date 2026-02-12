@@ -82,6 +82,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
+        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
       </body>
     </html>
   );

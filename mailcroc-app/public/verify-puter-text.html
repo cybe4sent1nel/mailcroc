@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Puter.js Text (Kimi)</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        #output { margin-top: 20px; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; background: #f9f9f9; min-height: 100px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Verify Puter.js - Text Generation</h1>
+    <p>Testing model: <strong>kimi (Moonshot)</strong></p>
+    
+    <button onclick="testTextGeneration()">Generate Text</button>
+    <div id="output">Running verification... Click button to start.</div>
+
+    <script>
+        async function testTextGeneration() {
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = "Initializing Puter...";
+            outputDiv.style.color = "black";
+
+            try {
+                if (!window.puter) {
+                    throw new Error("Puter.js not loaded!");
+                }
+
+                outputDiv.innerHTML = "Puter loaded. Sending request to AI (Model: kimi)...";
+
+                // Attempt to use Kimi model
+                // Note: 'kimi' or 'moonshot-v1-8k' might be the model ID. trying defaults or explicit
+                const response = await puter.ai.chat("Explain briefly what MailCroc is in one sentence.", { model: 'kimi' });
+
+                console.log("Full Response:", response);
+                
+                let text = "";
+                if (typeof response === 'string') {
+                    text = response;
+                } else if (response?.message?.content) {
+                    text = response.message.content; // OpenAI style
+                } else {
+                    text = JSON.stringify(response, null, 2);
+                }
+
+                outputDiv.innerHTML = `<strong>Success!</strong><br/>Response:<br/>${text}`;
+
+            } catch (error) {
+                console.error(error);
+                outputDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

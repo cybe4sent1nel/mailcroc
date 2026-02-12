@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './MailBox.module.css';
-import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode } from 'lucide-react';
+import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { generateEmailAddress, type GenerationMode } from '@/lib/domains';
 import LottiePlayer from '@/components/LottiePlayer';
@@ -103,9 +103,45 @@ const MailBox = () => {
     const [exportFormat, setExportFormat] = useState<'md' | 'json'>('md');
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
+    const [aiWriteTopic, setAiWriteTopic] = useState('');
+    const [showAiWritePopover, setShowAiWritePopover] = useState(false);
+
+    // --- State: Dragging ---
+    const [composePos, setComposePos] = useState({ x: 100, y: 100 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        dragOffset.current = {
+            x: e.clientX - composePos.x,
+            y: e.clientY - composePos.y
+        };
+    };
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDragging) return;
+            setComposePos({
+                x: e.clientX - dragOffset.current.x,
+                y: e.clientY - dragOffset.current.y
+            });
+        };
+        const handleMouseUp = () => setIsDragging(false);
+
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
 
     // --- Refs ---
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const composeFileInputRef = useRef<HTMLInputElement>(null);
     const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
     const deferredPrompt = useRef<any>(null);
 
@@ -160,7 +196,7 @@ const MailBox = () => {
             if (expiryTimerRef.current) clearInterval(expiryTimerRef.current);
         }
         return () => { if (expiryTimerRef.current) clearInterval(expiryTimerRef.current); };
-    }, [expiryMinutes]); // Dependency on seconds removed to avoid re-triggering interval
+    }, [expiryMinutes, currentConfig?.address]); // Use address literal for stable dependency check
 
     const handleTimeSelect = (minutes: number | null) => {
         setExpiryMinutes(minutes);
@@ -301,7 +337,7 @@ const MailBox = () => {
 
     // --- Identity Logic ---
     const generateNewIdentity = useCallback(() => {
-        if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+        if (expiryTimerRef.current) clearInterval(expiryTimerRef.current);
         const modes: GenerationMode[] = [];
         if (toggles.standard) modes.push('standard');
         if (toggles.plus) modes.push('plus');
@@ -468,6 +504,46 @@ const MailBox = () => {
         setTimeout(() => setCopied(false), 1500);
     };
 
+    const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        const currentCount = attachments.length;
+        const incomingFiles = Array.from(files);
+
+        if (currentCount + incomingFiles.length > 5) {
+            addToast("Maximum 5 attachments allowed", "error");
+            return;
+        }
+
+        incomingFiles.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64Content = (event.target?.result as string).split(',')[1];
+                setAttachments(prev => [...prev, {
+                    name: file.name,
+                    content: base64Content,
+                    type: file.type,
+                    size: file.size
+                }]);
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const getFileIcon = (type: string) => {
+        if (type.startsWith('image/')) return <Image size={14} className="text-blue-500" />;
+        if (type.startsWith('audio/')) return <FileAudio size={14} className="text-purple-500" />;
+        if (type.startsWith('video/')) return <FileVideo size={14} className="text-orange-500" />;
+        if (type === 'application/pdf') return <FileText size={14} className="text-red-500" />;
+        if (type.includes('zip') || type.includes('archive')) return <Archive size={14} className="text-yellow-600" />;
+        return <File size={14} className="text-gray-500" />;
+    };
+
     const handleSend = async () => {
         if (!composeData.to || !composeData.subject) { addToast("Recipient and subject required", "error"); return; }
         setSendStatus('Sending...');
@@ -525,37 +601,174 @@ const MailBox = () => {
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    const handleReadAloud = async () => {
-        if (!selectedMessage || isPlayingAudio) return;
-        setIsPlayingAudio(true);
+    // --- AI Logic (Puter.js with Fallbacks) ---
+    const handleAiAction = async (action: 'summarize' | 'receipts' | 'draft' | 'summarize_selected') => {
+        setIsSummarizing(true);
         try {
-            // Prefer text content, fallback to subject
-            const textToRead = selectedMessage.text || selectedMessage.subject;
+            let prompt = "";
+            if (action === 'summarize') {
+                prompt = "Summarize the following emails in a concise bulleted list:\n\n";
+                prompt += messages.slice(0, 10).map(m => `- From: ${m.from}, Subject: ${m.subject}\nContent: ${m.text.slice(0, 200)}...`).join('\n');
+            } else if ((action as string) === 'summarize_selected') {
+                if (!selectedMessage) return;
+                prompt = `Summarize the following email concisely:\n\nFrom: ${selectedMessage.from}\nSubject: ${selectedMessage.subject}\nContent: ${selectedMessage.text}`;
+            } else if (action === 'receipts') {
+                prompt = "Identify any receipts or financial transactions in these emails. List the Amount, Date, and Merchant:\n\n";
+                prompt += messages.map(m => `Subject: ${m.subject}\nContent: ${m.text.slice(0, 300)}`).join('\n');
+            } else if (action === 'draft') {
+                if (!selectedMessage) { addToast("Select an email to draft a reply for.", "error"); setIsSummarizing(false); return; }
+                const tone = "professional";
+                prompt = `Draft a ${tone} reply to the following email. Keep it concise.\n\nFrom: ${selectedMessage.from}\nSubject: ${selectedMessage.subject}\nContent: ${selectedMessage.text}`;
+            }
 
-            const res = await fetch('/api/ai/speech', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: textToRead.slice(0, 800), gender: voiceGender }) // Limit length & pass gender
-            });
+            let text = "";
+            // Primary: Puter.js
+            if ((window as any).puter) {
+                try {
+                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
+                } catch (e) {
+                    console.warn("Puter AI failed, trying backend fallback...", e);
+                }
+            }
 
-            if (!res.ok) throw new Error("Speech generation failed");
+            // Fallback: Backend API
+            if (!text) {
+                const res = await fetch('/api/ai/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: prompt, tone: 'Professional' })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    text = data.content;
+                }
+            }
 
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
+            if (!text) throw new Error("AI failed to generate response");
+
+            if (action === 'draft') {
+                setComposeData(prev => ({ ...prev, body: text }));
+                setShowDockedCompose(true);
+                addToast("Draft generated!", "success");
+            } else {
+                setSummary(text);
+                setShowAiSidePanel(true);
+                addToast("Analysis complete", "success");
+            }
+
+        } catch (err: any) {
+            console.error("AI Action Error:", err);
+            const msg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+            addToast(`AI Error: ${msg === '{}' ? 'Network or API Error' : msg}`, "error");
+        } finally {
+            setIsSummarizing(false);
+        }
+    };
+
+    const handleAiWrite = async (refinement?: 'polish' | 'formalize' | 'elaborate' | 'shorten') => {
+        if (!aiWriteTopic && !refinement) return;
+        setIsSummarizing(true);
+        if (!refinement) setShowAiWritePopover(false);
+        try {
+            let text = "";
+            let prompt = `Write a professional email about: ${aiWriteTopic}`;
+
+            if (refinement) {
+                const currentText = composeData.body;
+                if (!currentText) return;
+
+                if (refinement === 'polish') prompt = `Improve the grammar, flow, and clarity of this email text while keeping the same meaning:\n\n${currentText}`;
+                else if (refinement === 'formalize') prompt = `Rewrite this email to be more formal and professional:\n\n${currentText}`;
+                else if (refinement === 'elaborate') prompt = `Rewrite this email by adding more details, context, and elaborate on the points made:\n\n${currentText}`;
+                else if (refinement === 'shorten') prompt = `Rewrite this email to be much more concise and brief:\n\n${currentText}`;
+            }
+
+            // Try Puter first
+            if ((window as any).puter) {
+                try {
+                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
+                } catch (e) { console.warn("Puter AI Write failed", e); }
+            }
+
+            // Fallback
+            if (!text) {
+                const res = await fetch('/api/ai/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: refinement ? prompt : aiWriteTopic })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    text = data.content;
+                }
+            }
+
+            if (text) {
+                setComposeData(prev => ({ ...prev, body: text }));
+                addToast(refinement ? "Text refined!" : "Content generated!", "success");
+            }
+        } catch (err) {
+            addToast("Failed to process content", "error");
+        } finally {
+            setIsSummarizing(false);
+            if (!refinement) setAiWriteTopic('');
+        }
+    };
+
+    const handleReadAloud = async () => {
+        if (!selectedMessage) return;
+        if (isPlayingAudio) {
+            stopReadAloud();
+            return;
+        }
+
+        setIsPlayingAudio(true);
+        addToast("Generating speech...", "info");
+
+        try {
+            const textToRead = (selectedMessage.text || selectedMessage.subject).slice(0, 500);
+            const voiceId = voiceGender === 'female' ? 'Rachel' : 'Drew';
+
+            let audioSource: any = null;
+
+            // Try Puter
+            if ((window as any).puter) {
+                try {
+                    audioSource = await (window as any).puter.ai.txt2speech(textToRead, {
+                        model: 'eleven_turbo_v2',
+                        voice: voiceId
+                    });
+                } catch (e) { console.warn("Puter TTS failed", e); }
+            }
+
+            // Fallback: Backend
+            if (!audioSource) {
+                const res = await fetch('/api/ai/speech', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: textToRead, gender: voiceGender })
+                });
+                if (res.ok) {
+                    audioSource = await res.blob();
+                    audioSource = URL.createObjectURL(audioSource);
+                }
+            }
+
+            if (!audioSource) throw new Error("TTS failed");
+
+            const audio = (audioSource instanceof HTMLAudioElement) ? audioSource : new Audio(typeof audioSource === 'string' ? audioSource : URL.createObjectURL(audioSource));
             audioRef.current = audio;
-
             audio.onended = () => setIsPlayingAudio(false);
             audio.play();
+
         } catch (err) {
             console.error(err);
             addToast("Failed to read email aloud", "error");
             setIsPlayingAudio(false);
         }
     };
-
-
-
 
     const stopReadAloud = () => {
         if (audioRef.current) {
@@ -931,6 +1144,17 @@ const MailBox = () => {
                                                 <button className={styles.iconBtn} onClick={handleExportPDF} title="Download as PDF">
                                                     <FileText size={18} className="text-red-500" />
                                                 </button>
+
+                                                {activeFolder !== 'sent' && (
+                                                    <button
+                                                        className={styles.aiBtnSmall}
+                                                        onClick={() => handleAiAction('summarize_selected')}
+                                                        title="Summarize with AI"
+                                                    >
+                                                        <AILogo size={14} color="black" /> Summarize
+                                                    </button>
+                                                )}
+
                                                 <button onClick={handleForward} className={styles.iconBtn} title="Forward"><Forward size={18} /></button>
 
                                                 {/* Voice Gender Toggle */}
@@ -1011,13 +1235,83 @@ const MailBox = () => {
                                     {/* AI Assistant Placeholder if selected */}
                                     {showAiSidePanel ? (
                                         <div className={styles.aiPanel}>
-                                            <h3><Sparkles size={20} className="inline text-purple-500" /> AI Assistant</h3>
-                                            <p>I can help summarize emails, draft replies, or detect scams.</p>
-                                            <div className={styles.aiCapabilities}>
-                                                <span className={styles.capChip}>Summarize Inbox</span>
-                                                <span className={styles.capChip}>Find receipts</span>
-                                                <span className={styles.capChip}>Draft intro</span>
-                                            </div>
+                                            <h3><AILogo size={20} className="inline" color="black" /> AI Assistant</h3>
+
+                                            {summary ? (
+                                                <div className={styles.aiResult}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                                        <strong>Result:</strong>
+                                                        <button onClick={() => setSummary(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={14} /></button>
+                                                    </div>
+                                                    <TypewriterMarkdown text={summary} />
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p>I can help summarize emails, draft replies, or detect scams using free AI models.</p>
+                                                    <div className={styles.aiCapabilities}>
+                                                        {selectedMessage && (
+                                                            <span className={styles.capChip} onClick={() => handleAiAction('summarize_selected')}>
+                                                                {isSummarizing ? 'Thinking...' : 'Summarize This Email'}
+                                                            </span>
+                                                        )}
+                                                        <span className={styles.capChip} onClick={() => handleAiAction('summarize')}>
+                                                            {isSummarizing ? 'Thinking...' : 'Summarize Inbox'}
+                                                        </span>
+                                                        <span className={styles.capChip} onClick={() => handleAiAction('receipts')}>
+                                                            {isSummarizing ? 'Scanning...' : 'Find receipts'}
+                                                        </span>
+                                                        <span className={styles.capChip} onClick={() => handleAiAction('draft')}>
+                                                            Draft intro
+                                                        </span>
+                                                        <span className={styles.capChip} onClick={() => document.getElementById('vision-input')?.click()}>
+                                                            Analyze Image
+                                                        </span>
+                                                        <input
+                                                            type="file"
+                                                            id="vision-input"
+                                                            style={{ display: 'none' }}
+                                                            accept="image/*"
+                                                            onChange={async (e) => {
+                                                                if (e.target.files?.[0]) {
+                                                                    const file = e.target.files[0];
+                                                                    setIsSummarizing(true);
+                                                                    addToast("Analyzing image...", "info");
+
+                                                                    // Helper to convert to Base64
+                                                                    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+                                                                        const reader = new FileReader();
+                                                                        reader.readAsDataURL(file);
+                                                                        reader.onload = () => resolve(reader.result as string);
+                                                                        reader.onerror = error => reject(error);
+                                                                    });
+
+                                                                    try {
+                                                                        const base64Image = await toBase64(file);
+                                                                        // Log puter availability
+                                                                        console.log('Puter check:', (window as any).puter);
+
+                                                                        const resp = await (window as any).puter.ai.chat("Describe this image in detail.", {
+                                                                            model: 'gpt-4o',
+                                                                            images: [base64Image]
+                                                                        });
+                                                                        const text = resp?.message?.content || JSON.stringify(resp);
+                                                                        setSummary(text);
+                                                                        addToast("Image analyzed!", "success");
+                                                                    } catch (err: any) {
+                                                                        console.error("Vision Error Object:", err);
+                                                                        addToast(`Vision Error: ${err?.message || 'Unknown error'}`, "error");
+                                                                    } finally {
+                                                                        setIsSummarizing(false);
+                                                                        // Reset input
+                                                                        e.target.value = '';
+                                                                    }
+                                                                }
+                                                            }
+                                                            }
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     ) : (
                                         <div style={{ textAlign: 'center' }}>
@@ -1032,28 +1326,112 @@ const MailBox = () => {
                 </div>
             </div>
 
-            {/* Docked Compose */}
+            {/* Draggable Compose Modal */}
             {showDockedCompose && (
-                <div className={styles.dockedCompose}>
-                    <div className={styles.dockedHeader} onClick={() => setShowDockedCompose(false)}>
-                        <span>New Message</span>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button onClick={() => setShowDockedCompose(false)}><X size={16} /></button>
+                <div
+                    className={styles.composeModal}
+                    style={{ left: composePos.x, top: composePos.y }}
+                >
+                    <div className={styles.modalHeader} onMouseDown={handleMouseDown}>
+                        <span className={styles.modalTitle}>New Message</span>
+                        <div className={styles.modalControls}>
+                            <button className={styles.controlBtn} onClick={() => setShowDockedCompose(false)}><X size={18} /></button>
                         </div>
                     </div>
-                    <div className={styles.dockedBody}>
-                        <input className={styles.modalInput} placeholder="To" value={composeData.to} onChange={e => setComposeData({ ...composeData, to: e.target.value })} />
-                        <input className={styles.modalInput} placeholder="Subject" value={composeData.subject} onChange={e => setComposeData({ ...composeData, subject: e.target.value })} />
-                        <textarea className={styles.modalTextarea} style={{ flex: 1 }} placeholder="Message..." value={composeData.body} onChange={e => setComposeData({ ...composeData, body: e.target.value })} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button className={styles.iconBtn}><Paperclip size={16} /></button>
-                                <button className={styles.iconBtn} onClick={saveDraft} title="Save Draft"><FileText size={16} /></button>
+
+                    <div className={styles.composeBody}>
+                        <input
+                            className={styles.composeInput}
+                            placeholder="Recipients"
+                            value={composeData.to}
+                            onChange={e => setComposeData({ ...composeData, to: e.target.value })}
+                        />
+                        <input
+                            className={styles.composeInput}
+                            placeholder="Subject"
+                            value={composeData.subject}
+                            onChange={e => setComposeData({ ...composeData, subject: e.target.value })}
+                        />
+                        <textarea
+                            className={styles.composeTextarea}
+                            placeholder="Write your message..."
+                            value={composeData.body}
+                            onChange={e => setComposeData({ ...composeData, body: e.target.value })}
+                        />
+
+                        {attachments.length > 0 && (
+                            <div className={styles.attachmentList}>
+                                {attachments.map((file, idx) => (
+                                    <div key={idx} className={styles.attachmentChip}>
+                                        <span className={styles.fileIconWrapper}>{getFileIcon(file.type)}</span>
+                                        <span className={styles.attachmentName} title={file.name}>{file.name}</span>
+                                        <button className={styles.removeAttachBtn} onClick={() => removeAttachment(idx)}><X size={14} /></button>
+                                    </div>
+                                ))}
+                                {attachments.length < 5 && (
+                                    <button className={styles.addAttachBtn} onClick={() => composeFileInputRef.current?.click()} title="Add more files"><Plus size={16} /></button>
+                                )}
                             </div>
-                            <button className={styles.actionBtnAccent} onClick={handleSend} disabled={!!sendStatus}>
-                                <Send size={14} /> {sendStatus || 'Send'}
+                        )}
+                    </div>
+
+                    <div className={styles.composeFooter}>
+                        <div className={styles.footerLeft}>
+                            <button className={styles.aiWriteBtn} onClick={() => setShowAiWritePopover(!showAiWritePopover)}>
+                                <AILogo size={18} color="black" /> Help me write
+                            </button>
+                            <button className={styles.controlBtn} onClick={() => composeFileInputRef.current?.click()} title="Attach File"><Paperclip size={18} /></button>
+                            <button className={styles.controlBtn} onClick={saveDraft} title="Save Draft"><FileText size={18} /></button>
+                        </div>
+
+                        <div className={styles.footerRight}>
+                            <button className={styles.sendBtn} onClick={handleSend} disabled={!!sendStatus}>
+                                {sendStatus || 'Send'} <SendIcon size={16} />
                             </button>
                         </div>
+
+                        {showAiWritePopover && (
+                            <div className={styles.aiPopover}>
+                                <div className={styles.aiPopoverHeader}>
+                                    <strong>Help me write</strong>
+                                    <button onClick={() => setShowAiWritePopover(false)} className={styles.closeBtn}><X size={14} /></button>
+                                </div>
+                                <input
+                                    placeholder="What's this email about?"
+                                    value={aiWriteTopic}
+                                    onChange={e => setAiWriteTopic(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={e => e.key === 'Enter' && handleAiWrite()}
+                                />
+                                <button
+                                    className={styles.actionBtnPrimary}
+                                    style={{ width: '100%', marginBottom: '1rem' }}
+                                    onClick={() => handleAiWrite()}
+                                    disabled={isSummarizing || !aiWriteTopic}
+                                >
+                                    {isSummarizing ? 'Writing...' : 'Create Content'}
+                                </button>
+
+                                <div className={styles.aiRefinementTools}>
+                                    <div className={styles.refinementLabel}>Refine existing text:</div>
+                                    <div className={styles.refinementGrid}>
+                                        <button onClick={() => handleAiWrite('polish')} disabled={isSummarizing || !composeData.body}>
+                                            <Sparkles size={14} style={{ color: '#3b82f6' }} /> Polish
+                                        </button>
+                                        <button onClick={() => handleAiWrite('formalize')} disabled={isSummarizing || !composeData.body}>
+                                            <Briefcase size={14} style={{ color: '#4b5563' }} /> Formalize
+                                        </button>
+                                        <button onClick={() => handleAiWrite('elaborate')} disabled={isSummarizing || !composeData.body}>
+                                            <AlignLeft size={14} style={{ color: '#16a34a' }} /> Elaborate
+                                        </button>
+                                        <button onClick={() => handleAiWrite('shorten')} disabled={isSummarizing || !composeData.body}>
+                                            <Scissors size={14} style={{ color: '#ef4444' }} /> Shorten
+                                        </button>
+                                    </div>
+                                    {!composeData.body && <div className={styles.refinementHint}>Write something to use refinements</div>}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -1067,6 +1445,15 @@ const MailBox = () => {
                 message="Are you sure?"
                 confirmText="Delete"
                 isDestructive
+            />
+
+            {/* Compose Hidden File Input */}
+            <input
+                type="file"
+                multiple
+                ref={composeFileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleAttachmentChange}
             />
 
             {/* QR Modal */}

@@ -9,8 +9,15 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" }); // Defined Outfit
 
 export const metadata: Metadata = {
-  title: "MailCroc | Premium Temp Mail & SMS",
-  description: "Secure, fast, and professional temporary email and phone number service.",
+  title: "MailCroc | Best Temporary Email Service & Disposable Inbox",
+  description: "Secure, free, and fast temporary email. Protect your privacy with anonymous disposable email addresses. No registration required.",
+  keywords: "temp mail, disposable email, anonymous email, throwaway mail, fake email, secure inbox, privacy protection",
+  openGraph: {
+    title: "MailCroc Premium Temp Mail",
+    description: "Get your secure temporary email instantly. No spam, no tracking.",
+    type: "website",
+    siteName: "MailCroc",
+  },
   icons: {
     icon: "/logo.png",
     shortcut: "/logo.png",

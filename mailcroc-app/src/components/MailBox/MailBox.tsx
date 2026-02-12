@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './MailBox.module.css';
-import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic } from 'lucide-react';
+import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { generateEmailAddress, type GenerationMode } from '@/lib/domains';
 import LottiePlayer from '@/components/LottiePlayer';
@@ -67,6 +67,9 @@ const MailBox = () => {
     const [selectedDomain, setSelectedDomain] = useState('mailcroc.qzz.io');
     const [currentConfig, setCurrentConfig] = useState<{ mode: GenerationMode; address: string; fullAddress?: string; } | null>(null);
 
+    // Default 10 min expiry
+    const [expiryMinutes, setExpiryMinutes] = useState<number | null>(10);
+
     // --- State: Layout & Nav ---
     const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam'>('inbox');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -79,7 +82,7 @@ const MailBox = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSessionExpired, setIsSessionExpired] = useState(false);
-    const [expiryMinutes, setExpiryMinutes] = useState<number | null>(null);
+
 
     // --- State: Actions ---
     const [copied, setCopied] = useState(false);
@@ -100,6 +103,7 @@ const MailBox = () => {
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [aiDraftPrompt, setAiDraftPrompt] = useState('');
     const [isAiDrafting, setIsAiDrafting] = useState(false);
+    const [voiceGender, setVoiceGender] = useState<'female' | 'male'>('female');
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
     // const [usePremiumVoice, setUsePremiumVoice] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
@@ -112,6 +116,22 @@ const MailBox = () => {
 
     // Sync Ref
     // useEffect(() => { usePremiumVoiceRef.current = usePremiumVoice; }, [usePremiumVoice]);
+
+    useEffect(() => {
+        // Timer Countdown
+        if (expiryMinutes !== null && expiryMinutes > 0) {
+            expiryTimerRef.current = setInterval(() => {
+                setExpiryMinutes(prev => {
+                    if (prev === null || prev <= 1) {
+                        setIsSessionExpired(true);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 60000);
+        }
+        return () => { if (expiryTimerRef.current) clearInterval(expiryTimerRef.current); };
+    }, [expiryMinutes]);
 
     // --- PWA Install Listener ---
     useEffect(() => {
@@ -162,7 +182,7 @@ const MailBox = () => {
         setMessages([]);
         setSelectedMessage(null);
         setIsSessionExpired(false);
-        setExpiryMinutes(null);
+        setExpiryMinutes(10); // Reset to default 10m
         return config;
     }, [toggles]);
 
@@ -209,15 +229,31 @@ const MailBox = () => {
                 router.replace('/', { scroll: false });
             } else {
                 const stored = localStorage.getItem('mailcroc_config');
-                if (stored) {
-                    try { setCurrentConfig(JSON.parse(stored)); } catch { generateNewIdentity(); }
+                const expiryPref = localStorage.getItem('mailcroc_expiry_pref');
+
+                // Only restore if user explicitly set "No Expiry"
+                if (stored && expiryPref === 'no-expiry') {
+                    try {
+                        setCurrentConfig(JSON.parse(stored));
+                        setExpiryMinutes(null);
+                    } catch { generateNewIdentity(); }
                 } else {
+                    // Otherwise force new identity
                     generateNewIdentity();
                 }
             }
         };
         init();
     }, []);
+
+    // Persist Expiry Preference
+    useEffect(() => {
+        if (expiryMinutes === null) {
+            localStorage.setItem('mailcroc_expiry_pref', 'no-expiry');
+        } else {
+            localStorage.removeItem('mailcroc_expiry_pref');
+        }
+    }, [expiryMinutes]);
 
     const emailAddress = currentConfig?.address || '';
 
@@ -270,6 +306,10 @@ const MailBox = () => {
         if (emailAddress && socket) {
             socket.emit('join', emailAddress);
             const handleNewEmail = (newMsg: any) => {
+                // strict filter: ensure message is for this address
+                const toAddresses = Array.isArray(newMsg.to) ? newMsg.to : [newMsg.to];
+                if (!toAddresses.some((addr: string) => addr.toLowerCase() === emailAddress.toLowerCase())) return;
+
                 setMessages(prev => {
                     if (prev.some(m => m._id === newMsg._id)) return prev;
                     try { new Audio('/animations/notification.wav').play().catch(() => { }); } catch { }
@@ -288,6 +328,7 @@ const MailBox = () => {
     const copyToClipboard = () => {
         navigator.clipboard.writeText(emailAddress);
         setCopied(true);
+        addToast("Address copied to clipboard!", "success");
         setTimeout(() => setCopied(false), 1500);
     };
 
@@ -358,7 +399,7 @@ const MailBox = () => {
             const res = await fetch('/api/ai/speech', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: textToRead.slice(0, 800) }) // Limit length
+                body: JSON.stringify({ text: textToRead.slice(0, 800), gender: voiceGender }) // Limit length & pass gender
             });
 
             if (!res.ok) throw new Error("Speech generation failed");
@@ -377,12 +418,87 @@ const MailBox = () => {
         }
     };
 
+
+
+
     const stopReadAloud = () => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
         }
         setIsPlayingAudio(false);
+    };
+
+    // --- Actions: Pin & Delete ---
+    const handlePinMessage = async (e: React.MouseEvent, msg: EmailMessage) => {
+        e.stopPropagation();
+        // Optimistic update
+        setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, pinned: !m.pinned } : m));
+
+        try {
+            await fetch('/api/emails', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' },
+                body: JSON.stringify({ emailId: msg._id, action: 'pin', value: !msg.pinned })
+            });
+        } catch {
+            addToast("Failed to update pin status", "error");
+            // Revert on error
+            setMessages(prev => prev.map(m => m._id === msg._id ? { ...m, pinned: !m.pinned } : m));
+        }
+    };
+
+    const handleDeleteMessage = async (e: React.MouseEvent, msg: EmailMessage) => {
+        e.stopPropagation();
+        // Optimistic Remove
+        setMessages(prev => prev.filter(m => m._id !== msg._id));
+        if (selectedMessage?._id === msg._id) setSelectedMessage(null);
+
+        try {
+            await fetch('/api/emails', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' },
+                body: JSON.stringify({ emailId: msg._id, address: emailAddress })
+            });
+            addToast("Email deleted", "success");
+        } catch {
+            addToast("Failed to delete email", "error");
+            fetchMessages(); // Re-sync on error
+        }
+    };
+
+    const handleForward = () => {
+        if (!selectedMessage) return;
+        setComposeData({
+            to: '',
+            subject: `Fwd: ${selectedMessage.subject}`,
+            body: `\n\n---------- Forwarded message ---------\nFrom: ${selectedMessage.from}\nDate: ${new Date(selectedMessage.receivedAt).toLocaleString()}\nSubject: ${selectedMessage.subject}\n\n${selectedMessage.text || ''}`
+        });
+        setShowDockedCompose(true);
+    };
+
+    const handleExportPDF = async () => {
+        if (!selectedMessage) return;
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const jsPDF = (await import('jspdf')).default;
+
+            const element = document.getElementById('email-content-export');
+            if (!element) return;
+
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`${selectedMessage.subject.slice(0, 20).replace(/[^a-z0-9]/gi, '_')}.pdf`);
+            addToast("Email exported as PDF", "success");
+        } catch (err) {
+            console.error(err);
+            addToast("Failed to export PDF", "error");
+        }
     };
 
     const saveDraft = async () => {
@@ -521,12 +637,15 @@ const MailBox = () => {
                                 { /* Removed redundant hamburger here */}
                                 <h2 className={styles.currentEmail}>{emailAddress}</h2>
                                 <button className={styles.copyBtn} onClick={copyToClipboard}><Copy size={18} /></button>
+                                <button className={styles.copyBtn} onClick={() => setShowQR(true)} title="Show QR"><QrCode size={18} /></button>
                                 <span className={styles.statusDot} title="Active" />
                             </div>
 
                             <div className={styles.headerControls}>
-                                <div className={styles.expiryBadge}>
-                                    <Clock size={16} /> <span>No Expiry</span> <ChevronRight size={14} style={{ rotate: '90deg' }} />
+                                <div className={styles.expiryBadge} onClick={() => setExpiryMinutes(prev => prev ? null : 60)} title="Toggle Expiry (Dev)">
+                                    <Clock size={16} />
+                                    <span>{expiryMinutes !== null ? `${expiryMinutes}m Rem.` : 'No Expiry'}</span>
+                                    <ChevronRight size={14} style={{ rotate: '90deg' }} />
                                 </div>
                                 <button onClick={() => setShowAiSidePanel(!showAiSidePanel)} className={styles.aiTrigger} title="AI Assistant">
                                     <AILogo size={24} />
@@ -623,6 +742,10 @@ const MailBox = () => {
                                         <div className={styles.msgContent}>
                                             <div className={styles.msgHeaderRow}>
                                                 <span className={styles.msgSender}>{activeFolder === 'sent' ? `To: ${msg.to}` : msg.from}</span>
+                                                <div className={styles.hoverActions}>
+                                                    <button onClick={(e) => handlePinMessage(e, msg)} className={`${styles.iconBtnSmall} ${msg.pinned ? 'text-yellow-500' : 'text-gray-400'}`} title={msg.pinned ? "Unpin" : "Pin"}><Star size={14} fill={msg.pinned ? "currentColor" : "none"} /></button>
+                                                    <button onClick={(e) => handleDeleteMessage(e, msg)} className={styles.iconBtnSmall} title="Delete"><Trash2 size={14} /></button>
+                                                </div>
                                                 <span className={styles.msgDate}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                             <div className={styles.msgSubjectRow}>
@@ -643,16 +766,28 @@ const MailBox = () => {
                                     <div className={styles.emailHeader}>
                                         <div className={styles.headerTop}>
                                             <button className={styles.backBtn} onClick={() => setSelectedMessage(null)}>← Back</button>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                <button className={styles.iconBtn} onClick={handleExportPDF} title="Download PDF"><Download size={18} /></button>
+                                                <button onClick={handleForward} className={styles.iconBtn} title="Forward"><Forward size={18} /></button>
+
+                                                {/* Voice Gender Toggle */}
+                                                <button
+                                                    className={styles.iconBtn}
+                                                    onClick={() => setVoiceGender(prev => prev === 'female' ? 'male' : 'female')}
+                                                    title={`Voice: ${voiceGender === 'female' ? 'Hope (Female)' : 'Mark (Male)'}`}
+                                                    style={{ fontSize: '0.8rem', fontWeight: 'bold', width: '2rem' }}
+                                                >
+                                                    {voiceGender === 'female' ? 'F' : 'M'}
+                                                </button>
+
                                                 <button
                                                     className={styles.iconBtn}
                                                     onClick={isPlayingAudio ? stopReadAloud : handleReadAloud}
                                                     title={isPlayingAudio ? "Stop Reading" : "Read Aloud"}
-                                                    style={{ color: isPlayingAudio ? '#ef4444' : '#64748b' }}
-                                                >
+                                                    style={{ color: isPlayingAudio ? '#ef4444' : '#64748b' }}>
                                                     {isPlayingAudio ? <Square size={18} fill="currentColor" /> : <Volume2 size={18} />}
                                                 </button>
-                                                <button className={styles.iconBtn} title="Delete"><Trash2 size={18} /></button>
+                                                <button onClick={(e) => selectedMessage && handleDeleteMessage(e as any, selectedMessage)} className={styles.iconBtn} title="Delete"><Trash2 size={18} /></button>
                                             </div>
                                         </div>
 
@@ -671,7 +806,7 @@ const MailBox = () => {
                                         </div>
                                     </div>
 
-                                    <div className={styles.emailBody}>
+                                    <div id="email-content-export" className={styles.emailBody}>
                                         {/* Fixed TS Error: Wrapped in div.markdownBody */}
                                         {selectedMessage.html ? (
                                             <div dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html) }} />
@@ -770,6 +905,36 @@ const MailBox = () => {
                 confirmText="Delete"
                 isDestructive
             />
+
+            {/* QR Modal */}
+            {showQR && (
+                <div className={styles.modalOverlay} onClick={() => setShowQR(false)}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '2rem' }}>
+                        <div className={styles.modalHeader}>
+                            <h3>Scan to Open</h3>
+                            <button onClick={() => setShowQR(false)}><X size={20} /></button>
+                        </div>
+                        <div style={{ background: 'white', padding: '1rem', borderRadius: '10px', display: 'inline-block', margin: '1rem 0' }}>
+                            <QRCodeSVG
+                                value={`https://mailcroc.qzz.io?address=${emailAddress}`}
+                                size={200}
+                                level="H"
+                                includeMargin={true}
+                                imageSettings={{
+                                    src: "/logo.png",
+                                    x: undefined,
+                                    y: undefined,
+                                    height: 40,
+                                    width: 40,
+                                    excavate: true,
+                                }}
+                            />
+                        </div>
+                        <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Scan this code to open your inbox on another device.</p>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };

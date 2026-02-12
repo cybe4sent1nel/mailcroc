@@ -6,9 +6,16 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { text } = await req.json();
-        // Use configured Voice ID or default to "Rachel"
-        const voiceId = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+        const { text, gender } = await req.json();
+
+        // Voice IDs
+        const VOICE_HOPE = 'iCrDUkL56s3C8sCRl7wb'; // Female
+        const VOICE_MARK = 'ErXwobaYiN019PkySvjV'; // Male (Antoni)
+
+        // Select Voice ID based on gender param, default to configured env var or Hope
+        let voiceId = process.env.ELEVENLABS_VOICE_ID || VOICE_HOPE;
+        if (gender === 'male') voiceId = VOICE_MARK;
+        if (gender === 'female') voiceId = VOICE_HOPE;
 
         const options = {
             method: 'POST',
@@ -18,7 +25,7 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify({
                 text: text.slice(0, 1000), // Safety limit for free quota
-                model_id: "eleven_monolingual_v1",
+                model_id: "eleven_multilingual_v2",
                 voice_settings: {
                     stability: 0.5,
                     similarity_boost: 0.5,
@@ -30,6 +37,7 @@ export async function POST(req: Request) {
 
         if (!response.ok) {
             const error = await response.json();
+            console.error('ElevenLabs API Error Details:', JSON.stringify(error, null, 2));
             throw new Error(error.detail?.message || 'ElevenLabs API Error');
         }
 

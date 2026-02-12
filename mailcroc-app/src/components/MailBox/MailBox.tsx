@@ -69,6 +69,7 @@ const MailBox = () => {
 
     // Default 10 min expiry
     const [expiryMinutes, setExpiryMinutes] = useState<number | null>(10);
+    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(600); // 10 minutes in seconds
 
     // --- State: Layout & Nav ---
     const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam'>('inbox');
@@ -104,6 +105,7 @@ const MailBox = () => {
     const [aiDraftPrompt, setAiDraftPrompt] = useState('');
     const [isAiDrafting, setIsAiDrafting] = useState(false);
     const [voiceGender, setVoiceGender] = useState<'female' | 'male'>('female');
+    const [exportFormat, setExportFormat] = useState<'md' | 'json'>('md');
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
     // const [usePremiumVoice, setUsePremiumVoice] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
@@ -118,20 +120,69 @@ const MailBox = () => {
     // useEffect(() => { usePremiumVoiceRef.current = usePremiumVoice; }, [usePremiumVoice]);
 
     useEffect(() => {
-        // Timer Countdown
+        // Real-time Countdown (Seconds)
         if (expiryMinutes !== null && expiryMinutes > 0) {
+            setRemainingSeconds(expiryMinutes * 60);
+
             expiryTimerRef.current = setInterval(() => {
-                setExpiryMinutes(prev => {
+                setRemainingSeconds(prev => {
                     if (prev === null || prev <= 1) {
                         setIsSessionExpired(true);
+                        setExpiryMinutes(0);
                         return 0;
                     }
                     return prev - 1;
                 });
-            }, 60000);
+            }, 1000);
+        } else if (expiryMinutes === null) {
+            setRemainingSeconds(null);
         }
         return () => { if (expiryTimerRef.current) clearInterval(expiryTimerRef.current); };
     }, [expiryMinutes]);
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
+    const handleExportInbox = () => {
+        if (exportFormat === 'json') {
+            const dataStr = JSON.stringify(messages, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `inbox_export_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            addToast("Inbox exported to JSON", "success");
+        } else {
+            let mdContent = `# Inbox Export - ${new Date().toLocaleString()}\n\n`;
+            mdContent += `Total Messages: ${messages.length}\n\n`;
+            mdContent += `---\n\n`;
+
+            messages.forEach((msg, index) => {
+                mdContent += `## ${index + 1}. ${msg.subject || '(No Subject)'}\n`;
+                mdContent += `**From:** ${msg.from}\n`;
+                mdContent += `**Date:** ${new Date(msg.receivedAt).toLocaleString()}\n`;
+                mdContent += `**Folder:** ${msg.folder}\n\n`;
+                mdContent += `${msg.text || '(No Content)'}\n\n`;
+                mdContent += `---\n\n`;
+            });
+
+            const blob = new Blob([mdContent], { type: "text/markdown" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `inbox_export_${new Date().toISOString().split('T')[0]}.md`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            addToast("Inbox exported to Markdown", "success");
+        }
+    };
 
     // --- PWA Install Listener ---
     useEffect(() => {
@@ -194,8 +245,8 @@ const MailBox = () => {
             addToast("Username too short (min 3 chars)", "error");
             return;
         }
-        if (!/^[a-zA-Z0-9._-]+$/.test(customInput)) {
-            addToast("Only letters, numbers, dot, dash, underscore allowed", "error");
+        if (!/^[a-zA-Z0-9._+-]+$/.test(customInput)) {
+            addToast("Only letters, numbers, dot, dash, underscore, and + allowed", "error");
             return;
         }
 
@@ -642,9 +693,32 @@ const MailBox = () => {
                             </div>
 
                             <div className={styles.headerControls}>
+                                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '0 0.5rem', height: '32px' }}>
+                                    <button className={styles.iconBtn} onClick={handleExportInbox} title={`Export Inbox (${exportFormat.toUpperCase()})`} style={{ marginRight: '0' }}>
+                                        <Download size={18} />
+                                    </button>
+                                    <select
+                                        value={exportFormat}
+                                        onChange={(e) => setExportFormat(e.target.value as 'md' | 'json')}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: 'var(--text-secondary)',
+                                            fontSize: '0.8rem',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            outline: 'none',
+                                            marginLeft: '0.2rem'
+                                        }}
+                                        title="Select Export Format"
+                                    >
+                                        <option value="md">MD</option>
+                                        <option value="json">JSON</option>
+                                    </select>
+                                </div>
                                 <div className={styles.expiryBadge} onClick={() => setExpiryMinutes(prev => prev ? null : 60)} title="Toggle Expiry (Dev)">
                                     <Clock size={16} />
-                                    <span>{expiryMinutes !== null ? `${expiryMinutes}m Rem.` : 'No Expiry'}</span>
+                                    <span>{remainingSeconds !== null ? `${formatTime(remainingSeconds)}` : 'No Expiry'}</span>
                                     <ChevronRight size={14} style={{ rotate: '90deg' }} />
                                 </div>
                                 <button onClick={() => setShowAiSidePanel(!showAiSidePanel)} className={styles.aiTrigger} title="AI Assistant">

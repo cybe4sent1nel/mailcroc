@@ -67,10 +67,6 @@ const MailBox = () => {
     const [selectedDomain, setSelectedDomain] = useState('mailcroc.qzz.io');
     const [currentConfig, setCurrentConfig] = useState<{ mode: GenerationMode; address: string; fullAddress?: string; } | null>(null);
 
-    // Default 10 min expiry
-    const [expiryMinutes, setExpiryMinutes] = useState<number | null>(10);
-    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(600); // 10 minutes in seconds
-
     // --- State: Layout & Nav ---
     const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam'>('inbox');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -83,7 +79,6 @@ const MailBox = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSessionExpired, setIsSessionExpired] = useState(false);
-
 
     // --- State: Actions ---
     const [copied, setCopied] = useState(false);
@@ -107,28 +102,54 @@ const MailBox = () => {
     const [voiceGender, setVoiceGender] = useState<'female' | 'male'>('female');
     const [exportFormat, setExportFormat] = useState<'md' | 'json'>('md');
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
-    // const [usePremiumVoice, setUsePremiumVoice] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
-    // const usePremiumVoiceRef = useRef(usePremiumVoice);
 
     // --- Refs ---
     const fileInputRef = useRef<HTMLInputElement>(null);
     const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
     const deferredPrompt = useRef<any>(null);
 
-    // Sync Ref
-    // useEffect(() => { usePremiumVoiceRef.current = usePremiumVoice; }, [usePremiumVoice]);
+    // --- State: Timer & Expiry ---
+    const [expiryMinutes, setExpiryMinutes] = useState<number | null>(10);
+    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(600);
+    const [showTimeDropdown, setShowTimeDropdown] = useState(false);
+    const timeDropdownRef = useRef<HTMLDivElement>(null);
+
+    // --- State: Export Dropdown ---
+    const [showExportDropdown, setShowExportDropdown] = useState(false);
+    const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Click outside handler for dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (timeDropdownRef.current && !timeDropdownRef.current.contains(event.target as Node)) {
+                setShowTimeDropdown(false);
+            }
+            if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+                setShowExportDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         // Real-time Countdown (Seconds)
         if (expiryMinutes !== null && expiryMinutes > 0) {
-            setRemainingSeconds(expiryMinutes * 60);
+            // Only reset seconds if it's a fresh start or mode change, 
+            // but we want to avoid resetting on every render.
+            // Logic handled by handleTimeSelect.
+
+            // If remainingSeconds is null (first load), init it
+            if (remainingSeconds === null) setRemainingSeconds(expiryMinutes * 60);
 
             expiryTimerRef.current = setInterval(() => {
                 setRemainingSeconds(prev => {
-                    if (prev === null || prev <= 1) {
+                    if (prev === null) return null;
+                    if (prev <= 1) {
+                        clearInterval(expiryTimerRef.current!);
                         setIsSessionExpired(true);
-                        setExpiryMinutes(0);
+                        setExpiryMinutes(0); // Stop
                         return 0;
                     }
                     return prev - 1;
@@ -136,9 +157,28 @@ const MailBox = () => {
             }, 1000);
         } else if (expiryMinutes === null) {
             setRemainingSeconds(null);
+            if (expiryTimerRef.current) clearInterval(expiryTimerRef.current);
         }
         return () => { if (expiryTimerRef.current) clearInterval(expiryTimerRef.current); };
-    }, [expiryMinutes]);
+    }, [expiryMinutes]); // Dependency on seconds removed to avoid re-triggering interval
+
+    const handleTimeSelect = (minutes: number | null) => {
+        setExpiryMinutes(minutes);
+        if (minutes !== null) {
+            setRemainingSeconds(minutes === 0.16 ? 10 : minutes * 60); // Special handling for 10s test (0.16 min approx)
+            setIsSessionExpired(false);
+        } else {
+            setRemainingSeconds(null);
+        }
+        setShowTimeDropdown(false);
+    };
+
+    const handleExtendSession = () => {
+        const addedTime = 10; // Add 10 mins
+        setExpiryMinutes(addedTime);
+        setRemainingSeconds(addedTime * 60);
+        setIsSessionExpired(false);
+    };
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -146,8 +186,8 @@ const MailBox = () => {
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    const handleExportInbox = () => {
-        if (exportFormat === 'json') {
+    const handleExportInbox = (format: 'md' | 'json') => {
+        if (format === 'json') {
             const dataStr = JSON.stringify(messages, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -181,6 +221,51 @@ const MailBox = () => {
             link.click();
             document.body.removeChild(link);
             addToast("Inbox exported to Markdown", "success");
+        }
+    };
+
+    const handleExportPDF = async () => {
+        if (!selectedMessage) return;
+
+        try {
+            const element = document.getElementById('email-content-export');
+            if (!element) {
+                addToast("Could not find email content", "error");
+                return;
+            }
+
+            // Dynamically import to avoid server-side issues
+            const html2canvas = (await import('html2canvas')).default;
+            const jsPDF = (await import('jspdf')).default;
+
+            addToast("Generating PDF...", "info");
+
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                logging: false,
+                useCORS: true // Important for images
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height] // Match content size
+            });
+
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+            // Add metadata links if possible (basic implementation)
+            // Note: complex link preservation in html2canvas -> jsPDF is tricky.
+            // A better approach for text-heavy emails is arguably 'html2pdf.js' or server-side.
+            // For now, this captures the visual representation perfectly.
+
+            pdf.save(`${selectedMessage.subject.replace(/[^a-z0-9]/gi, '_').slice(0, 30) || 'email'}.pdf`);
+            addToast("PDF Downloaded", "success");
+
+        } catch (error) {
+            console.error("PDF Export Error:", error);
+            addToast("Failed to generate PDF", "error");
         }
     };
 
@@ -528,29 +613,7 @@ const MailBox = () => {
         setShowDockedCompose(true);
     };
 
-    const handleExportPDF = async () => {
-        if (!selectedMessage) return;
-        try {
-            const html2canvas = (await import('html2canvas')).default;
-            const jsPDF = (await import('jspdf')).default;
 
-            const element = document.getElementById('email-content-export');
-            if (!element) return;
-
-            const canvas = await html2canvas(element, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`${selectedMessage.subject.slice(0, 20).replace(/[^a-z0-9]/gi, '_')}.pdf`);
-            addToast("Email exported as PDF", "success");
-        } catch (err) {
-            console.error(err);
-            addToast("Failed to export PDF", "error");
-        }
-    };
 
     const saveDraft = async () => {
         const draftMsg = {
@@ -693,33 +756,57 @@ const MailBox = () => {
                             </div>
 
                             <div className={styles.headerControls}>
-                                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', padding: '0 0.5rem', height: '32px' }}>
-                                    <button className={styles.iconBtn} onClick={handleExportInbox} title={`Export Inbox (${exportFormat.toUpperCase()})`} style={{ marginRight: '0' }}>
-                                        <Download size={18} />
-                                    </button>
-                                    <select
-                                        value={exportFormat}
-                                        onChange={(e) => setExportFormat(e.target.value as 'md' | 'json')}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: 'var(--text-secondary)',
-                                            fontSize: '0.8rem',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer',
-                                            outline: 'none',
-                                            marginLeft: '0.2rem'
-                                        }}
-                                        title="Select Export Format"
+                                {/* Export Dropdown */}
+                                <div className={styles.expiryWrapper} ref={exportDropdownRef} style={{ marginRight: '0.5rem' }}>
+                                    <div
+                                        className={styles.expiryBadge}
+                                        onClick={() => setShowExportDropdown(!showExportDropdown)}
+                                        title="Export Inbox"
+                                        style={{ padding: '0.375rem 0.5rem' }}
                                     >
-                                        <option value="md">MD</option>
-                                        <option value="json">JSON</option>
-                                    </select>
+                                        <Download size={16} />
+                                        <span style={{ fontSize: '0.8rem' }}>Export</span>
+                                        <ChevronRight size={14} style={{ rotate: '90deg', transition: 'transform 0.2s', transform: showExportDropdown ? 'rotate(-90deg)' : 'rotate(90deg)' }} />
+                                    </div>
+
+                                    {showExportDropdown && (
+                                        <div className={styles.timeDropdown} style={{ minWidth: '140px' }}>
+                                            <div className={styles.timeOption} onClick={() => { handleExportInbox('md'); setShowExportDropdown(false); }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <FileText size={16} className="text-blue-500" />
+                                                    <span>Markdown</span>
+                                                </div>
+                                            </div>
+                                            <div className={styles.timeOption} onClick={() => { handleExportInbox('json'); setShowExportDropdown(false); }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '10px', border: '1px solid currentColor', borderRadius: '3px' }} className="text-yellow-500">
+                                                        {'{ }'}
+                                                    </div>
+                                                    <span>JSON</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className={styles.expiryBadge} onClick={() => setExpiryMinutes(prev => prev ? null : 60)} title="Toggle Expiry (Dev)">
-                                    <Clock size={16} />
-                                    <span>{remainingSeconds !== null ? `${formatTime(remainingSeconds)}` : 'No Expiry'}</span>
-                                    <ChevronRight size={14} style={{ rotate: '90deg' }} />
+                                <div className={styles.expiryWrapper} ref={timeDropdownRef}>
+                                    <div
+                                        className={styles.expiryBadge}
+                                        onClick={() => setShowTimeDropdown(!showTimeDropdown)}
+                                        title="Set Session Timer"
+                                    >
+                                        <Clock size={16} />
+                                        <span>{remainingSeconds !== null ? `${formatTime(remainingSeconds)}` : 'No Expiry'}</span>
+                                        <ChevronRight size={14} style={{ rotate: '90deg', transition: 'transform 0.2s', transform: showTimeDropdown ? 'rotate(-90deg)' : 'rotate(90deg)' }} />
+                                    </div>
+
+                                    {showTimeDropdown && (
+                                        <div className={styles.timeDropdown}>
+                                            <div className={styles.timeOption} onClick={() => handleTimeSelect(10)}>10 Minutes</div>
+                                            <div className={styles.timeOption} onClick={() => handleTimeSelect(30)}>30 Minutes</div>
+                                            <div className={styles.timeOption} onClick={() => handleTimeSelect(60)}>1 Hour</div>
+                                            <div className={styles.timeOption} onClick={() => handleTimeSelect(null)}>No Expiry</div>
+                                        </div>
+                                    )}
                                 </div>
                                 <button onClick={() => setShowAiSidePanel(!showAiSidePanel)} className={styles.aiTrigger} title="AI Assistant">
                                     <AILogo size={24} />
@@ -841,7 +928,9 @@ const MailBox = () => {
                                         <div className={styles.headerTop}>
                                             <button className={styles.backBtn} onClick={() => setSelectedMessage(null)}>← Back</button>
                                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                <button className={styles.iconBtn} onClick={handleExportPDF} title="Download PDF"><Download size={18} /></button>
+                                                <button className={styles.iconBtn} onClick={handleExportPDF} title="Download as PDF">
+                                                    <FileText size={18} className="text-red-500" />
+                                                </button>
                                                 <button onClick={handleForward} className={styles.iconBtn} title="Forward"><Forward size={18} /></button>
 
                                                 {/* Voice Gender Toggle */}
@@ -1005,6 +1094,44 @@ const MailBox = () => {
                             />
                         </div>
                         <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Scan this code to open your inbox on another device.</p>
+                    </div>
+                </div>
+            )}
+
+            {/* Session Expired Modal */}
+            {isSessionExpired && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent} style={{ textAlign: 'center', padding: '2rem', maxWidth: '400px', position: 'relative' }}>
+                        <button
+                            onClick={generateNewIdentity}
+                            style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                            title="Close & New Identity"
+                        >
+                            <X size={20} />
+                        </button>
+                        <LottiePlayer
+                            animationData={sessionExpAnim}
+                            style={{ width: 150, height: 150, margin: '0 auto' }}
+                        />
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Session Expired</h3>
+                        <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>This temporary inbox has expired. You can extend the session or generate a new identity.</p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <button
+                                className={styles.actionBtnPrimary}
+                                onClick={handleExtendSession}
+                                style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
+                            >
+                                <Clock size={18} /> Extend Session (+10m)
+                            </button>
+                            <button
+                                className={styles.actionBtn}
+                                onClick={generateNewIdentity}
+                                style={{ width: '100%', justifyContent: 'center', padding: '0.75rem', border: '1px solid #e2e8f0' }}
+                            >
+                                <Shuffle size={18} /> Generate New Identity
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Matter from 'matter-js';
 import './FallingText.css';
+import FireAnimation from './FireAnimation';
 
 interface FallingTextProps {
     text?: string;
@@ -16,25 +17,26 @@ interface FallingTextProps {
     wordSpacing?: string;
 }
 
-const NEON_COLORS = [
-    '#39FF14', // Neon Green
-    '#FF00FF', // Neon Pink
-    '#00FFFF', // Cyan
-    '#FFFF00', // Neon Yellow
-    '#FF4400', // Neon Orange
+const THEME_COLORS = [
+    '#6D28D9', // Purple
+    '#D2F34C', // Lime
+    '#1A1A1A', // Black
+    '#4B5563', // Grey
+    '#DC2626', // Red (Alert)
+    '#2563EB', // Blue (Link)
 ];
 
 const FallingText: React.FC<FallingTextProps> = ({
-    text = 'SPAM JUNK PHISHING MALWARE VIRUS ADS PROMO DISCOUNT CLICK WIN FREE CASH OFFER URGENT PRIZE VOID TRASH CLUTTER SCAM',
+    text = 'SPAM 🚫 JUNK 🗑️ PHISHING 🎣 MALWARE 🦠 VIRUS 🐞 ADS 📢 PROMO 🏷️ DISCOUNT 💸 CLICK 🖱️ WIN 🏆 FREE 🆓 CASH 💰 OFFER 🤝 URGENT ⚠️ PRIZE 🎁 VOID ❌ TRASH 🚮 CLUTTER 📦 SCAM 🚨',
     highlightWords = [],
     highlightClass = 'highlighted',
     trigger = 'hover',
-    backgroundColor = '#000000',
+    backgroundColor = '#FAF9F7', // Creme (Pastel Orange-ish)
     wireframes = false,
     gravity = 0.56,
     mouseConstraintStiffness = 0.9,
     fontSize = '1.2rem',
-    wordSpacing = '8px'
+    wordSpacing = '12px'
 }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const textRef = useRef<HTMLDivElement | null>(null);
@@ -45,12 +47,13 @@ const FallingText: React.FC<FallingTextProps> = ({
     // Initial word rendering
     useEffect(() => {
         if (!textRef.current) return;
+        // Split by spaces but preserve emojis attached to words if any, or just split by space
         const words = text.split(' ');
 
         const newHTML = words
             .map(word => {
                 const isHighlighted = highlightWords.some(hw => word.startsWith(hw));
-                const randomColor = NEON_COLORS[Math.floor(Math.random() * NEON_COLORS.length)];
+                const randomColor = THEME_COLORS[Math.floor(Math.random() * THEME_COLORS.length)];
                 return `<span
           class="word-v6 ${isHighlighted ? highlightClass : ''}"
           style="color: ${randomColor}; margin: 4px ${wordSpacing};"
@@ -166,6 +169,9 @@ const FallingText: React.FC<FallingTextProps> = ({
 
         World.add(engine.world, [floor, leftWall, rightWall, ceiling, mouseConstraint, ...wordBodies.map(wb => wb.body)]);
 
+        canvasContainerRef.current.appendChild(render.canvas);
+
+
         const runner = Runner.create();
         Runner.run(runner, engine);
         Render.run(render);
@@ -186,7 +192,7 @@ const FallingText: React.FC<FallingTextProps> = ({
             cancelAnimationFrame(animationId);
             Render.stop(render);
             Runner.stop(runner);
-            if (render.canvas && canvasContainerRef.current) {
+            if (render.canvas && canvasContainerRef.current && canvasContainerRef.current.contains(render.canvas)) {
                 canvasContainerRef.current.removeChild(render.canvas);
             }
             World.clear(engine.world, false);
@@ -211,7 +217,7 @@ const FallingText: React.FC<FallingTextProps> = ({
     return (
         <div
             ref={containerRef}
-            className="falling-text-container-v6"
+            className={`falling-text-container-v6 ${effectStarted ? 'burning' : ''}`}
             onClick={trigger === 'click' ? () => setEffectStarted(true) : undefined}
             onMouseEnter={handleMouseEnter}
         >
@@ -224,9 +230,14 @@ const FallingText: React.FC<FallingTextProps> = ({
                 }}
             />
 
+
+
+            {effectStarted && <FireAnimation />}
+
             <div className="falling-text-canvas-v6" ref={canvasContainerRef} />
         </div>
     );
 };
+
 
 export default FallingText;

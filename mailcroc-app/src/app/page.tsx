@@ -50,11 +50,11 @@ export default function Home() {
 
           <div style={{ margin: '2rem 0', textAlign: 'center' }}>
             <ScrollFloat as="h3" style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#475569' }}>Keep your mail clutter free</ScrollFloat>
-            <div style={{ height: '250px', width: '100%', position: 'relative', overflow: 'hidden', borderRadius: '12px' }}>
+            <div style={{ height: '250px', width: '100%', position: 'relative', borderRadius: '12px' }}>
               <FallingText
-                text="Spam Ads Junk Trackers Phishing Clutter Marketing Scams Bots Updates Promos Social Verify Blocked Suspicious Malware Spyware Popups Banners Offers Deals Newsletters Invites Requests Alerts Notices"
+                text="Spam 🚫 Ads 📢 Junk 🗑️ Trackers 👁️ Phishing 🎣 Clutter 📦 Marketing 🏷️ Scams 🚨 Bots 🤖 Updates 🔄 Promos 💸 Social 👥 Verify ✅ Blocked 🛑 Suspicious 🤨 Malware 🦠 Popups 💬 Banners 🖼️ Offers 🤝 Deals 🎁 Newsletters 📰"
                 trigger="hover"
-                backgroundColor="#000000"
+                backgroundColor="#FAF9F7"
                 wireframes={false}
                 gravity={0.6}
                 fontSize="1.2rem"

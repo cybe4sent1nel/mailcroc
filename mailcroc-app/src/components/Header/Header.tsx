@@ -59,6 +59,7 @@ const Header = () => {
 
                 <nav className={styles.nav}>
                     <Link href="/mail" className={styles.navLink}>Temp Mail</Link>
+                    <Link href="/secure-view" className={styles.navLink}>Unlock Mail</Link>
                     <Link href="/developers" className={styles.navLink}>Developers</Link>
                     <Link href="/features" className={styles.navLink}>Features</Link>
                     <Link href="/pricing" className={styles.navLink}>Pricing</Link>

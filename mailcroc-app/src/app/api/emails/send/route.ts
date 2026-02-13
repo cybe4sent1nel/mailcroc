@@ -42,11 +42,23 @@ export async function POST(req: NextRequest) {
                 tls: { rejectUnauthorized: false }, // Allow self-signed certs if needed
             });
 
+            let finalBody = emailBody || '';
+            let portalLink = '';
+
+            if (body.isPasswordProtected) {
+                const { saveSecureMessage } = await import('@/lib/github-db');
+                const secureId = await saveSecureMessage(finalBody);
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mailcroc.qzz.io';
+                portalLink = `${baseUrl}/secure-view/${secureId}`;
+
+                finalBody = `You have received a secure, password-protected message via MailCroc.\n\nTo view this message, please click the link below and enter the shared password:\n\n${portalLink}\n\n---\nMailCroc - Secure Temporary Email`;
+            }
+
             const mailOptions: any = {
                 from: from,
                 to: to,
                 subject: subject || '(No Subject)',
-                text: emailBody || '',
+                text: finalBody,
                 attachments: body.attachments?.map((att: any) => ({
                     filename: att.name,
                     content: att.content.split(',')[1],
@@ -54,6 +66,31 @@ export async function POST(req: NextRequest) {
                     contentType: att.type,
                 })),
             };
+
+            if (body.isPasswordProtected) {
+                mailOptions.html = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                        <img src="https://mailcroc.qzz.io/logo.png" width="40" height="40" alt="MailCroc Logo" style="display: block; margin: 0 auto 20px;">
+                        <h2 style="text-align: center; color: #1e292a;">Secure Message Received</h2>
+                        <p style="color: #475569; line-height: 1.6; text-align: center;">
+                            <strong>${from}</strong> has sent you a password-protected email via <strong>MailCroc</strong>.
+                        </p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${portalLink}" style="background-color: #84cc16; color: white; padding: 12px 24px; border-radius: 9999px; text-decoration: none; font-weight: bold; display: inline-block;">
+                                Unlock Secure Message
+                            </a>
+                        </div>
+                        <p style="font-size: 0.875rem; color: #94a3b8; text-align: center;">
+                            If the button above doesn't work, copy and paste this link into your browser:<br>
+                            <a href="${portalLink}" style="color: #3b82f6;">${portalLink}</a>
+                        </p>
+                        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 30px 0;">
+                        <p style="font-size: 0.75rem; color: #cbd5e1; text-align: center;">
+                            MailCroc - The World's Best Temporary Email Service. Privacy-first, secure, and fast.
+                        </p>
+                    </div>
+                `;
+            }
 
             if (action === 'reply' || action === 'compose') {
                 mailOptions.inReplyTo = replyTo || undefined;

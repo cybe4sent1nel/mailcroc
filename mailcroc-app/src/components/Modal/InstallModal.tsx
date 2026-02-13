@@ -49,6 +49,9 @@ const InstallModal: React.FC<InstallModalProps> = ({
                             <span>Offline Support & Notifications</span>
                         </div>
                     </div>
+                    <p className={styles.nativePromptNote}>
+                        * A browser confirmation prompt will follow.
+                    </p>
                 </div>
 
                 <div className={styles.footer}>

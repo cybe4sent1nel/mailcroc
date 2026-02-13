@@ -1,0 +1,42 @@
+.wrapper {
+    display: inline-block;
+}
+
+.checkboxInput {
+    display: none;
+}
+
+.toggleSwitch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 50px;
+    height: 17px;
+    background-color: rgb(142, 32, 61);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.toggleSwitch::after {
+    content: "";
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 0px;
+    background-color: rgb(20, 18, 20);
+    border-radius: 50%;
+    transition: transform 0.2s, border-color 0.2s;
+    border: 2px solid rgb(193, 33, 33);
+}
+
+.checkboxInput:checked+.toggleSwitch::after {
+    transform: translateX(127%);
+    /* Adjusted to move to the right */
+    border: 2px solid rgb(165, 255, 105);
+}
+
+.checkboxInput:checked+.toggleSwitch {
+    background-color: rgb(165, 255, 105);
+}

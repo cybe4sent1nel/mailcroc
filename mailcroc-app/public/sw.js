@@ -5,7 +5,8 @@ const ASSETS_TO_CACHE = [
     OFFLINE_URL,
     '/animations/offline.json',
     '/manifest.json',
-    '/favicon.ico'
+    '/favicon.ico',
+    '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {

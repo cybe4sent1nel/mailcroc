@@ -121,6 +121,16 @@
     color: #3b82f6;
 }
 
+.nativePromptNote {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 1rem;
+    font-style: italic;
+    background: #f1f5f9;
+    padding: 0.4rem;
+    border-radius: 6px;
+}
+
 .footer {
     display: flex;
     flex-direction: column;

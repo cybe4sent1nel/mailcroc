@@ -414,3 +414,45 @@ export async function getDeveloperKeys(ownerId: string): Promise<ApiKeyMeta[]> {
         return JSON.parse(content);
     } catch { return []; }
 }
+
+// ============================================
+//  Secure Portal Operations
+// ============================================
+
+/**
+ * Save an encrypted message for the public portal
+ */
+export async function saveSecureMessage(content: string): Promise<string> {
+    const id = generateId();
+    const path = `secure_portal/${id}.json`;
+    const base64Content = Buffer.from(JSON.stringify({ content, createdAt: new Date().toISOString() })).toString('base64');
+
+    const res = await fetch(repoUrl(path), {
+        method: 'PUT',
+        headers: headers(),
+        body: JSON.stringify({
+            message: `🔒 New secure portal message ${id}`,
+            content: base64Content,
+        }),
+    });
+
+    if (!res.ok) throw new Error(`Failed to save secure message: ${res.status}`);
+    return id;
+}
+
+/**
+ * Get a secure message by ID
+ */
+export async function getSecureMessage(id: string): Promise<string | null> {
+    try {
+        const path = `secure_portal/${id}.json`;
+        const res = await fetch(repoUrl(path), { headers: headers() });
+        if (!res.ok) return null;
+
+        const fileData = await res.json();
+        const json = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        return JSON.parse(json).content;
+    } catch {
+        return null;
+    }
+}

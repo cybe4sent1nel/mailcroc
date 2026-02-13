@@ -11,8 +11,8 @@ const Footer = () => {
                         <Image
                             src="/logo.png"
                             alt="MailCroc"
-                            width={28}
-                            height={28}
+                            width={40}
+                            height={40}
                             className={styles.logoImage}
                         />
                         <span>MailCroc</span>
@@ -42,7 +42,7 @@ const Footer = () => {
                 </div>
             </div>
             <div className={styles.bottom}>
-                <p>&copy; {new Date().getFullYear()} MailCroc. All rights reserved.</p>
+                <p>&copy; {new Date().getFullYear()} MailCroc. All rights reserved. Designed and Developed by <strong>Fahad Khan</strong></p>
             </div>
         </footer>
     );

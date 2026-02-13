@@ -2585,3 +2585,135 @@
     background: var(--color-bg-creme);
     color: var(--color-text-main);
 }
+
+/* Password Protection Bar */
+.passwordProtectionBar {
+    background: #f8fafc;
+    border-top: 1px solid var(--color-border);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.protectionToggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.protectionLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.passwordInputArea {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.passwordInput {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    width: 120px;
+    outline: none;
+    background: var(--color-white);
+    font-family: var(--font-inter);
+    font-weight: 500;
+}
+
+.copyPassBtn {
+    background: #e2e8f0;
+    border: none;
+    padding: 0.4rem;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.copyPassBtn:hover {
+    background: #cbd5e1;
+}
+
+/* Unlock UI */
+.lockedMessageOverlay {
+    padding: 3rem 1.5rem;
+    display: flex;
+    justify-content: center;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 2px dashed #e2e8f0;
+}
+
+.lockIconBox {
+    text-align: center;
+    max-width: 320px;
+}
+
+.lockIconBox h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #1e292a;
+}
+
+.lockIconBox p {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.unlockInputGroup {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.unlockInput {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.9rem;
+}
+
+.unlockBtn {
+    background: var(--color-text-main);
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.unlockBtn:hover {
+    opacity: 0.9;
+}

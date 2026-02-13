@@ -14,6 +14,28 @@ import rehypeSanitize from 'rehype-sanitize';
 import { AILogo } from '../Icons/AILogo';
 import { TypewriterMarkdown } from '../Typewriter/TypewriterMarkdown';
 import ConfirmationModal from '@/components/Modal/ConfirmationModal';
+import Switch from '@/components/Switch/Switch';
+
+// --- Encryption Helpers ---
+const xorCipher = (text: string, key: string) => {
+    return Array.from(text).map((c, i) =>
+        String.fromCharCode(c.charCodeAt(0) ^ key.charCodeAt(i % key.length))
+    ).join('');
+};
+
+const encrypt = (text: string, key: string) => {
+    const ciphered = xorCipher(text, key);
+    return btoa(unescape(encodeURIComponent(ciphered)));
+};
+
+const decrypt = (encoded: string, key: string) => {
+    try {
+        const decoded = decodeURIComponent(escape(atob(encoded)));
+        return xorCipher(decoded, key);
+    } catch {
+        return null;
+    }
+};
 
 // Animations
 import mailRefreshAnim from '../../../public/animations/mailrefresh.json';
@@ -93,6 +115,11 @@ const MailBox = () => {
     const [sendStatus, setSendStatus] = useState<string | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isInlineReplying, setIsInlineReplying] = useState(false);
+    const [isPasswordProtected, setIsPasswordProtected] = useState(false);
+    const [emailPassword, setEmailPassword] = useState('');
+    const [unlockInput, setUnlockInput] = useState('');
+    const [unlockedMessageId, setUnlockedMessageId] = useState<string | null>(null);
+    const [unlockedText, setUnlockedText] = useState<string | null>(null);
 
     // --- State: AI ---
     const [summary, setSummary] = useState<string | null>(null);
@@ -561,7 +588,10 @@ const MailBox = () => {
                     from: emailAddress,
                     to: composeData.to,
                     subject: composeData.subject,
-                    body: composeData.body,
+                    body: isPasswordProtected && emailPassword
+                        ? `MC-LOCKED:${encrypt(composeData.body, emailPassword)}`
+                        : composeData.body,
+                    isPasswordProtected,
                     attachments
                 })
             });
@@ -1194,18 +1224,65 @@ const MailBox = () => {
                                     </div>
 
                                     <div id="email-content-export" className={styles.emailBody}>
-                                        {/* Fixed TS Error: Wrapped in div.markdownBody */}
-                                        {selectedMessage.html ? (
-                                            <div dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html) }} />
-                                        ) : (
-                                            <div className={styles.markdownBody}>
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    rehypePlugins={[rehypeSanitize]}
-                                                >
-                                                    {selectedMessage.text}
-                                                </ReactMarkdown>
+                                        {selectedMessage.text?.startsWith('MC-LOCKED:') && unlockedMessageId !== selectedMessage._id ? (
+                                            <div className={styles.lockedMessageOverlay}>
+                                                <div className={styles.lockIconBox}>
+                                                    <ShieldAlert size={48} className="text-red-500 mb-4" />
+                                                    <h3>This Email is Password Protected</h3>
+                                                    <p>The sender has secured this message. Please enter the shared code to unlock.</p>
+                                                    <div className={styles.unlockInputGroup}>
+                                                        <input
+                                                            type="password"
+                                                            placeholder="Enter shared code"
+                                                            value={unlockInput}
+                                                            onChange={(e) => setUnlockInput(e.target.value)}
+                                                            className={styles.unlockInput}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
+                                                                    if (decrypted) {
+                                                                        setUnlockedText(decrypted);
+                                                                        setUnlockedMessageId(selectedMessage._id);
+                                                                        addToast("Email unlocked!", "success");
+                                                                    } else {
+                                                                        addToast("Invalid code", "error");
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                        <button
+                                                            className={styles.unlockBtn}
+                                                            onClick={() => {
+                                                                const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
+                                                                if (decrypted) {
+                                                                    setUnlockedText(decrypted);
+                                                                    setUnlockedMessageId(selectedMessage._id);
+                                                                    addToast("Email unlocked!", "success");
+                                                                } else {
+                                                                    addToast("Invalid code", "error");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Unlock
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
+                                        ) : (
+                                            <>
+                                                {selectedMessage.html ? (
+                                                    <div dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html) }} />
+                                                ) : (
+                                                    <div className={styles.markdownBody}>
+                                                        <ReactMarkdown
+                                                            remarkPlugins={[remarkGfm]}
+                                                            rehypePlugins={[rehypeSanitize]}
+                                                        >
+                                                            {unlockedMessageId === selectedMessage._id ? unlockedText : selectedMessage.text}
+                                                        </ReactMarkdown>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
 
@@ -1358,6 +1435,44 @@ const MailBox = () => {
                             value={composeData.body}
                             onChange={e => setComposeData({ ...composeData, body: e.target.value })}
                         />
+
+                        {/* Password Protection Bar */}
+                        <div className={styles.passwordProtectionBar}>
+                            <div className={styles.protectionToggle}>
+                                <Switch
+                                    checked={isPasswordProtected}
+                                    onChange={(checked) => {
+                                        setIsPasswordProtected(checked);
+                                        if (checked && !emailPassword) {
+                                            const randomPass = Math.random().toString(36).slice(-6).toUpperCase();
+                                            setEmailPassword(randomPass);
+                                        }
+                                    }}
+                                />
+                                <span>Password Protect</span>
+                            </div>
+                            {isPasswordProtected && (
+                                <div className={styles.passwordInputArea}>
+                                    <input
+                                        type="text"
+                                        className={styles.passwordInput}
+                                        value={emailPassword}
+                                        onChange={(e) => setEmailPassword(e.target.value)}
+                                        placeholder="Enter password"
+                                    />
+                                    <button
+                                        className={styles.copyPassBtn}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(emailPassword);
+                                            addToast("Password copied to clipboard", "success");
+                                        }}
+                                        title="Copy Password"
+                                    >
+                                        <Copy size={14} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
 
                         {attachments.length > 0 && (
                             <div className={styles.attachmentList}>

@@ -14,7 +14,19 @@ export default function manifest(): MetadataRoute.Manifest {
                 src: '/logo.png',
                 sizes: '192x192',
                 type: 'image/png',
+                purpose: 'maskable',
+            },
+            {
+                src: '/logo.png',
+                sizes: '192x192',
+                type: 'image/png',
                 purpose: 'any',
+            },
+            {
+                src: '/logo.png',
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'maskable',
             },
             {
                 src: '/logo.png',
@@ -23,5 +35,14 @@ export default function manifest(): MetadataRoute.Manifest {
                 purpose: 'any',
             },
         ],
+        shortcuts: [
+            {
+                name: 'Compose New Email',
+                short_name: 'Compose',
+                description: 'Open the compose window immediately',
+                url: '/?compose=true',
+                icons: [{ src: '/logo.png', sizes: '192x192' }]
+            }
+        ]
     }
 }

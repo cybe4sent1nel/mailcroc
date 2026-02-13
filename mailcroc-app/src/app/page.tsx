@@ -15,6 +15,7 @@ import repComAnim from '../../public/animations/card3.json';
 import zeroLogsAnim from '../../public/animations/cardzerologs.json';
 import cusExpAnim from '../../public/animations/card_customexpiry.json';
 import pinForAnim from '../../public/animations/cardpin.json';
+import passwordAnim from '../../public/animations/password_protection.json';
 
 export default function Home() {
   return (
@@ -156,6 +157,15 @@ export default function Home() {
       </section>
 
       <Testimonials />
+
+      {/* Password Protected Feature Section */}
+      <section className={styles.lockedMailSection}>
+        <ScrollFloat as="h2" containerClassName={styles.sectionTitle}>Send Password Protected Mails</ScrollFloat>
+        <p className={styles.sectionSubtitle}>Open it only when you share the code</p>
+        <div className={styles.passwordAnimWrapper}>
+          <LottiePlayer animationData={passwordAnim} style={{ width: 400, height: 400 }} />
+        </div>
+      </section>
 
       {/* How It Works */}
       <section className={styles.howItWorks}>

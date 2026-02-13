@@ -18,16 +18,22 @@
 
 ---
 
-**MailCroc** is a next-generation temporary email service built for privacy, speed, and modern web standards. Unlike traditional temp mail services that are riddled with ads and delays, MailCroc offers a premium, ad-free experience with **instant WebSocket delivery**, **attachment support**, and **stealth domains**.
+**MailCroc** is a next-generation temporary email service built for privacy, speed, and modern web standards. Unlike traditional temp mail services that are riddled with ads and delays, MailCroc offers a premium, ad-free experience with **instant WebSocket delivery**, **AI-powered tools**, and **end-to-end password protection**.
 
-It relies on a serverless architecture, using **Cloudflare Email Workers** to ingest emails and **GitHub** as a free, unlimited database.
+It relies on a serverless architecture, using **Cloudflare Email Workers** to ingest emails and **GitHub** as a free, high-tier storage solution.
 
 ## 🚀 Key Features
 
 ### 🛡️ Privacy & Security
+*   **🔐 Password Protected Emails**: Send encrypted emails to external addresses (Gmail/Outlook) via a secure web portal. Only accessible with your shared code.
 *   **Zero Logs**: We do not store IP addresses or browser fingerprints.
 *   **Ephemeral Inboxes**: All emails are stored in a private repository and can be auto-expired.
-*   **Stealth Mode**: Uses a pool of domains (e.g., `@mailcroc.qzz.io`, `@gmail.com` aliases) to bypass "unacceptable email" filters on websites.
+*   **Stealth Mode**: Uses a pool of 100+ domains to bypass "unacceptable email" filters.
+
+### 🤖 AI-Powered Intelligence
+*   **Help me write (Gemini-style)**: Generate professional replies or new emails instantly using our integrated AI engine (powered by Puter.js).
+*   **Smart Summarization**: Get the gist of long emails with one click.
+*   **Vision & Voice**: Extract text from images and have your emails read aloud by professional AI voices.
 
 ### ⚡ Real-Time Experience
 *   **Instant Delivery**: Emails appear in your inbox milliseconds after they are received via Socket.IO.
@@ -36,39 +42,58 @@ It relies on a serverless architecture, using **Cloudflare Email Workers** to in
 ### 📧 Advanced Email Capabilities
 *   **Reply & Compose**: Full support for sending new emails and replying to received ones.
 *   **Attachments**: Send and receive files (Images, PDFs, Docs) up to 25MB.
-*   **Custom Expiry**: Set your inbox to self-destruct after 10 minutes, 1 hour, or keep it until you close the tab.
-*   **Forwarding**: Forward important emails to your real inbox.
+*   **Export Options**: One-click export of emails to **PDF**, **Markdown**, or **JSON**.
+*   **Archiving**: Old emails are automatically moved to GitHub Releases to keep the live system fast.
 
 ### 💻 Modern UI/UX
-*   **PWA Support**: Installable as a native-like app on iOS, Android, and Desktop.
-*   **Dark Mode**: Sleek, eye-friendly design.
+*   **PWA Support**: Installable as a native-like app on iOS, Android, and Desktop with offline support.
+*   **Draggable Compose**: A premium, draggable workspace for multitasking.
 *   **Offline Mode**: View previously loaded emails even without an internet connection.
 
 ## 🏗️ Architecture
 
 MailCroc operates on a 100% serverless infrastructure, ensuring high availability and zero maintenance costs.
 
-*   **Frontend**: Next.js 14 (App Router) deployed on **Vercel**.
-*   **Ingress**: Cloudflare Email Workers intercept SMTP traffic.
-*   **Storage**: GitHub REST API (using a private repo as a JSON document store).
-*   **Real-time**: Socket.IO server for pushing updates to the client.
+```mermaid
+graph TD
+    subgraph Client
+        Browser[User Browser / PWA]
+        AI[Puter.js AI Engine]
+    end
 
-> 📚 **Deep Dive**: Check out [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system diagrams and workflow explanations.
+    subgraph Serverless_Core
+        Vercel[Next.js on Vercel]
+        CF_Worker[Cloudflare Ingress]
+    end
+
+    subgraph Storage
+        GitHub_Repo[Live JSON Store]
+        GitHub_Releases[Archival Store]
+    end
+
+    %% Flows
+    Browser <-->|HTTPS| Vercel
+    CF_Worker -->|Webhook| Vercel
+    Vercel -->|Commit| GitHub_Repo
+    Vercel -->|Archive| GitHub_Releases
+    Browser <-->|AI Tasks| AI
+```
+
+> 📚 **Deep Dive**: For detailed sequence diagrams and component breakdowns, check out [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## 🛠️ Tech Stack
 
--   **Framework**: [Next.js 14](https://nextjs.org/)
+-   **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
 -   **Language**: [TypeScript](https://www.typescriptlang.org/)
--   **Styling**: CSS Modules (Scoped & Performance optimized)
+-   **AI Engine**: [Puter.js](https://js.puter.com/)
 -   **Animations**: Lottie (via `lottie-react`)
--   **Email Parsing**: `postal-mime` & `mailparser`
+-   **Real-time**: Socket.IO
 -   **Deployment**: Vercel & Cloudflare Workers
 
 ## 🏁 Getting Started
 
 ### Prerequisites
 -   Node.js 18+
--   npm or yarn
 -   A generic GitHub account (for storage)
 -   Cloudflare account (for email routing)
 
@@ -86,63 +111,29 @@ MailCroc operates on a 100% serverless infrastructure, ensuring high availabilit
     npm install
     ```
 
-3.  **Environment Setup**
-    Create `.env.local` inside `mailcroc-app/`:
-    ```env
-    # GitHub Storage Config
-    GITHUB_TOKEN=your_personal_access_token
-    GITHUB_REPO_OWNER=your_username
-    GITHUB_REPO_NAME=your_private_repo
-    
-    # Security
-    WEBHOOK_SECRET=your_random_secret_string
-    ```
-
-4.  **Run the App**
+3.  **Run the App**
     ```bash
-    npm run dev
+    npm run dev:all
     ```
-    Visit `http://localhost:3000`.
+    This starts the Next.js frontend and the local mail server concurrently. Visit `http://localhost:3000`.
 
 ## 📦 Deployment
 
 ### Vercel (Frontend & API)
-
-1.  Push your code to GitHub.
-2.  Import the project to Vercel.
-3.  **CRITICAL**: Set the **Root Directory** in Vercel settings to `mailcroc-app`.
-4.  Add the Environment Variables from your `.env.local`.
-5.  Deploy!
+1.  Push code to GitHub and import to Vercel.
+2.  Set the **Root Directory** to `mailcroc-app`.
+3.  Add `GITHUB_TOKEN`, `GITHUB_REPO_OWNER`, and `GITHUB_REPO_NAME` to Env Vars.
 
 ### Cloudflare (Email Ingress)
-
-1.  Navigate to `mailcroc-worker/`.
-2.  Update `wrangler.toml` with your Vercel URL.
-3.  Deploy:
-    ```bash
-    npx wrangler deploy
-    ```
-4.  Set the webhook secret:
-    ```bash
-    npx wrangler secret put WEBHOOK_SECRET
-    ```
-5.  Configure **Email Routing** in Cloudflare Dashboard to send all traffic to this Worker.
+1.  Deploy the worker in `mailcroc-worker/` via `npx wrangler deploy`.
+2.  Route your domain's email traffic to the worker in the Cloudflare Dashboard.
 
 ## 📖 Usage Guide
 
-1.  **Generate Identity**: On the home page, select an identity type (Standard, Plus, Dot, or Gmail).
-2.  **Copy Address**: Click the email address to copy it to your clipboard.
-3.  **Wait for Mail**: Keep the tab open. Emails will pop up instantly.
-4.  **Interact**: Click an email to read, download attachments, or reply.
-5.  **Files**: To attach a file when replying, click the "Paperclip" icon in the compose modal.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please fork the repository and submit a pull request for any features or bug fixes.
-
-## 📄 License
-
-This project is open-source and available under the [MIT License](LICENSE).
+1.  **Generate Identity**: Select an identity type (Standard, Plus, Dot, or Gmail).
+2.  **Secure Your Mail**: Toggle "Password Protection" in the compose modal to send an encrypted link.
+3.  **Use AI**: Click "Help me write" in the compose window to generate content instantly.
+4.  **Export**: Use the export dropdown to save emails as PDF or Markdown.
 
 ---
 

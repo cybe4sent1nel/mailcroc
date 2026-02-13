@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import styles from './MailBox.module.css';
 import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
@@ -15,6 +16,9 @@ import { AILogo } from '../Icons/AILogo';
 import { TypewriterMarkdown } from '../Typewriter/TypewriterMarkdown';
 import ConfirmationModal from '@/components/Modal/ConfirmationModal';
 import Switch from '@/components/Switch/Switch';
+
+// --- Dynamic Loaders (Client-Side Only) ---
+const ComposeModal = dynamic(() => import('./ComposeModal'), { ssr: false });
 
 // --- Encryption Helpers ---
 const xorCipher = (text: string, key: string) => {
@@ -113,6 +117,7 @@ const MailBox = () => {
     const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [sendStatus, setSendStatus] = useState<string | null>(null);
+
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isInlineReplying, setIsInlineReplying] = useState(false);
     const [isPasswordProtected, setIsPasswordProtected] = useState(false);
@@ -130,8 +135,6 @@ const MailBox = () => {
     const [exportFormat, setExportFormat] = useState<'md' | 'json'>('md');
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
-    const [aiWriteTopic, setAiWriteTopic] = useState('');
-    const [showAiWritePopover, setShowAiWritePopover] = useState(false);
 
     // --- State: Dragging ---
     const [composePos, setComposePos] = useState({ x: 100, y: 100 });
@@ -168,7 +171,6 @@ const MailBox = () => {
 
     // --- Refs ---
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const composeFileInputRef = useRef<HTMLInputElement>(null);
     const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
     const deferredPrompt = useRef<any>(null);
 
@@ -531,32 +533,6 @@ const MailBox = () => {
         setTimeout(() => setCopied(false), 1500);
     };
 
-    const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
-
-        const currentCount = attachments.length;
-        const incomingFiles = Array.from(files);
-
-        if (currentCount + incomingFiles.length > 5) {
-            addToast("Maximum 5 attachments allowed", "error");
-            return;
-        }
-
-        incomingFiles.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64Content = (event.target?.result as string).split(',')[1];
-                setAttachments(prev => [...prev, {
-                    name: file.name,
-                    content: base64Content,
-                    type: file.type,
-                    size: file.size
-                }]);
-            };
-            reader.readAsDataURL(file);
-        });
-    };
 
     const removeAttachment = (index: number) => {
         setAttachments(prev => prev.filter((_, i) => i !== index));
@@ -631,6 +607,22 @@ const MailBox = () => {
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    const stopReadAloud = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+        setIsPlayingAudio(false);
+    };
+
+    const cleanAiResponse = (text: string) => {
+        if (!text) return "";
+        let cleaned = text.trim();
+        // Remove triple backticks and potential language identifier (e.g. ```html)
+        cleaned = cleaned.replace(/^```(html|markdown)?\s*/i, '').replace(/\s*```$/, '');
+        return cleaned.trim();
+    };
+
     // --- AI Logic (Puter.js with Fallbacks) ---
     const handleAiAction = async (action: 'summarize' | 'receipts' | 'draft' | 'summarize_selected') => {
         setIsSummarizing(true);
@@ -676,13 +668,14 @@ const MailBox = () => {
             }
 
             if (!text) throw new Error("AI failed to generate response");
+            const cleanedText = cleanAiResponse(text);
 
             if (action === 'draft') {
-                setComposeData(prev => ({ ...prev, body: text }));
+                setComposeData(prev => ({ ...prev, body: cleanedText }));
                 setShowDockedCompose(true);
                 addToast("Draft generated!", "success");
             } else {
-                setSummary(text);
+                setSummary(cleanedText);
                 setShowAiSidePanel(true);
                 addToast("Analysis complete", "success");
             }
@@ -696,13 +689,12 @@ const MailBox = () => {
         }
     };
 
-    const handleAiWrite = async (refinement?: 'polish' | 'formalize' | 'elaborate' | 'shorten') => {
-        if (!aiWriteTopic && !refinement) return;
+    const handleAiWrite = async (topic: string, refinement?: 'polish' | 'formalize' | 'elaborate' | 'shorten') => {
+        if (!topic && !refinement) return;
         setIsSummarizing(true);
-        if (!refinement) setShowAiWritePopover(false);
         try {
             let text = "";
-            let prompt = `Write a professional email about: ${aiWriteTopic}`;
+            let prompt = `Write a professional email about: ${topic}`;
 
             if (refinement) {
                 const currentText = composeData.body;
@@ -727,7 +719,7 @@ const MailBox = () => {
                 const res = await fetch('/api/ai/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: refinement ? prompt : aiWriteTopic })
+                    body: JSON.stringify({ topic: refinement ? prompt : topic })
                 });
                 if (res.ok) {
                     const data = await res.json();
@@ -736,14 +728,105 @@ const MailBox = () => {
             }
 
             if (text) {
-                setComposeData(prev => ({ ...prev, body: text }));
+                let cleanedText = cleanAiResponse(text);
+
+                // Smart Parsing for Subject and To
+                let extractedSubject = "";
+                let extractedTo = "";
+
+                // Only parse headers if we are NOT refining existing text (refinement usually just returns body)
+                // Or if we specifically detect headers even in refinement.
+                const lines = cleanedText.split('\n');
+                const bodyLines: string[] = [];
+                let headersDone = false;
+                let hasFoundHeader = false;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const lowerLine = line.toLowerCase().trim();
+
+                    if (headersDone) {
+                        bodyLines.push(line);
+                        continue;
+                    }
+
+                    if (lowerLine.startsWith("subject:")) {
+                        // Extract and strip potential markdown like **Subject:**
+                        extractedSubject = line.replace(/\*|#|_/g, '').replace(/^subject:/i, '').trim();
+                        hasFoundHeader = true;
+                    } else if (lowerLine.startsWith("to:")) {
+                        extractedTo = line.replace(/\*|#|_/g, '').replace(/^to:/i, '').trim();
+                        hasFoundHeader = true;
+                    } else if (line.trim() === "") {
+                        // Empty line typically separates headers from body if we found headers
+                        if (hasFoundHeader) {
+                            headersDone = true;
+                        }
+                    } else {
+                        // If we found headers, and this isn't one, it's body
+                        if (hasFoundHeader) {
+                            headersDone = true;
+                            bodyLines.push(line);
+                        } else {
+                            // If we haven't found headers yet, assume body
+                            bodyLines.push(line);
+                        }
+                    }
+                }
+
+                if (extractedSubject || extractedTo) {
+                    cleanedText = bodyLines.join('\n').trim();
+                }
+
+                setComposeData(prev => ({
+                    ...prev,
+                    body: cleanedText,
+                    subject: extractedSubject || prev.subject,
+                    to: extractedTo || prev.to
+                }));
                 addToast(refinement ? "Text refined!" : "Content generated!", "success");
             }
         } catch (err) {
             addToast("Failed to process content", "error");
         } finally {
             setIsSummarizing(false);
-            if (!refinement) setAiWriteTopic('');
+        }
+    };
+
+    const polishText = async (text: string): Promise<string> => {
+        if (!text) return "";
+        setIsSummarizing(true);
+        try {
+            const prompt = `Fix grammar, spelling, and improve the flow of this text to make it professional, but keep the core meaning and length similar. Return the result as clean HTML suitable for an email body (e.g. use <p>, <strong>, <em>, <br> only):\n\n${text}`;
+            let result = "";
+
+            // Try Puter first
+            if ((window as any).puter) {
+                try {
+                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    result = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
+                } catch (e) { console.warn("Puter Polish failed", e); }
+            }
+
+            // Fallback
+            if (!result) {
+                const res = await fetch('/api/ai/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: prompt })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    result = data.content;
+                }
+            }
+
+            return cleanAiResponse(result) || text;
+        } catch (err) {
+            addToast("Failed to polish text", "error");
+            return text;
+        } finally {
+            setIsSummarizing(false);
         }
     };
 
@@ -798,14 +881,6 @@ const MailBox = () => {
             addToast("Failed to read email aloud", "error");
             setIsPlayingAudio(false);
         }
-    };
-
-    const stopReadAloud = () => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-        setIsPlayingAudio(false);
     };
 
     // --- Actions: Pin & Delete ---
@@ -1403,153 +1478,50 @@ const MailBox = () => {
                 </div>
             </div>
 
-            {/* Draggable Compose Modal */}
-            {showDockedCompose && (
-                <div
-                    className={styles.composeModal}
-                    style={{ left: composePos.x, top: composePos.y }}
-                >
-                    <div className={styles.modalHeader} onMouseDown={handleMouseDown}>
-                        <span className={styles.modalTitle}>New Message</span>
-                        <div className={styles.modalControls}>
-                            <button className={styles.controlBtn} onClick={() => setShowDockedCompose(false)}><X size={18} /></button>
-                        </div>
-                    </div>
-
-                    <div className={styles.composeBody}>
-                        <input
-                            className={styles.composeInput}
-                            placeholder="Recipients"
-                            value={composeData.to}
-                            onChange={e => setComposeData({ ...composeData, to: e.target.value })}
-                        />
-                        <input
-                            className={styles.composeInput}
-                            placeholder="Subject"
-                            value={composeData.subject}
-                            onChange={e => setComposeData({ ...composeData, subject: e.target.value })}
-                        />
-                        <textarea
-                            className={styles.composeTextarea}
-                            placeholder="Write your message..."
-                            value={composeData.body}
-                            onChange={e => setComposeData({ ...composeData, body: e.target.value })}
-                        />
-
-                        {/* Password Protection Bar */}
-                        <div className={styles.passwordProtectionBar}>
-                            <div className={styles.protectionToggle}>
-                                <Switch
-                                    checked={isPasswordProtected}
-                                    onChange={(checked) => {
-                                        setIsPasswordProtected(checked);
-                                        if (checked && !emailPassword) {
-                                            const randomPass = Math.random().toString(36).slice(-6).toUpperCase();
-                                            setEmailPassword(randomPass);
-                                        }
-                                    }}
-                                />
-                                <span>Password Protect</span>
-                            </div>
-                            {isPasswordProtected && (
-                                <div className={styles.passwordInputArea}>
-                                    <input
-                                        type="text"
-                                        className={styles.passwordInput}
-                                        value={emailPassword}
-                                        onChange={(e) => setEmailPassword(e.target.value)}
-                                        placeholder="Enter password"
-                                    />
-                                    <button
-                                        className={styles.copyPassBtn}
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(emailPassword);
-                                            addToast("Password copied to clipboard", "success");
-                                        }}
-                                        title="Copy Password"
-                                    >
-                                        <Copy size={14} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {attachments.length > 0 && (
-                            <div className={styles.attachmentList}>
-                                {attachments.map((file, idx) => (
-                                    <div key={idx} className={styles.attachmentChip}>
-                                        <span className={styles.fileIconWrapper}>{getFileIcon(file.type)}</span>
-                                        <span className={styles.attachmentName} title={file.name}>{file.name}</span>
-                                        <button className={styles.removeAttachBtn} onClick={() => removeAttachment(idx)}><X size={14} /></button>
-                                    </div>
-                                ))}
-                                {attachments.length < 5 && (
-                                    <button className={styles.addAttachBtn} onClick={() => composeFileInputRef.current?.click()} title="Add more files"><Plus size={16} /></button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className={styles.composeFooter}>
-                        <div className={styles.footerLeft}>
-                            <button className={styles.aiWriteBtn} onClick={() => setShowAiWritePopover(!showAiWritePopover)}>
-                                <AILogo size={18} color="black" /> Help me write
-                            </button>
-                            <button className={styles.controlBtn} onClick={() => composeFileInputRef.current?.click()} title="Attach File"><Paperclip size={18} /></button>
-                            <button className={styles.controlBtn} onClick={saveDraft} title="Save Draft"><FileText size={18} /></button>
-                        </div>
-
-                        <div className={styles.footerRight}>
-                            <button className={styles.sendBtn} onClick={handleSend} disabled={!!sendStatus}>
-                                {sendStatus || 'Send'} <SendIcon size={16} />
-                            </button>
-                        </div>
-
-                        {showAiWritePopover && (
-                            <div className={styles.aiPopover}>
-                                <div className={styles.aiPopoverHeader}>
-                                    <strong>Help me write</strong>
-                                    <button onClick={() => setShowAiWritePopover(false)} className={styles.closeBtn}><X size={14} /></button>
-                                </div>
-                                <input
-                                    placeholder="What's this email about?"
-                                    value={aiWriteTopic}
-                                    onChange={e => setAiWriteTopic(e.target.value)}
-                                    autoFocus
-                                    onKeyDown={e => e.key === 'Enter' && handleAiWrite()}
-                                />
-                                <button
-                                    className={styles.actionBtnPrimary}
-                                    style={{ width: '100%', marginBottom: '1rem' }}
-                                    onClick={() => handleAiWrite()}
-                                    disabled={isSummarizing || !aiWriteTopic}
-                                >
-                                    {isSummarizing ? 'Writing...' : 'Create Content'}
-                                </button>
-
-                                <div className={styles.aiRefinementTools}>
-                                    <div className={styles.refinementLabel}>Refine existing text:</div>
-                                    <div className={styles.refinementGrid}>
-                                        <button onClick={() => handleAiWrite('polish')} disabled={isSummarizing || !composeData.body}>
-                                            <Sparkles size={14} style={{ color: '#3b82f6' }} /> Polish
-                                        </button>
-                                        <button onClick={() => handleAiWrite('formalize')} disabled={isSummarizing || !composeData.body}>
-                                            <Briefcase size={14} style={{ color: '#4b5563' }} /> Formalize
-                                        </button>
-                                        <button onClick={() => handleAiWrite('elaborate')} disabled={isSummarizing || !composeData.body}>
-                                            <AlignLeft size={14} style={{ color: '#16a34a' }} /> Elaborate
-                                        </button>
-                                        <button onClick={() => handleAiWrite('shorten')} disabled={isSummarizing || !composeData.body}>
-                                            <Scissors size={14} style={{ color: '#ef4444' }} /> Shorten
-                                        </button>
-                                    </div>
-                                    {!composeData.body && <div className={styles.refinementHint}>Write something to use refinements</div>}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+            {/* Extracted Compose Modal */}
+            <ComposeModal
+                show={showDockedCompose}
+                onClose={() => setShowDockedCompose(false)}
+                composePos={composePos}
+                handleMouseDown={handleMouseDown}
+                composeData={composeData}
+                setComposeData={setComposeData}
+                attachments={attachments}
+                removeAttachment={removeAttachment}
+                addAttachment={(files) => {
+                    if (!files) return;
+                    const incomingItems = Array.from(files);
+                    if (attachments.length + incomingItems.length > 5) {
+                        addToast("Maximum 5 attachments allowed", "error");
+                        return;
+                    }
+                    incomingItems.forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const base64 = (e.target?.result as string).split(',')[1];
+                            setAttachments(prev => [...prev, {
+                                name: file.name,
+                                content: base64,
+                                type: file.type,
+                                size: file.size
+                            }]);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }}
+                isPasswordProtected={isPasswordProtected}
+                setIsPasswordProtected={setIsPasswordProtected}
+                emailPassword={emailPassword}
+                setEmailPassword={setEmailPassword}
+                handleSend={handleSend}
+                saveDraft={saveDraft}
+                sendStatus={sendStatus}
+                addToast={addToast}
+                handleAiWrite={handleAiWrite as any}
+                polishText={polishText}
+                isAiWriting={isSummarizing}
+                getFileIcon={getFileIcon}
+            />
 
             {/* Delete Confirmation */}
             <ConfirmationModal
@@ -1562,14 +1534,6 @@ const MailBox = () => {
                 isDestructive
             />
 
-            {/* Compose Hidden File Input */}
-            <input
-                type="file"
-                multiple
-                ref={composeFileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleAttachmentChange}
-            />
 
             {/* QR Modal */}
             {showQR && (

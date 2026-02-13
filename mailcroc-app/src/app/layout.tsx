@@ -64,23 +64,26 @@ export default function RootLayout({
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
               navigator.serviceWorker.register('/sw.js').then(
-                function(registration) {
-                  console.log('Service Worker registration successful with scope: ', registration.scope);
+                function(reg) {
+                  console.log('SW: registered successfully:', reg.scope);
                 },
                 function(err) {
-                  console.log('Service Worker registration failed: ', err);
+                  console.log('SW: registration failed:', err);
                 }
               );
             });
           }
+
+          // If we detect going offline, reload the page to trigger SW interception
+          window.addEventListener('offline', function() {
+            window.location.reload();
+          });
         `}
         </Script>
-        <Script
-          id="adsense-init"
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2332002596329232"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
         <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
       </body>

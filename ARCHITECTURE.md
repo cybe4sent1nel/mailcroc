@@ -10,6 +10,8 @@ The system is built on a serverless, event-driven architecture to ensure scalabi
 graph TD
     subgraph Client_Side
         Browser[User Browser / PWA]
+        Lottie[Lottie Animations]
+        Puter_JS[Puter.js AI Engine]
     end
 
     subgraph CDN_Edge
@@ -21,6 +23,7 @@ graph TD
         Vercel[Vercel Serverless Functions]
         API_Webhook[POST /api/webhook/email]
         API_Socket[POST /api/socket/notify]
+        Secure_Portal[Secure Portal /secure-view]
     end
 
     subgraph RealTime_Services
@@ -28,20 +31,25 @@ graph TD
     end
 
     subgraph Storage_Layer
-        GitHub[GitHub Repository]
+        GitHub_Repo[GitHub Repository - Live Storage]
+        GitHub_Releases[GitHub Releases - Archives]
     end
 
     %% Flows
     Browser <-->|HTTPS| Vercel
     Browser <-->|WebSocket| SocketServer
+    Browser <-->|AI Tasks| Puter_JS
     
     External_Email[Incoming Email] -->|SMTP| CF_DNS
     CF_DNS -->|Trigger| CF_Worker
     CF_Worker -->|POST JSON| API_Webhook
     
-    API_Webhook -->|Commit JSON| GitHub
+    API_Webhook -->|Commit JSON| GitHub_Repo
     API_Webhook -->|Notify| API_Socket
     API_Socket -->|Emit Event| SocketServer
+
+    Vercel -->|Cron Cleanup| GitHub_Releases
+    GitHub_Releases -.->|Delete| GitHub_Repo
 ```
 
 ---
@@ -51,32 +59,33 @@ graph TD
 ### A. Email Ingestion (The "Croc" Worker)
 *   **Role**: Acts as the SMTP ingress.
 *   **Technology**: Cloudflare Email Workers.
-*   **Function**: Intercepts incoming emails to `*@mailcroc.qzz.io`, parses the raw MIME data using `postal-mime` (or similar), and forwards a clean JSON payload to our Vercel Webhook.
-*   **Security**: Uses a shared `WEBHOOK_SECRET` to authenticate with the Vercel API.
+*   **Function**: Intercepts incoming emails, parses raw MIME data, and forwards a clean JSON payload to our Vercel Webhook.
 
 ### B. The Application Core (Vercel)
 *   **Role**: Frontend UI and API coordination.
 *   **Technology**: Next.js 14 (App Router).
 *   **Key Responsibilities**:
     *   **UI**: Renders the inbox, generates identities, and handles file uploads.
-    *   **Webhook**: Receives parsed emails from Cloudflare.
+    *   **Secure Portal**: Decrypts and displays password-protected messages client-side.
     *   **Storage Access**: Communicates with GitHub API to save/read emails.
 
-### C. The "Database" (GitHub)
-*   **Role**: Persistent storage without a database server.
-*   **Technology**: GitHub REST API.
-*   **Structure**:
-    *   Each email is a JSON file.
-    *   Path format: `emails/{domain}/{username}/{messageId}.json`.
-    *   This allows for "infinite" scalability for a temporary mail service without cost.
+### C. AI Engine (Puter.js Integration)
+*   **Role**: Intelligent email management.
+*   **Capabilities**: 
+    *   **Summarization**: Condenses long emails into bullet points.
+    *   **Help me write**: Generates replies or new emails based on topics.
+    *   **Speech-to-Text**: Reads emails aloud.
+*   **Fallback**: If Puter.js is unavailable, the system transparently falls back to individual LLM API endpoints.
+
+### D. The Storage System (GitHub Multi-Tier)
+*   **Live Store**: GitHub REST API stores emails as JSON files in a private repo.
+*   **Archive Store**: An automated cron job bundles old emails into ZIP assets and uploads them to **GitHub Releases**, keeping the live repository clean and performant.
 
 ---
 
 ## 3. Workflows in Detail
 
-### Workflow A: Receiving an Email
-This sequence diagram illustrates exactly what happens when someone sends an email to a MailCroc address.
-
+### Workflow A: Receiving an Email (Live)
 ```mermaid
 sequenceDiagram
     participant Sender as External Sender
@@ -111,34 +120,34 @@ sequenceDiagram
     Client->>Client: Display New Email Toast
 ```
 
-### Workflow B: Sending/Replying (with Attachments)
-How MailCroc handles outgoing mail and file attachments.
-
+### Workflow B: Secure Portal Access (Client-Side Encryption)
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Frontend
-    participant API as API Route
-    participant Nodemailer
-    participant SMTP as SMTP Relay
+    participant User as Recipient
+    participant Portal as Secure Portal (/secure-view)
+    participant GH as GitHub API
+    participant JS as Client-Side Crypto
 
-    User->>Frontend: Attaches File & Clicks Send
-    Frontend->>Frontend: Convert File to Base64
-    Frontend->>API: POST /api/emails/send
-    
-    activate API
-    API->>API: Verify Recaptcha / Limits
-    API->>Nodemailer: Create Transport
-    
-    Note over Nodemailer: Attaches Base64 data as Stream
-    
-    Nodemailer->>SMTP: Send Mail
-    SMTP-->>Nodemailer: 250 OK
-    Nodemailer-->>API: Success
-    API-->>Frontend: { success: true }
-    deactivate API
-    
-    Frontend->>User: Show "Sent" Animation
+    User->>Portal: Enters Message ID & Password
+    Portal->>GH: Fetch Encrypted Content (.json)
+    GH-->>Portal: Return Encrypted Data
+    Portal->>JS: Decrypt with User Password
+    JS-->>Portal: Cleartext Markdown
+    Portal->>User: Renders Secure Content
+```
+
+### Workflow C: GitHub Archival Cron
+```mermaid
+sequenceDiagram
+    participant Cron as Vercel Cron (.cleanup)
+    participant GH_API as GitHub REST API
+    participant Release as GitHub Releases
+
+    Cron->>GH_API: List Files in /emails older than 24h
+    GH_API-->>Cron: File List
+    Cron->>Cron: Package into ZIP Bundle
+    Cron->>Release: Create Release & Upload Asset
+    Cron->>GH_API: Delete original files from Repo
 ```
 
 ---
@@ -155,15 +164,17 @@ classDiagram
     
     class MailCrocApp {
         +src/app/ (Pages)
-        +src/components/ (UI)
-        +src/lib/ (Logic)
-        +public/ (Assets)
+        +src/app/secure-view/ (Secure Portal)
+        +src/components/ (UI/Lottie)
+        +src/lib/ (Logic/Encryption)
+        +public/ (Animations)
     }
     
     class Keyfiles {
         +page.tsx (Landing)
-        +features/MailBox.tsx (Inbox Logic)
+        +MailBox.tsx (Inbox Logic)
         +api/webhook/route.ts (Ingestion)
+        +api/cron/cleanup/route.ts (Archiver)
     }
 
     ProjectRoot *-- MailCrocApp

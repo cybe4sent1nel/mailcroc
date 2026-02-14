@@ -1,0 +1,23 @@
+.waveText {
+    display: flex;
+    flex-wrap: wrap;
+    overflow: hidden;
+    margin: 0 auto;
+    padding: 0;
+    justify-content: center;
+}
+
+.wordWrapper {
+    display: inline-block;
+    overflow: hidden;
+    position: relative;
+}
+
+.word {
+    display: inline-block;
+    transform-origin: bottom center;
+}
+
+.space {
+    display: inline-block;
+}

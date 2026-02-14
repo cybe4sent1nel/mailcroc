@@ -1,6 +1,5 @@
 
 import React from 'react';
-import Footer from '@/components/Footer/Footer';
 import styles from './styles.module.css';
 
 export default function TermsPage() {
@@ -32,7 +31,6 @@ export default function TermsPage() {
                     <p>The service is provided "as is" without warranties of any kind. We are not responsible for any messages lost due to system failure or auto-deletion.</p>
                 </section>
             </main>
-            <Footer />
         </div>
     );
 }

@@ -140,15 +140,16 @@
 }
 
 .title {
-  font-size: 5rem;
+  font-size: 3.5rem;
+  /* Reduced from 5rem as requested */
   font-weight: 800;
   color: var(--color-text-main);
   margin-bottom: 2.5rem;
   line-height: 1.15;
-  /* Increased from 1.05 to prevent cropping */
+  /* Increased for vertical breathing room */
   padding-bottom: 0.1em;
-  /* Extra space for descenders */
-  letter-spacing: -2.5px;
+  letter-spacing: -1.5px;
+  /* Adjusted tracking */
   position: relative;
 }
 

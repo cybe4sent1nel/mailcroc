@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Mail } from 'lucide-react';
 import LottiePlayer from '@/components/LottiePlayer';
 import FallingText from '@/components/FallingText/FallingText';
+import ScrollWave from '@/components/ScrollWave/ScrollWave';
 import ScrollFloat from '@/components/ScrollFloat/ScrollFloat';
 import TrustedBrands from '@/components/TrustedBrands/TrustedBrands';
 import Testimonials from '@/components/Testimonials/Testimonials';
@@ -43,8 +44,9 @@ export default function Home() {
             <LottiePlayer animationData={heroAnim} style={{ width: 300, height: 300 }} />
           </div>
           <h1 className={styles.title}>
-            <ScrollFloat as="span">Stop Leaking Your Identity.</ScrollFloat><br />
-            <span className={styles.highlight}>Master the Relay.</span>
+            <ScrollWave as="span">Don&apos;t Let Spammers Live in Your Inbox.</ScrollWave>
+            <br />
+            <span className={styles.highlight}>Evict Them Before They Enter.</span>
           </h1>
           <p className={styles.subtitle}>
             Generate instant temporary email addresses with reply, compose, and forwarding.
@@ -56,9 +58,9 @@ export default function Home() {
               <Image src="/images/food-loss-sdgs-svgrepo-com.svg" alt="Bin" width={60} height={60} />
               <ScrollFloat as="h3" style={{ fontSize: '1.8rem', color: '#1e293b', fontWeight: 800 }}>Keep your mail clutter free</ScrollFloat>
             </div>
-            <div style={{ height: '280px', width: '100%', position: 'relative', borderRadius: '24px', border: '1px solid #f1f5f9', background: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div style={{ height: '200px', width: '100%', position: 'relative', borderRadius: '24px', border: '1px solid #f1f5f9', background: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
               <FallingText
-                text="Spam 🚫 Ads 📢 Junk 🗑️ Trackers 👁️ Phishing 🎣 Clutter 📦 Marketing 🏷️ Scams 🚨 Bots 🤖 Updates 🔄 Promos 💸 Social 👥 Verify ✅ Blocked 🛑 Suspicious 🤨 Malware 🦠 Popups 💬 Banners 🖼️ Offers 🤝 Deals 🎁 Newsletters 📰"
+                text="Spam 🚫 Ads 📢 Junk 🗑️ Trackers 👁️ Phishing 🎣 Clutter 📦 Marketing 🏷️ Scams 🚨 Bots 🤖 Updates 🔄 Promos 💸 Social 👥 Verify ✅ Blocked 🛑 Suspicious 🤨 Malware 🦠 Popups 💬 Banners 🖼️ Offers 🤝 Deals 🎁 Newsletters 📰  Fraud 💀 Filter 🧹 Delete ❌ Unsubscribe 🔕 Risk ⚠️ Hack 💻 Spyware 🕵️‍♂️ Clickbait 🖱️ Virus 🦠 Fake 🎭 Danger ⛔ Trap 🕸️ Alert 🔔 Breach 🔓 Attack ⚔️ Threat ☣️ Error ⚠️"
                 trigger="hover"
                 backgroundColor="#ffffff"
                 wireframes={false}

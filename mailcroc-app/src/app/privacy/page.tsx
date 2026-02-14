@@ -1,6 +1,5 @@
 
 import React from 'react';
-import Footer from '@/components/Footer/Footer';
 import styles from './styles.module.css';
 
 export default function PrivacyPage() {
@@ -33,7 +32,6 @@ export default function PrivacyPage() {
                     <p>We do not share, sell, or rent your personal data to any third parties for their own marketing purposes, except as required for the third-party advertising described above.</p>
                 </section>
             </main>
-            <Footer />
         </div>
     );
 }

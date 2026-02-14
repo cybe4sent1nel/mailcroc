@@ -4,8 +4,8 @@
     position: relative;
     z-index: 10;
     width: 100%;
-    min-height: 250px;
-    max-height: 250px;
+    min-height: 200px;
+    max-height: 200px;
     cursor: crosshair;
     text-align: center;
     padding: 2.5rem 1.5rem;
@@ -27,11 +27,11 @@
 /* Custom Fire Implementation based on User Request */
 .mo-fire {
     position: absolute;
-    bottom: -50px;
+    bottom: -40px;
     left: 0;
     width: 100%;
-    height: 150px;
-    z-index: 5;
+    height: 154px;
+    z-index: 4;
     /* Behind text (z-50) */
     pointer-events: none;
     overflow: hidden;
@@ -41,6 +41,7 @@
     width: 100%;
     height: 100%;
     /* Maintain aspect ratio but fill width */
+    display: block;
 }
 
 .flame {

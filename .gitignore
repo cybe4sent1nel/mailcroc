@@ -4,21 +4,25 @@ node_modules
 .pnp.js
 
 # Testing
-coverage
+/coverage
+/scripts/test-*.mjs
+test_*.js
+debug_*.js
 
 # Production
 build
 dist
 
-# Misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Logs and temporary files
+*.log
+*.json
+!package.json
+!tsconfig.json
+!next.config.js
+!wrangler.toml
+
+# Environment files
+.env*
 
 # Vercel
 .vercel
@@ -32,5 +36,6 @@ out/
 next-env.d.ts
 
 # User-specific
+.DS_Store
 .vscode/
 .idea/

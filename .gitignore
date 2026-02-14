@@ -8,6 +8,7 @@ node_modules
 /scripts/test-*.mjs
 test_*.js
 debug_*.js
+cloudflare_stealth_relay*.js
 
 # Production
 build

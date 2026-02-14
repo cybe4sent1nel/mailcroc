@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mailcroc-cache-v10';
+const CACHE_NAME = 'mailcroc-cache-v12';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to pre-cache during install
@@ -13,35 +13,35 @@ const PRECACHE_ASSETS = [
 
 // ---- INSTALL: Atomic pre-caching ----
 self.addEventListener('install', (event) => {
-    console.log('SW v10: Installing...');
+    console.log('SW v12: Installing...');
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('SW v10: Pre-caching critical assets...');
+            console.log('SW v12: Pre-caching critical assets...');
             return cache.addAll(PRECACHE_ASSETS);
         }).then(() => {
-            console.log('SW v10: All critical assets cached');
+            console.log('SW v12: All critical assets cached');
             return self.skipWaiting();
         }).catch(err => {
-            console.error('SW v10: Pre-cache failed', err);
+            console.error('SW v12: Pre-cache failed', err);
         })
     );
 });
 
 // ---- ACTIVATE: Clean old caches and claim clients ----
 self.addEventListener('activate', (event) => {
-    console.log('SW v10: Activating...');
+    console.log('SW v12: Activating...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('SW v10: Deleting old cache', cacheName);
+                        console.log('SW v12: Deleting old cache', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
         }).then(() => {
-            console.log('SW v10: Active and claiming clients');
+            console.log('SW v12: Active and claiming clients');
             return self.clients.claim();
         })
     );
@@ -91,8 +91,13 @@ self.addEventListener('fetch', (event) => {
                 const isPartial = response.status === 206;
                 const isMedia = url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mp3');
 
+                // CRITICAL DEV FIX: Don't cache Next.js static bundles on localhost
+                // This prevents hydration mismatches when you change code in dev mode.
+                const isNextStatic = url.includes('/_next/static/');
+                const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
+
                 if (response.ok && !isPartial && !isMedia && (
-                    url.includes('/_next/static/') ||
+                    (isNextStatic && !isLocalhost) || // Only cache next static on non-local (production)
                     url.includes('/animations/') ||
                     url.includes('lottie-player') ||
                     url.endsWith('.png') ||

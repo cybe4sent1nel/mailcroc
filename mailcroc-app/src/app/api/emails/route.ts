@@ -30,13 +30,14 @@ export async function GET(req: NextRequest) {
     }
     const { searchParams } = new URL(req.url);
     const address = searchParams.get('address');
+    const sessionId = searchParams.get('sessionId') || undefined;
 
     if (!address) {
         return NextResponse.json({ error: 'Address required' }, { status: 400 });
     }
 
     try {
-        const emails = await getEmailsByAddress(address);
+        const emails = await getEmailsByAddress(address, sessionId);
         return NextResponse.json(emails);
     } catch (e) {
         console.error('GET emails error:', e);
@@ -111,6 +112,13 @@ export async function PATCH(req: NextRequest) {
         if (action === 'expiry' && address) {
             const expiresAt = value ? new Date(Date.now() + value * 60 * 1000).toISOString() : null;
             const success = await updateEmailsByAddress(address, { expiresAt });
+            return NextResponse.json({ success });
+        }
+
+        if (action === 'audio' && emailId) {
+            const found = await findEmailById(emailId);
+            if (!found) return NextResponse.json({ error: 'Email not found' }, { status: 404 });
+            const success = await updateEmail(emailId, found.address, { speechAudio: value });
             return NextResponse.json({ success });
         }
 

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './Header.module.css';
 import { useRef, useEffect, useState } from 'react';
+import { Settings, HelpCircle } from 'lucide-react';
 import DownloadButton from '../Buttons/DownloadButton';
 
 const Header = () => {
@@ -59,10 +60,14 @@ const Header = () => {
 
                 <nav className={styles.nav}>
                     <Link href="/mail" className={styles.navLink}>Temp Mail</Link>
-                    <Link href="/secure-view" className={styles.navLink}>Unlock Mail</Link>
+                    <Link href="/sender-settings" className={styles.navLink}>
+                        <Settings size={16} style={{ marginRight: '6px' }} /> Identities
+                    </Link>
+                    <Link href="/faq" className={styles.navLink}>
+                        <HelpCircle size={16} style={{ marginRight: '6px' }} /> FAQ
+                    </Link>
                     <Link href="/developers" className={styles.navLink}>Developers</Link>
-                    <Link href="/features" className={styles.navLink}>Features</Link>
-                    <Link href="/pricing" className={styles.navLink}>Pricing</Link>
+                    <Link href="/secure-view" className={styles.navLink}>Unlock Mail</Link>
                 </nav>
 
                 <div className={styles.actions}>

@@ -8,14 +8,14 @@ export async function POST(req: Request) {
     try {
         const { text, gender } = await req.json();
 
-        // Voice IDs
-        const VOICE_HOPE = 'iCrDUkL56s3C8sCRl7wb'; // Female
-        const VOICE_MARK = 'ErXwobaYiN019PkySvjV'; // Male (Antoni)
+        // Voice IDs (Standard Free Voices)
+        const VOICE_RACHEL = '21m00Tcm4TlvDq8ikWAM'; // Female
+        const VOICE_ANTONI = 'ErXw9S1S2OcAn966N6Iu'; // Male
 
-        // Select Voice ID based on gender param, default to configured env var or Hope
-        let voiceId = process.env.ELEVENLABS_VOICE_ID || VOICE_HOPE;
-        if (gender === 'male') voiceId = VOICE_MARK;
-        if (gender === 'female') voiceId = VOICE_HOPE;
+        // Select Voice ID based on gender param, default to Rachel
+        let voiceId = process.env.ELEVENLABS_VOICE_ID || VOICE_RACHEL;
+        if (gender === 'male') voiceId = VOICE_ANTONI;
+        if (gender === 'female') voiceId = VOICE_RACHEL;
 
         const options = {
             method: 'POST',

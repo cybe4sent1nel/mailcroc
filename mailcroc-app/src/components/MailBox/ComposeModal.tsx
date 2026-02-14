@@ -2,7 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { X, Plus, Copy, Paperclip, FileText, Send as SendIcon, Sparkles, Briefcase, AlignLeft, Scissors, Mic } from 'lucide-react';
+import { X, Plus, Copy, Paperclip, FileText, Sparkles, Briefcase, AlignLeft, Scissors, Mic } from 'lucide-react';
+import SendButton from '../ui/SendButton';
 import styles from './MailBox.module.css';
 import { AILogo } from '../Icons/AILogo';
 import Switch from '../Switch/Switch';
@@ -39,6 +40,9 @@ interface ComposeModalProps {
     isAiWriting: boolean;
     getFileIcon: (type: string) => React.ReactNode;
     polishText: (text: string) => Promise<string>;
+    senderAddress: string;
+    setSenderAddress: (val: string) => void;
+    availableAddresses: string[];
 }
 
 const ComposeModal: React.FC<ComposeModalProps> = ({
@@ -62,7 +66,10 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
     handleAiWrite,
     isAiWriting,
     polishText,
-    getFileIcon
+    getFileIcon,
+    senderAddress,
+    setSenderAddress,
+    availableAddresses
 }) => {
     const [aiWriteTopic, setAiWriteTopic] = useState('');
     const [showAiWritePopover, setShowAiWritePopover] = useState(false);
@@ -107,6 +114,8 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
         recognition.start();
     };
 
+    const [activeTab, setActiveTab] = useState<'design' | 'preview' | 'source'>('design');
+
     if (!show) return null;
 
     const onAiWriteClick = async (refinement?: string) => {
@@ -127,6 +136,18 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
             </div>
 
             <div className={styles.composeBody}>
+                <div className={styles.senderContainer}>
+                    <span className={styles.senderLabel}>From:</span>
+                    <select
+                        className={styles.senderSelect}
+                        value={senderAddress}
+                        onChange={(e) => setSenderAddress(e.target.value)}
+                    >
+                        {availableAddresses.filter(Boolean).map((addr, idx) => (
+                            <option key={idx} value={addr}>{addr}</option>
+                        ))}
+                    </select>
+                </div>
                 <input
                     className={styles.composeInput}
                     placeholder="Recipients"
@@ -139,16 +160,19 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                     value={composeData.subject}
                     onChange={e => setComposeData({ ...composeData, subject: e.target.value })}
                 />
-
                 <div className={styles.seamlessEditor}>
                     <RichTextMailEditor
                         content={composeData.body}
                         onChange={(html) => setComposeData(prev => ({ ...prev, body: html }))}
                         onAiPolish={polishText}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
                     />
                 </div>
+            </div>
 
-                {attachments.length > 0 && (
+            {attachments.length > 0 && (
+                <div className={styles.attachmentBar}>
                     <div className={styles.attachmentList}>
                         {attachments.map((file, idx) => (
                             <div key={idx} className={styles.attachmentChip}>
@@ -161,8 +185,8 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                             <button className={styles.addAttachBtn} onClick={() => fileInputRef.current?.click()} title="Add more files"><Plus size={16} /></button>
                         )}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             <div className={styles.composeFooter}>
                 <div className={styles.footerLeft}>
@@ -212,9 +236,11 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                 </div>
 
                 <div className={styles.footerRight}>
-                    <button className={styles.sendBtn} onClick={handleSend} disabled={!!sendStatus}>
-                        {sendStatus || 'Send'} <SendIcon size={16} />
-                    </button>
+                    <SendButton
+                        onClick={handleSend}
+                        disabled={sendStatus === 'Sending...' || sendStatus === 'Sent!'}
+                        text={sendStatus === 'Sending...' ? 'Sending...' : sendStatus === 'Sent!' ? 'Sent!' : "send"}
+                    />
                 </div>
 
                 {showAiWritePopover && (

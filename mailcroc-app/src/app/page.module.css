@@ -637,3 +637,234 @@
     font-size: 2rem;
   }
 }
+
+/* ============================================ */
+/*  IDENTITY FIRST PRIVACY (NEW)                */
+/* ============================================ */
+.lockedMailSection {
+  padding: 6rem 1.5rem;
+  background-color: #ffffff;
+  text-align: center;
+  max-width: 1200px;
+  margin: 4rem auto;
+  border-radius: 2rem;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.05);
+}
+
+.passwordExplainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  margin-top: 3rem;
+  text-align: left;
+  align-items: center;
+}
+
+.explainerImage {
+  background: #fafafa;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px dashed #e2e8f0;
+}
+
+.explainerText h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.explainerText p {
+  color: #64748b;
+  line-height: 1.8;
+  margin-bottom: 2rem;
+}
+
+.lockSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.lockStep {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.lockStepIcon {
+  width: 32px;
+  height: 32px;
+  background: #ecfdf5;
+  color: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+/* ============================================ */
+/*  UNIFIED HOW IT WORKS                        */
+/* ============================================ */
+.unifiedGuide {
+  padding: 5rem 1.5rem;
+  background: #fafaf9;
+  margin-top: 4rem;
+}
+
+.guideContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.guideRow {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 4rem;
+  align-items: center;
+  margin-bottom: 6rem;
+}
+
+.guideRowInverse {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.guideImageWrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.guideBadge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: #eff6ff;
+  color: #3b82f6;
+  border-radius: 2rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.guideTitle {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  color: #0f172a;
+}
+
+.guideText {
+  color: #4b5563;
+  line-height: 1.7;
+  font-size: 1.1rem;
+}
+
+.useCaseGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-top: 4rem;
+}
+
+.useCaseCard {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  text-align: center;
+  border: 1px solid #f1f5f9;
+  transition: transform 0.2s;
+}
+
+.useCaseCard:hover {
+  transform: translateY(-5px);
+}
+
+.useCaseCard h4 {
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+/* ============================================ */
+/*  COMPARISON SECTION                          */
+/* ============================================ */
+.comparisonSection {
+  padding: 4rem 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.fullComparisonWrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+}
+
+.comparisonHeader {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+
+.fullComparisonContainer {
+  width: 100%;
+  height: 600px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 2rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+@media (max-width: 768px) {
+  .fullComparisonContainer {
+    height: 400px;
+  }
+}
+
+.comparisonCard {
+  width: 100%;
+  max-width: 600px;
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.comparisonCard h3 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-main);
+}
+
+.comparisonCard p {
+  color: var(--color-text-muted);
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+@media (min-width: 1024px) {
+  .comparisonGrid {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2rem;
+  }
+}

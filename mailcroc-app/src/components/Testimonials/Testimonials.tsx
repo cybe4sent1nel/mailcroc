@@ -26,7 +26,7 @@ const testimonials = [
         name: "Sarah Mitchell",
         role: "Senior QA Engineer at",
         company: "Stripe",
-        avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150&h=150&auto=format&fit=crop",
+        avatar: "/profiles/uifaces-popular-avatar (1).jpg",
         content:
             "MailCroc changed how we handle automated testing. Being able to generate instant, reliable temporary emails for our sandbox environments is a total game-changer for my team.",
         rating: 5,
@@ -36,7 +36,7 @@ const testimonials = [
         name: "David Chen",
         role: "Lead Developer at",
         company: "Vercel",
-        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&h=150&auto=format&fit=crop",
+        avatar: "/profiles/uifaces-popular-avatar (3)male.jpg",
         content:
             "The API response time is incredible. I use MailCroc daily for testing sign-up flows and verifying webhooks. It's the most polished disposable mail service I've ever used.",
         rating: 5,
@@ -46,17 +46,17 @@ const testimonials = [
         name: "Elena Rodriguez",
         role: "Product Designer at",
         company: "Figma",
-        avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=150&h=150&auto=format&fit=crop",
+        avatar: "/profiles/uifaces-popular-avatar (2).jpg",
         content:
             "As a designer, I need to see how our transactional emails render in real-time. MailCroc's clean interface and fast delivery make it my go-to for verifying UI consistency.",
         rating: 4.5,
         color: "green",
     },
     {
-        name: "James Wilson",
+        name: "Marcus Thorne",
         role: "Security Consultant at",
         company: "CrowdStrike",
-        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&h=150&auto=format&fit=crop",
+        avatar: "/profiles/uifaces-popular-avatar (7)male.jpg",
         content:
             "Privacy isn't just a feature; it's a necessity. MailCroc provides the perfect buffer against tracking and unwanted marketing spam when I'm researching third-party tools.",
         rating: 5,
@@ -66,19 +66,59 @@ const testimonials = [
         name: "Olivia Park",
         role: "Growth Lead at",
         company: "Notion",
-        avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=150&h=150&auto=format&fit=crop",
+        avatar: "/profiles/uifaces-popular-avatar (4).jpg",
         content:
-            "We often need to check our competitors' onboarding flows. MailCroc allows our growth team to sign up anonymously and see exactly what the user experience is like without any hassle.",
+            "We often need to check our competitors' onboarding flows. MailCroc allows our growth team to sign up anonymously and see exactly what the user experience is like.",
         rating: 4.5,
         color: "green",
     },
     {
-        name: "Marcus Thorne",
+        name: "Maya Jenkins",
+        role: "DevOps at",
+        company: "GitHub",
+        avatar: "/profiles/uifaces-popular-avatar (5).jpg",
+        content:
+            "The zero-logs policy is what sold me. In DevOps, we need tools that respect data sovereignty, and MailCroc is the only provider that actually walk the talk.",
+        rating: 5,
+        color: "purple",
+    },
+    {
+        name: "Grace Chen",
+        role: "Software Architect at",
+        company: "Meta",
+        avatar: "/profiles/uifaces-popular-avatar (6).jpg",
+        content:
+            "Integrating MailCroc into our CI/CD pipelines was seamless. It's the infrastructure backbone of our email verification test suite.",
+        rating: 5,
+        color: "green",
+    },
+    {
+        name: "Alex Rivera",
         role: "CTO at",
         company: "Scale AI",
-        avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&h=150&auto=format&fit=crop",
+        avatar: "/profiles/uifaces-popular-avatar (8)male.jpg",
         content:
             "Reliability is everything. MailCroc's infrastructure is rock solid. We trust their service for our internal QA processes and it hasn't let us down once.",
+        rating: 5,
+        color: "purple",
+    },
+    {
+        name: "Leo Scott",
+        role: "Blockchain Dev at",
+        company: "Coinbase",
+        avatar: "/profiles/uifaces-popular-avatar (9)male.jpg",
+        content:
+            "Anonymous sending with the V6 Golden Mask is a revolution. It finally fixes the 'brackets' problem that has plagued every other temporary mail service.",
+        rating: 4.5,
+        color: "green",
+    },
+    {
+        name: "Sam Carter",
+        role: "Independent Researcher",
+        company: "Open Source",
+        avatar: "/profiles/uifaces-popular-avatar.jpg",
+        content:
+            "A beautifully designed tool that prioritizes user identity. The Master-Relay tech is a significant step forward for consumer privacy standards.",
         rating: 5,
         color: "purple",
     },
@@ -106,15 +146,15 @@ const cardStyles: Record<string, any> = {
 };
 
 const scatteredAvatars = [
-    { src: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=150&h=150&auto=format&fit=crop", top: "8%", left: "10%", delay: 0 },
-    { src: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=150&h=150&auto=format&fit=crop", top: "5%", left: "42%", delay: 1.2 },
-    { src: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=150&h=150&auto=format&fit=crop", top: "3%", left: "80%", delay: 0.6 },
-    { src: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=150&h=150&auto=format&fit=crop", top: "50%", left: "3%", delay: 1.8 },
-    { src: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&h=150&auto=format&fit=crop", top: "40%", left: "25%", delay: 0.3 },
-    { src: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&h=150&auto=format&fit=crop", top: "58%", left: "52%", delay: 1.5 },
-    { src: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=150&h=150&auto=format&fit=crop", top: "30%", left: "66%", delay: 0.9 },
-    { src: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&h=150&auto=format&fit=crop", top: "65%", left: "38%", delay: 2.1 },
-    { src: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&h=150&auto=format&fit=crop", top: "45%", left: "90%", delay: 1.0 },
+    { src: "/profiles/uifaces-popular-avatar (1).jpg", top: "8%", left: "10%", delay: 0 },
+    { src: "/profiles/uifaces-popular-avatar (2).jpg", top: "5%", left: "42%", delay: 1.2 },
+    { src: "/profiles/uifaces-popular-avatar (3)male.jpg", top: "3%", left: "80%", delay: 0.6 },
+    { src: "/profiles/uifaces-popular-avatar (4).jpg", top: "50%", left: "3%", delay: 1.8 },
+    { src: "/profiles/uifaces-popular-avatar (5).jpg", top: "40%", left: "25%", delay: 0.3 },
+    { src: "/profiles/uifaces-popular-avatar (6).jpg", top: "58%", left: "52%", delay: 1.5 },
+    { src: "/profiles/uifaces-popular-avatar (7)male.jpg", top: "30%", left: "66%", delay: 0.9 },
+    { src: "/profiles/uifaces-popular-avatar (8)male.jpg", top: "65%", left: "38%", delay: 2.1 },
+    { src: "/profiles/uifaces-popular-avatar (9)male.jpg", top: "45%", left: "90%", delay: 1.0 },
 ];
 
 // --- Sub-Components ---

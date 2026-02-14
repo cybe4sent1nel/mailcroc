@@ -21,7 +21,7 @@ import {
     Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon,
     AlignLeft, AlignCenter, AlignRight, List, ListOrdered,
     CheckSquare, Code, Highlighter, Undo, Redo, Type,
-    Heading1, Heading2, Quote, Trash2, Baseline, Mic, Check, X
+    Heading1, Heading2, Quote, Trash2, Baseline, Mic, Check, X, Code2 as FileCode, Sparkles
 } from 'lucide-react';
 import styles from './RichTextMailEditor.module.css';
 
@@ -29,9 +29,15 @@ interface RichTextMailEditorProps {
     content: string;
     onChange: (html: string) => void;
     onAiPolish?: (text: string) => Promise<string>;
+    activeTab: 'design' | 'preview' | 'source';
+    setActiveTab: (tab: 'design' | 'preview' | 'source') => void;
 }
 
-const MenuBar = ({ editor, onMicClick, isListening }: { editor: any, onMicClick?: () => void, isListening?: boolean }) => {
+const MenuBar = ({ editor, onMicClick, isListening }: {
+    editor: any,
+    onMicClick?: () => void,
+    isListening?: boolean
+}) => {
     if (!editor) return null;
 
     const [showLinkInput, setShowLinkInput] = React.useState(false);
@@ -304,22 +310,185 @@ const MenuBar = ({ editor, onMicClick, isListening }: { editor: any, onMicClick?
     );
 };
 
-const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChange, onAiPolish }) => {
+const formatCode = (code: string) => {
+    const isReact = code.includes('import') || code.includes('export') || code.includes('=>') || code.includes('interface') || code.includes('React.');
+    const tabSize = '  ';
+
+    if (isReact) {
+        let indent = 0;
+        return code.split('\n').map(line => {
+            let trimmed = line.trim();
+            if (!trimmed) return '';
+
+            // Decrease indent for closing braces/brackets before the line is printed
+            if (trimmed.startsWith('}') || trimmed.startsWith(']') || trimmed.startsWith(')')) {
+                indent = Math.max(0, indent - 1);
+            }
+
+            // Safety check for repeat count
+            const formatted = tabSize.repeat(Math.max(0, indent)) + trimmed;
+
+            // Adjust indent level for next lines
+            const openChars = (trimmed.match(/[\{\(\[]/g) || []).length;
+            const closeChars = (trimmed.match(/[\}\)\]]/g) || []).length;
+            indent += (openChars - closeChars);
+
+            // Reset indent if it falls below zero to prevent persistent negative state
+            if (indent < 0) indent = 0;
+
+            return formatted;
+        }).join('\n').trim();
+    }
+
+    // Pure HTML formatter
+    let indent = 0;
+    return code.split('\n').map(line => {
+        let trimmed = line.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('</')) indent = Math.max(0, indent - 1);
+
+        // Safety check for repeat count
+        const l = tabSize.repeat(Math.max(0, indent)) + trimmed;
+
+        if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>')) {
+            const tagName = trimmed.match(/<(\w+)/)?.[1]?.toLowerCase();
+            if (!['img', 'br', 'hr', 'input', 'link', 'meta', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'].includes(tagName || '')) {
+                indent++;
+            }
+        }
+        return l;
+    }).join('\n').trim();
+};
+
+const ReactPreview: React.FC<{ code: string }> = ({ code }) => {
+    const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!iframeRef.current) return;
+            const doc = iframeRef.current.contentDocument;
+            if (!doc) return;
+
+            // Detect exported component name
+            const exportMatch = code.match(/export\s+default\s+(\w+)/);
+
+            // Strip imports and exports more robustly (handles multi-line)
+            let cleanCode = code
+                .replace(/import\s+[\s\S]*?from\s+['"].*?['"];?/g, '') // Multi-line imports
+                .replace(/import\s+['"].*?['"];?/g, '')                // Side-effect imports
+                .replace(/export\s+default\s+\w+;?/g, '')
+                .replace(/export\s+/g, '');
+
+            const componentNameMatch = cleanCode.match(/(?:const|function)\s+(\w+)/);
+            const componentName = exportMatch ? exportMatch[1] : (componentNameMatch ? componentNameMatch[1] : 'App');
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+                    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+                    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+                    <script src="https://cdn.tailwindcss.com"></script>
+                    <style>
+                        body { margin: 0; padding: 0; font-family: -apple-system, system-ui, sans-serif; background: #f8fafc; }
+                        #root { background: white; min-height: 100vh; display: flex; flex-direction: column; }
+                        .error-box { color: #dc2626; background: #fef2f2; border: 1px solid #fee2e2; padding: 1.5rem; margin: 1rem; border-radius: 8px; font-family: monospace; overflow: auto; }
+                    </style>
+                </head>
+                <body>
+                    <div id="root"></div>
+                    <script type="text/babel" data-presets="react,typescript">
+                        window.onerror = function(msg, url, line, col, error) {
+                            const root = document.getElementById('root');
+                            if (root) {
+                                root.innerHTML = '<div class="error-box"><b>Runtime Error:</b><br/>' + msg + '<br/><small>Line: ' + line + '</small></div>';
+                            }
+                            return false;
+                        };
+
+                        // Explicitly expose globals for React.createElement usage
+                        const { useState, useEffect, useCallback, useMemo, useRef } = React;
+                        window.React = React;
+                        window.ReactDOM = ReactDOM;
+                        
+                        try {
+                            ${cleanCode}
+                            
+                            const root = ReactDOM.createRoot(document.getElementById('root'));
+                            
+                            // Check if the component exists after transpilation
+                            if (typeof ${componentName} === 'undefined') {
+                                throw new Error("Component <b>${componentName}</b> not found in scope. Ensure your main component is named <b>${componentName}</b> or exported as default.");
+                            }
+                            
+                            const MainApp = ${componentName};
+                            root.render(<MainApp />);
+                        } catch (err) {
+                            document.getElementById('root').innerHTML = '<div class="error-box"><b>Render Error:</b><br/>' + err.message + '</div>';
+                        }
+                    </script>
+                </body>
+                </html>
+            `;
+
+            doc.open();
+            doc.write(html);
+            doc.close();
+        }, 600);
+
+        return () => clearTimeout(timer);
+    }, [code]);
+
+    return (
+        <iframe
+            ref={iframeRef}
+            title="React Preview"
+            style={{ width: '100%', height: '100%', border: 'none', background: '#f8fafc', minHeight: '600px' }}
+        />
+    );
+};
+
+const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChange, onAiPolish, activeTab, setActiveTab }) => {
     const [isListening, setIsListening] = React.useState(false);
     const recognitionRef = React.useRef<any>(null);
     const silenceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const transcriptRef = React.useRef("");
-    const editorRef = React.useRef<any>(null); // To access editor in callbacks if needed, though closure usually works.
 
-    // Effect to cleanup recognition on unmount
+    const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const pastedText = e.clipboardData.getData('text');
+        if (pastedText.includes('<') && (pastedText.includes('>') || pastedText.includes('const') || pastedText.includes('import'))) {
+            e.preventDefault();
+            try {
+                const formatted = formatCode(pastedText);
+                const start = e.currentTarget.selectionStart;
+                const end = e.currentTarget.selectionEnd;
+                const newValue = content.substring(0, start) + formatted + content.substring(end);
+                onChange(newValue);
+                setTimeout(() => {
+                    const textarea = e.currentTarget;
+                    if (textarea) textarea.selectionStart = textarea.selectionEnd = start + formatted.length;
+                }, 0);
+            } catch (err) {
+                console.error("Format on paste failed", err);
+            }
+        }
+    };
+
+    const triggerFormat = () => {
+        try {
+            const formatted = formatCode(content);
+            onChange(formatted);
+        } catch (err) {
+            console.error("Manual format failed", err);
+        }
+    };
+
     React.useEffect(() => {
         return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
-            if (silenceTimerRef.current) {
-                clearTimeout(silenceTimerRef.current);
-            }
+            if (recognitionRef.current) recognitionRef.current.stop();
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         };
     }, []);
 
@@ -327,68 +496,44 @@ const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChan
         immediatelyRender: false,
         extensions: [
             StarterKit.configure({
-                heading: {
-                    levels: [1, 2, 3],
-                },
+                heading: { levels: [1, 2, 3] },
+                codeBlock: false,
             }),
             Underline,
             Link.configure({
                 openOnClick: false,
-                HTMLAttributes: {
-                    rel: 'noopener noreferrer',
-                    target: '_blank',
-                    class: styles.editorLink,
-                },
+                HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank', class: styles.editorLink },
             }),
-            TextAlign.configure({
-                types: ['heading', 'paragraph'],
-            }),
+            TextAlign.configure({ types: ['heading', 'paragraph'] }),
             TextStyle,
             Color,
             Highlight.configure({ multicolor: true }),
             TaskList,
-            TaskItem.configure({
-                nested: true,
-            }),
+            TaskItem.configure({ nested: true }),
             Typography,
-            Markdown.configure({
-                html: true,
-                tightLists: true,
-                bulletListMarker: '-',
-            }),
-            Placeholder.configure({
-                placeholder: 'Write your message...',
-            }),
+            Markdown.configure({ html: true, tightLists: true, bulletListMarker: '-' }),
+            Placeholder.configure({ placeholder: 'Write your message...' }),
             BubbleMenuExtension,
             FloatingMenuExtension,
         ],
         content: content,
         onUpdate: ({ editor }) => {
-            // We get markdown out if we want, or HTML. TipTap logic usually prefers HTML for rich mail.
-            // But if we use Markdown extension, getHTML() should handle it.
-            onChange(editor.getHTML());
+            if (activeTab === 'design') {
+                onChange(editor.getHTML());
+            }
         },
     });
 
     const startDictation = useCallback(() => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Voice input not supported");
-            return;
-        }
-
-        if (isListening) {
-            recognitionRef.current?.stop();
-            setIsListening(false);
-            return;
-        }
+        if (!SpeechRecognition) { alert("Voice input not supported"); return; }
+        if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
 
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
         recognition.lang = 'en-US';
         recognition.continuous = true;
         recognition.interimResults = true;
-
         setIsListening(true);
         transcriptRef.current = "";
 
@@ -397,32 +542,22 @@ const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChan
 
         recognition.onresult = async (event: any) => {
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-
-            // Silence timer: Stop after 4 seconds of silence
-            silenceTimerRef.current = setTimeout(() => {
-                recognition.stop();
-            }, 4000);
+            silenceTimerRef.current = setTimeout(() => recognition.stop(), 4000);
 
             let currentSessionTranscript = "";
-            for (let i = 0; i < event.results.length; ++i) {
-                currentSessionTranscript += event.results[i][0].transcript;
-            }
+            for (let i = 0; i < event.results.length; ++i) currentSessionTranscript += event.results[i][0].transcript;
+
             if (editor) {
                 editor.chain()
                     .deleteRange({ from: startPos, to: startPos + lastInsertLength })
                     .insertContentAt(startPos, currentSessionTranscript)
                     .run();
-
                 lastInsertLength = currentSessionTranscript.length;
                 transcriptRef.current = currentSessionTranscript;
             }
         };
 
-        recognition.onerror = (event: any) => {
-            console.error("Speech error", event.error);
-            setIsListening(false);
-        };
-
+        recognition.onerror = () => setIsListening(false);
         recognition.onend = async () => {
             setIsListening(false);
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -431,67 +566,66 @@ const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChan
             if (rawText && rawText.trim().length > 0 && onAiPolish) {
                 try {
                     const polished = await onAiPolish(rawText);
-
                     if (editor && polished) {
                         editor.chain()
                             .deleteRange({ from: startPos, to: startPos + lastInsertLength })
                             .insertContentAt(startPos, polished + " ")
                             .run();
                     }
-                } catch (e) {
-                    console.error("Polish failed", e);
-                }
+                } catch (e) { console.error("Polish failed", e); }
             }
         };
         recognition.start();
     }, [editor, isListening, onAiPolish]);
 
-    // Clean up content: If it has markdown symbols but is being set as HTML, 
-    // TipTap might not parse it. The Markdown extension helps here.
     useEffect(() => {
-        if (editor && content !== editor.getHTML()) {
+        if (activeTab === 'design' && editor && content !== editor.getHTML()) {
             editor.commands.setContent(content, { emitUpdate: false });
         }
-    }, [content, editor]);
+    }, [activeTab, editor, content]);
 
-    if (!editor) {
-        return <div className={styles.tiptapEditorPlaceholder}>Loading editor...</div>;
-    }
+    if (!editor) return <div className={styles.tiptapEditorPlaceholder}>Loading editor...</div>;
+
+    const isReactCode = content.includes('const') || content.includes('import') || content.includes('=>') || content.includes('export') || content.includes('React.');
 
     return (
         <div className={styles.tiptapEditor}>
-            <MenuBar editor={editor} onMicClick={startDictation} isListening={isListening} />
-            <div className={styles.tiptapEditorContent}>
-                <EditorContent editor={editor} />
+            <div className={styles.editorTabs}>
+                <div className={styles.mainTabs}>
+                    <button className={`${styles.tabBtn} ${activeTab === 'design' ? styles.tabBtnActive : ''}`} onClick={() => setActiveTab('design')}><AlignLeft size={14} /> Design</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'preview' ? styles.tabBtnActive : ''}`} onClick={() => setActiveTab('preview')}><Sparkles size={14} /> Result</button>
+                    <button className={`${styles.tabBtn} ${activeTab === 'source' ? styles.tabBtnActive : ''}`} onClick={() => setActiveTab('source')}><FileCode size={14} /> Source</button>
+                </div>
+                {activeTab === 'source' && (
+                    <button className={styles.formatBtn} onClick={triggerFormat} title="Format Code"><Check size={14} /> Align Code</button>
+                )}
             </div>
-            {editor && (
+
+            {activeTab === 'design' && <MenuBar editor={editor} onMicClick={startDictation} isListening={isListening} />}
+
+            <div className={styles.tiptapEditorContent}>
+                {activeTab === 'source' ? (
+                    <textarea className={styles.sourceEditor} value={content} onChange={(e) => onChange(e.target.value)} onPaste={handlePaste} placeholder="Paste or write HTML/React code here..." spellCheck={false} />
+                ) : activeTab === 'preview' ? (
+                    <div className={styles.previewArea}>
+                        {isReactCode ? (
+                            <ReactPreview code={content} />
+                        ) : (
+                            <div className={styles.previewContent} dangerouslySetInnerHTML={{ __html: content }} />
+                        )}
+                    </div>
+                ) : (
+                    <EditorContent editor={editor} />
+                )}
+            </div>
+            {editor && activeTab === 'design' && (
                 <BubbleMenu className={styles.bubbleMenuWrapper} editor={editor} updateDelay={100}>
                     <div className={styles.bubbleMenuContainer}>
-                        <button
-                            onClick={() => editor.chain().focus().toggleBold().run()}
-                            className={`${styles.toolbarBtn} ${editor.isActive('bold') ? styles.toolbarBtnActive : ''}`}
-                        >
-                            <Bold size={16} strokeWidth={2.5} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleItalic().run()}
-                            className={`${styles.toolbarBtn} ${editor.isActive('italic') ? styles.toolbarBtnActive : ''}`}
-                        >
-                            <Italic size={16} strokeWidth={2.5} />
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleUnderline().run()}
-                            className={`${styles.toolbarBtn} ${editor.isActive('underline') ? styles.toolbarBtnActive : ''}`}
-                        >
-                            <UnderlineIcon size={16} strokeWidth={2.5} />
-                        </button>
+                        <button onClick={() => editor.chain().focus().toggleBold().run()} className={`${styles.toolbarBtn} ${editor.isActive('bold') ? styles.toolbarBtnActive : ''}`}><Bold size={16} strokeWidth={2.5} /></button>
+                        <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`${styles.toolbarBtn} ${editor.isActive('italic') ? styles.toolbarBtnActive : ''}`}><Italic size={16} strokeWidth={2.5} /></button>
+                        <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={`${styles.toolbarBtn} ${editor.isActive('underline') ? styles.toolbarBtnActive : ''}`}><UnderlineIcon size={16} strokeWidth={2.5} /></button>
                         <div className={styles.toolbarSeparator} style={{ height: '1rem', margin: '0 4px' }} />
-                        <button
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                            className={`${styles.toolbarBtn} ${editor.isActive('heading', { level: 1 }) ? styles.toolbarBtnActive : ''}`}
-                        >
-                            <Heading1 size={16} strokeWidth={2.5} />
-                        </button>
+                        <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`${styles.toolbarBtn} ${editor.isActive('heading', { level: 1 }) ? styles.toolbarBtnActive : ''}`}><Heading1 size={16} strokeWidth={2.5} /></button>
                     </div>
                 </BubbleMenu>
             )}

@@ -1,10 +1,11 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import styles from './MailBox.module.css';
-import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2 } from 'lucide-react';
+import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2, ShieldCheck } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
-import { generateEmailAddress, type GenerationMode } from '@/lib/domains';
+import { generateEmailAddress, type GenerationConfig } from '@/lib/domains';
 import LottiePlayer from '@/components/LottiePlayer';
 import { useToast } from '@/components/Toast/ToastContext';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -41,10 +42,22 @@ const decrypt = (encoded: string, key: string) => {
     }
 };
 
+// Helper to strip markdown
+const stripMarkdown = (text: string) => {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1')   // Italic
+        .replace(/#(.*?)(\n|$)/g, '$1$2') // Headers
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links
+        .replace(/`{1,3}(.*?)`{1,3}/g, '$1') // Code
+        .replace(/>\s*(.*?)(\n|$)/g, '$1$2') // Blockquotes
+        .trim();
+};
+
 // Animations
 import mailRefreshAnim from '../../../public/animations/mailrefresh.json';
 import noMsgAnim from '../../../public/animations/nomesage_inbox.json';
-import mailSentAnim from '../../../public/animations/Email_sent.json';
+import mailSentAnim from '../../../public/animations/sent email.json';
 import sessionExpAnim from '../../../public/animations/sessionexpire.json';
 import newMsgAnim from '../../../public/animations/Mailbox.json';
 
@@ -63,6 +76,7 @@ interface EmailMessage {
     category?: 'social' | 'updates' | 'promotions' | 'primary';
     isThreat?: boolean;
     aiAnalysis?: string;
+    speechAudio?: string;
 }
 
 interface InboxTab {
@@ -87,17 +101,51 @@ const MailBox = () => {
     // --- State: Identity & Config ---
     const [inboxTabs, setInboxTabs] = useState<InboxTab[]>([]);
     const [activeTabIndex, setActiveTabIndex] = useState(0);
-    const [toggles, setToggles] = useState({ standard: true, plus: true, dot: true, gmail: true, googlemail: true });
+    const [toggles, setToggles] = useState({ standard: true, plus: true, dot: true, gmail: false, googlemail: false, hyphen: true });
     const [isCustomMode, setIsCustomMode] = useState(false);
     const [customInput, setCustomInput] = useState('');
     const [selectedDomain, setSelectedDomain] = useState('mailcroc.qzz.io');
-    const [currentConfig, setCurrentConfig] = useState<{ mode: GenerationMode; address: string; fullAddress?: string; } | null>(null);
+    const [currentConfig, setCurrentConfig] = useState<{ mode: string; address: string; fullAddress?: string; } | null>(null);
+
+    // --- Session & Isolation ---
+    const [sessionId, setSessionId] = useState<string>('');
+
+    useEffect(() => {
+        let sid = localStorage.getItem('mailcroc_session_id');
+        if (!sid) {
+            sid = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('mailcroc_session_id', sid);
+        }
+        setSessionId(sid);
+    }, []);
+
+    const claimIdentity = async (address: string, sid: string) => {
+        try {
+            const res = await fetch('/api/addresses/claim', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ address, sessionId: sid })
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                addToast(data.error || 'Address already in use', 'error');
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.error('Claim error:', err);
+            return false;
+        }
+    };
 
     // --- State: Layout & Nav ---
     const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam'>('inbox');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true); // Default collapsed
     const [showIdentitySettings, setShowIdentitySettings] = useState(false);
+    const [externalIdentities, setExternalIdentities] = useState<string[]>([]);
+    const [senderAddress, setSenderAddress] = useState<string>('');
+    const [newExternalEmail, setNewExternalEmail] = useState('');
 
     // --- State: Content ---
     const [messages, setMessages] = useState<EmailMessage[]>([]);
@@ -117,6 +165,7 @@ const MailBox = () => {
     const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [sendStatus, setSendStatus] = useState<string | null>(null);
+    const [showSentSuccess, setShowSentSuccess] = useState(false);
 
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isInlineReplying, setIsInlineReplying] = useState(false);
@@ -125,6 +174,7 @@ const MailBox = () => {
     const [unlockInput, setUnlockInput] = useState('');
     const [unlockedMessageId, setUnlockedMessageId] = useState<string | null>(null);
     const [unlockedText, setUnlockedText] = useState<string | null>(null);
+    const [unlockedAttachments, setUnlockedAttachments] = useState<Attachment[]>([]);
 
     // --- State: AI ---
     const [summary, setSummary] = useState<string | null>(null);
@@ -135,6 +185,10 @@ const MailBox = () => {
     const [exportFormat, setExportFormat] = useState<'md' | 'json'>('md');
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [showVerificationModal, setShowVerificationModal] = useState(false);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verificationAlias, setVerificationAlias] = useState('');
 
     // --- State: Dragging ---
     const [composePos, setComposePos] = useState({ x: 100, y: 100 });
@@ -365,27 +419,34 @@ const MailBox = () => {
     };
 
     // --- Identity Logic ---
-    const generateNewIdentity = useCallback(() => {
+    const generateNewIdentity = useCallback(async () => {
         if (expiryTimerRef.current) clearInterval(expiryTimerRef.current);
-        const modes: GenerationMode[] = [];
-        if (toggles.standard) modes.push('standard');
-        if (toggles.plus) modes.push('plus');
-        if (toggles.dot) modes.push('dot');
-        if (toggles.gmail) modes.push('gmail');
-        if (toggles.googlemail) modes.push('googlemail');
-        if (modes.length === 0) modes.push('standard');
+        const address = generateEmailAddress(toggles);
+        const config = { mode: 'standard' as any, address }; // mode is now additive
 
-        const mode = modes[Math.floor(Math.random() * modes.length)];
-        const address = generateEmailAddress(mode);
-        const config = { mode, address };
+        // Claim it
+        const sid = localStorage.getItem('mailcroc_session_id') || sessionId;
+        if (sid) {
+            const success = await claimIdentity(address, sid);
+            if (!success) return null;
+        }
+
         setCurrentConfig(config);
         localStorage.setItem('mailcroc_config', JSON.stringify(config));
+
+        // --- Wipe Everything ---
         setMessages([]);
         setSelectedMessage(null);
+        setExternalIdentities([]); // Previous records are gone
+        setSenderAddress(address); // Set to new address
+        setComposeData({ to: '', subject: '', body: '' }); // Clear drafts
+        setAttachments([]); // Clear attachments
         setIsSessionExpired(false);
         setExpiryMinutes(10); // Reset to default 10m
+
+        addToast("Identity Reset: Fresh Slate Ready! 🥒✨", "info");
         return config;
-    }, [toggles]);
+    }, [toggles, sessionId]);
 
     const handleCustomSet = () => {
         if (!customInput) return;
@@ -410,42 +471,61 @@ const MailBox = () => {
         }
 
         const config = { mode: 'custom' as any, address: fullAddress, fullAddress: fullAddress };
-        setCurrentConfig(config);
-        localStorage.setItem('mailcroc_config', JSON.stringify(config));
-        setMessages([]);
-        setSelectedMessage(null);
-        // setIsSessionExpired(false); // Reset session? Maybe.
 
-        addToast(`Identity set to ${fullAddress}`, "success");
+        // Claim the address
+        claimIdentity(fullAddress, sessionId).then(success => {
+            if (success) {
+                setCurrentConfig(config);
+                localStorage.setItem('mailcroc_config', JSON.stringify(config));
+
+                // --- Wipe Everything ---
+                setMessages([]);
+                setSelectedMessage(null);
+                setExternalIdentities([]); // Clear older sessions
+                setSenderAddress(fullAddress); // Set to new custom address
+                setComposeData({ to: '', subject: '', body: '' }); // Clear drafts
+                setAttachments([]); // Clear attachments
+
+                addToast(`Identity Reset (Custom) to ${fullAddress}`, "success");
+            }
+        });
     };
 
     // Initial Load
     useEffect(() => {
-        const init = () => {
+        if (!sessionId) return; // Wait for session ID
+        const init = async () => {
             const queryAddress = searchParams?.get('address');
             if (queryAddress && queryAddress.includes('@')) {
-                const config = { mode: 'standard' as GenerationMode, address: queryAddress, fullAddress: queryAddress };
-                setCurrentConfig(config);
-                localStorage.setItem('mailcroc_config', JSON.stringify(config));
-                router.replace('/', { scroll: false });
+                const config = { mode: 'standard', address: queryAddress, fullAddress: queryAddress };
+                const claimed = await claimIdentity(queryAddress, sessionId);
+                if (claimed) {
+                    setCurrentConfig(config);
+                    localStorage.setItem('mailcroc_config', JSON.stringify(config));
+                    router.replace('/', { scroll: false });
+                }
             } else {
                 const stored = localStorage.getItem('mailcroc_config');
                 const expiryPref = localStorage.getItem('mailcroc_expiry_pref');
 
-                // Only restore if user explicitly set "No Expiry"
                 if (stored && expiryPref === 'no-expiry') {
                     try {
-                        setCurrentConfig(JSON.parse(stored));
-                        setExpiryMinutes(null);
+                        const parsed = JSON.parse(stored);
+                        const claimed = await claimIdentity(parsed.address, sessionId);
+                        if (claimed) {
+                            setCurrentConfig(parsed);
+                            setExpiryMinutes(null);
+                        } else {
+                            generateNewIdentity();
+                        }
                     } catch { generateNewIdentity(); }
                 } else {
-                    // Otherwise force new identity
                     generateNewIdentity();
                 }
             }
         };
         init();
-    }, []);
+    }, [sessionId]);
 
     // Persist Expiry Preference
     useEffect(() => {
@@ -458,12 +538,18 @@ const MailBox = () => {
 
     const emailAddress = currentConfig?.address || '';
 
+    useEffect(() => {
+        if (emailAddress && !senderAddress && !externalIdentities.includes(senderAddress)) {
+            setSenderAddress(emailAddress);
+        }
+    }, [emailAddress, senderAddress, externalIdentities]);
+
     // --- Fetch Logic ---
     const fetchMessages = useCallback(async () => {
-        if (!emailAddress) return;
+        if (!emailAddress || !sessionId) return;
         setIsRefreshing(true);
         try {
-            const res = await fetch(`/api/emails?address=${encodeURIComponent(emailAddress)}`, { headers: { 'x-api-key': 'public_beta_key_v1' } });
+            const res = await fetch(`/api/emails?address=${encodeURIComponent(emailAddress)}&sessionId=${sessionId}`, { headers: { 'x-api-key': 'public_beta_key_v1' } });
             if (res.ok) {
                 const data = await res.json();
 
@@ -514,8 +600,25 @@ const MailBox = () => {
                 setMessages(prev => {
                     if (prev.some(m => m._id === newMsg._id)) return prev;
                     try { new Audio('/animations/notification.wav').play().catch(() => { }); } catch { }
+
+                    // Gmail Verification Auto-Capture
+                    const lowerFrom = (newMsg.from || "").toLowerCase();
+                    const lowerSub = (newMsg.subject || "").toLowerCase();
+                    if (lowerFrom.includes('google.com') && lowerSub.includes('gmail confirmation')) {
+                        const bodyText = (newMsg.text || newMsg.html || "");
+                        // Regex for Gmail confirmation code (usually 9 digits)
+                        const codeMatch = bodyText.match(/Confirmation code:?\s*([0-9A-Z]{5,15})/i);
+                        const aliasMatch = bodyText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+
+                        if (codeMatch) {
+                            setVerificationCode(codeMatch[1]);
+                            if (aliasMatch) setVerificationAlias(aliasMatch[1]);
+                            setShowVerificationModal(true);
+                            addToast("Gmail Confirmation Captured! 🥒✨", "success");
+                        }
+                    }
+
                     // Auto-analyze new message
-                    const lowerSub = newMsg.subject.toLowerCase();
                     const isThreat = lowerSub.includes('verify') || lowerSub.includes('urgent');
                     return [{ ...newMsg, isThreat, category: 'primary' }, ...prev];
                 });
@@ -561,14 +664,18 @@ const MailBox = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'compose',
-                    from: emailAddress,
+                    from: senderAddress || emailAddress,
                     to: composeData.to,
                     subject: composeData.subject,
                     body: isPasswordProtected && emailPassword
-                        ? `MC-LOCKED:${encrypt(composeData.body, emailPassword)}`
+                        ? `MC-LOCKED:${encrypt(JSON.stringify({
+                            content: composeData.body,
+                            attachments: attachments
+                        }), emailPassword)}`
                         : composeData.body,
                     isPasswordProtected,
-                    attachments
+                    attachments: isPasswordProtected ? [] : attachments, // Hide attachments if protected
+                    privacyLevel: 'high' // Robust privacy hint
                 })
             });
             clearInterval(interval);
@@ -576,9 +683,10 @@ const MailBox = () => {
 
             if (res.ok) {
                 setSendStatus('Sent!');
+                setShowSentSuccess(true);
                 setMessages(prev => [{
                     _id: `sent-temp-${Date.now()}`,
-                    from: emailAddress,
+                    from: senderAddress || emailAddress,
                     to: composeData.to,
                     subject: composeData.subject,
                     receivedAt: new Date().toISOString(),
@@ -594,18 +702,22 @@ const MailBox = () => {
                     setShowDockedCompose(false);
                     setComposeData({ to: '', subject: '', body: '' });
                     setAttachments([]);
+                    setTimeout(() => setShowSentSuccess(false), 3000); // Hide after animation
                 }, 1000);
             } else {
-                setSendStatus('Failed');
+                setSendStatus('Retry');
+                addToast("Failed to send: Server Error", "error");
             }
-        } catch {
-            setSendStatus('Error');
+        } catch (err: any) {
+            setSendStatus('Retry');
+            addToast(`Send failed: ${err.message || 'Unknown error'}`, "error");
         }
     };
 
     // --- Speech Logic ---
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
 
     const stopReadAloud = () => {
         if (audioRef.current) {
@@ -615,11 +727,39 @@ const MailBox = () => {
         setIsPlayingAudio(false);
     };
 
+    const openReplyModal = () => {
+        if (!selectedMessage) return;
+        const subject = selectedMessage.subject.toLowerCase().startsWith('re:')
+            ? selectedMessage.subject
+            : `Re: ${selectedMessage.subject}`;
+
+        // Quote the original message
+        const originalContent = selectedMessage.html || selectedMessage.text || "";
+        const quotedContent = `<br><br><div style="border-left: 2px solid #e2e8f0; padding-left: 1rem; color: #64748b; margin-top: 2rem;">
+            <p style="margin: 0.25rem 0;"><strong>From:</strong> ${selectedMessage.from}</p>
+            <p style="margin: 0.25rem 0;"><strong>Date:</strong> ${new Date(selectedMessage.receivedAt).toLocaleString()}</p>
+            <p style="margin: 0.25rem 0;"><strong>Subject:</strong> ${selectedMessage.subject}</p>
+            <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 1rem 0;">
+            ${originalContent}
+        </div>`;
+
+        setComposeData({
+            to: selectedMessage.from,
+            subject: subject,
+            body: quotedContent
+        });
+        setShowDockedCompose(true);
+        setIsInlineReplying(false); // Ensure inline mode is disabled
+    };
+
     const cleanAiResponse = (text: string) => {
         if (!text) return "";
         let cleaned = text.trim();
-        // Remove triple backticks and potential language identifier (e.g. ```html)
-        cleaned = cleaned.replace(/^```(html|markdown)?\s*/i, '').replace(/\s*```$/, '');
+        // Remove all variations of markdown code block wrappers
+        cleaned = cleaned.replace(/```(html|markdown|text|email)?\s*?/gi, '');
+        cleaned = cleaned.replace(/```$/g, '');
+        // Remove common "Here is your email:" type intros
+        cleaned = cleaned.replace(/^(here is|this is|i've generated|certainly|surely).*?:\s*/gi, '');
         return cleaned.trim();
     };
 
@@ -671,12 +811,13 @@ const MailBox = () => {
             const cleanedText = cleanAiResponse(text);
 
             if (action === 'draft') {
-                setComposeData(prev => ({ ...prev, body: cleanedText }));
+                const plainTextDraft = stripMarkdown(cleanedText);
+                setComposeData(prev => ({ ...prev, body: plainTextDraft }));
                 setShowDockedCompose(true);
                 addToast("Draft generated!", "success");
             } else {
                 setSummary(cleanedText);
-                setShowAiSidePanel(true);
+                setShowSummaryModal(true);
                 addToast("Analysis complete", "success");
             }
 
@@ -694,7 +835,7 @@ const MailBox = () => {
         setIsSummarizing(true);
         try {
             let text = "";
-            let prompt = `Write a professional email about: ${topic}`;
+            let prompt = `Write a professional email about: ${topic}. IMPORTANT: Return ONLY the body. The editor renders HTML/React-like tags as a final visual look, so feel free to use <h1>, <p>, <ul>, <li>, <strong>, etc. for professional formatting. Do NOT wrap the entire response in a markdown code block (\`\`\`). Return raw content only.`;
 
             if (refinement) {
                 const currentText = composeData.body;
@@ -837,48 +978,74 @@ const MailBox = () => {
             return;
         }
 
+        // Check if we already have saved audio
+        if (selectedMessage.speechAudio) {
+            try {
+                const blob = await (await fetch(`data:audio/mpeg;base64,${selectedMessage.speechAudio}`)).blob();
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audioRef.current = audio;
+                audio.onended = () => setIsPlayingAudio(false);
+                setIsPlayingAudio(true);
+                audio.play();
+                return;
+            } catch (e) {
+                console.warn("Failed to play stored audio, regenerating...", e);
+            }
+        }
+
         setIsPlayingAudio(true);
         addToast("Generating speech...", "info");
 
         try {
-            const textToRead = (selectedMessage.text || selectedMessage.subject).slice(0, 500);
-            const voiceId = voiceGender === 'female' ? 'Rachel' : 'Drew';
+            const textToRead = (selectedMessage.text || selectedMessage.subject).slice(0, 1000);
 
-            let audioSource: any = null;
+            // Fetch from ElevenLabs via our backend
+            const res = await fetch('/api/ai/speech', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: textToRead, gender: voiceGender })
+            });
 
-            // Try Puter
-            if ((window as any).puter) {
-                try {
-                    audioSource = await (window as any).puter.ai.txt2speech(textToRead, {
-                        model: 'eleven_turbo_v2',
-                        voice: voiceId
-                    });
-                } catch (e) { console.warn("Puter TTS failed", e); }
+            if (res.ok) {
+                const blob = await res.blob();
+
+                // Convert to base64 to save for next time
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = async () => {
+                    const base64data = (reader.result as string).split(',')[1];
+                    // Save to backend
+                    fetch('/api/emails', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' },
+                        body: JSON.stringify({
+                            emailId: selectedMessage._id,
+                            action: 'audio',
+                            value: base64data
+                        })
+                    }).catch(e => console.error("Failed to save audio", e));
+
+                    // Update local state so it's instant next time without refresh
+                    setMessages(prev => prev.map(m => m._id === selectedMessage._id ? { ...m, speechAudio: base64data } : m));
+                    if (selectedMessage) {
+                        setSelectedMessage({ ...selectedMessage, speechAudio: base64data });
+                    }
+                };
+
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audioRef.current = audio;
+                audio.onended = () => setIsPlayingAudio(false);
+                audio.play();
+            } else {
+                const errorData = await res.json();
+                throw new Error(errorData.error || "TTS API failed");
             }
 
-            // Fallback: Backend
-            if (!audioSource) {
-                const res = await fetch('/api/ai/speech', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: textToRead, gender: voiceGender })
-                });
-                if (res.ok) {
-                    audioSource = await res.blob();
-                    audioSource = URL.createObjectURL(audioSource);
-                }
-            }
-
-            if (!audioSource) throw new Error("TTS failed");
-
-            const audio = (audioSource instanceof HTMLAudioElement) ? audioSource : new Audio(typeof audioSource === 'string' ? audioSource : URL.createObjectURL(audioSource));
-            audioRef.current = audio;
-            audio.onended = () => setIsPlayingAudio(false);
-            audio.play();
-
-        } catch (err) {
-            console.error(err);
-            addToast("Failed to read email aloud", "error");
+        } catch (err: any) {
+            console.error("TTS Error:", err);
+            addToast(`Speech failed: ${err.message}`, "error");
             setIsPlayingAudio(false);
         }
     };
@@ -972,6 +1139,16 @@ const MailBox = () => {
         }
     };
 
+    const handleOpenCompose = () => {
+        setComposeData({ to: '', subject: '', body: '' });
+        setAttachments([]);
+        setIsPasswordProtected(false);
+        setEmailPassword('');
+        setSenderAddress(emailAddress);
+        setShowDockedCompose(true);
+        setMobileMenuOpen(false);
+    };
+
     // Filtered Messages
     const filteredMessages = messages.filter(msg => {
         const targetFolder = activeFolder || 'inbox';
@@ -1008,7 +1185,7 @@ const MailBox = () => {
                         </button>
                     </div>
 
-                    <button className={`${styles.composeBtnLarge} ${isSidebarCollapsed ? styles.iconOnly : ''}`} onClick={() => { setShowDockedCompose(true); setMobileMenuOpen(false); }}>
+                    <button className={`${styles.composeBtnLarge} ${isSidebarCollapsed ? styles.iconOnly : ''}`} onClick={handleOpenCompose}>
                         <Plus size={20} className="text-green-500" />
                         {!isSidebarCollapsed && <span>Compose</span>}
                     </button>
@@ -1041,7 +1218,41 @@ const MailBox = () => {
                             <div className={styles.identityControls}>
                                 <label><input type="checkbox" checked={toggles.standard} onChange={() => setToggles({ ...toggles, standard: !toggles.standard })} /> Standard</label>
                                 <label><input type="checkbox" checked={toggles.plus} onChange={() => setToggles({ ...toggles, plus: !toggles.plus })} /> +Tag</label>
-                                <label><input type="checkbox" checked={toggles.dot} onChange={() => setToggles({ ...toggles, dot: !toggles.dot })} /> Dot</label>
+                                <label><input type="checkbox" checked={toggles.dot} onChange={() => setToggles({ ...toggles, dot: !toggles.dot })} /> .Dot</label>
+                                <label><input type="checkbox" checked={toggles.hyphen} onChange={() => setToggles({ ...toggles, hyphen: !toggles.hyphen })} /> -Hyphen</label>
+                                <label><input type="checkbox" checked={toggles.gmail} onChange={() => setToggles({ ...toggles, gmail: !toggles.gmail })} /> Gmail</label>
+                                <label><input type="checkbox" checked={toggles.googlemail} onChange={() => setToggles({ ...toggles, googlemail: !toggles.googlemail })} /> GoogleMail</label>
+
+                                <div className={styles.externalAccounts}>
+                                    <h5 className={styles.smallTitle}>Connected Emails</h5>
+                                    {externalIdentities.map((email, i) => (
+                                        <div key={i} className={styles.externalItem}>
+                                            <span>{email}</span>
+                                            <X size={12} onClick={() => setExternalIdentities(prev => prev.filter((_, idx) => idx !== i))} />
+                                        </div>
+                                    ))}
+                                    <div className={styles.addExternalRow}>
+                                        <input
+                                            placeholder="Add email (Gmail...)"
+                                            value={newExternalEmail}
+                                            onChange={e => setNewExternalEmail(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && newExternalEmail.includes('@')) {
+                                                    setExternalIdentities(prev => [...prev, newExternalEmail]);
+                                                    setNewExternalEmail('');
+                                                    addToast("Added personal email", "success");
+                                                }
+                                            }}
+                                        />
+                                        <Plus size={14} onClick={() => {
+                                            if (newExternalEmail.includes('@')) {
+                                                setExternalIdentities(prev => [...prev, newExternalEmail]);
+                                                setNewExternalEmail('');
+                                                addToast("Added personal email", "success");
+                                            }
+                                        }} />
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1057,6 +1268,15 @@ const MailBox = () => {
                             </div>
                         </div>
                     )}
+
+                    {!isSidebarCollapsed && (
+                        <div className={styles.sidebarFooter}>
+                            <Link href="/status" className={styles.statusBadge}>
+                                <div className={styles.statusDotLive}></div>
+                                <span>All systems operational</span>
+                            </Link>
+                        </div>
+                    )}
                 </div>
 
                 {/* MAIN CONTENT */}
@@ -1067,7 +1287,7 @@ const MailBox = () => {
                         <div className={styles.idTopRow}>
                             <div className={styles.addressContainer}>
                                 { /* Removed redundant hamburger here */}
-                                <h2 className={styles.currentEmail}>{emailAddress}</h2>
+                                <h2 className={styles.currentEmail} title={emailAddress}>{emailAddress}</h2>
                                 <button className={styles.copyBtn} onClick={copyToClipboard}><Copy size={18} /></button>
                                 <button className={styles.copyBtn} onClick={() => setShowQR(true)} title="Show QR"><QrCode size={18} /></button>
                                 <span className={styles.statusDot} title="Active" />
@@ -1142,12 +1362,22 @@ const MailBox = () => {
                             <label className={styles.toggleSwitch}>
                                 <input type="checkbox" checked={toggles.plus} onChange={() => setToggles({ ...toggles, plus: !toggles.plus })} />
                                 <span className={styles.toggleSlider} />
-                                <span className={styles.toggleLabel}>+Gmail</span>
+                                <span className={styles.toggleLabel}>+Tag</span>
                             </label>
                             <label className={styles.toggleSwitch}>
                                 <input type="checkbox" checked={toggles.dot} onChange={() => setToggles({ ...toggles, dot: !toggles.dot })} />
                                 <span className={styles.toggleSlider} />
-                                <span className={styles.toggleLabel}>.Gmail</span>
+                                <span className={styles.toggleLabel}>.Dot</span>
+                            </label>
+                            <label className={styles.toggleSwitch}>
+                                <input type="checkbox" checked={toggles.hyphen} onChange={() => setToggles({ ...toggles, hyphen: !toggles.hyphen })} />
+                                <span className={styles.toggleSlider} />
+                                <span className={styles.toggleLabel}>-Hyphen</span>
+                            </label>
+                            <label className={styles.toggleSwitch}>
+                                <input type="checkbox" checked={toggles.gmail} onChange={() => setToggles({ ...toggles, gmail: !toggles.gmail })} />
+                                <span className={styles.toggleSlider} />
+                                <span className={styles.toggleLabel}>Gmail</span>
                             </label>
                             <label className={styles.toggleSwitch}>
                                 <input type="checkbox" checked={toggles.googlemail} onChange={() => setToggles({ ...toggles, googlemail: !toggles.googlemail })} />
@@ -1194,7 +1424,7 @@ const MailBox = () => {
                             <button className={styles.actionBtnPrimary} onClick={generateNewIdentity}>
                                 <Shuffle size={16} /> Generate New
                             </button>
-                            <button className={styles.actionBtn} onClick={() => setShowDockedCompose(true)}>
+                            <button className={styles.actionBtn} onClick={handleOpenCompose}>
                                 <Send size={16} /> Compose
                             </button>
                             <button className={styles.actionBtn}>
@@ -1296,6 +1526,22 @@ const MailBox = () => {
                                             <span>From: <strong>{selectedMessage.from}</strong></span>
                                             <span>{new Date(selectedMessage.receivedAt).toLocaleString()}</span>
                                         </div>
+
+                                        {/* IN-MAIL AI SUMMARY */}
+                                        {summary && selectedMessage && (activeFolder !== 'sent') && (
+                                            <div className={styles.inMailSummary}>
+                                                <div className={styles.summaryHeader}>
+                                                    <div className={styles.summaryTitle}>
+                                                        <AILogo size={14} color="#84cc16" />
+                                                        <span>AI Summary</span>
+                                                    </div>
+                                                    <button onClick={() => setSummary(null)} className={styles.closeSummary}>×</button>
+                                                </div>
+                                                <div className={styles.summaryContent}>
+                                                    {summary}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div id="email-content-export" className={styles.emailBody}>
@@ -1316,7 +1562,21 @@ const MailBox = () => {
                                                                 if (e.key === 'Enter') {
                                                                     const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
                                                                     if (decrypted) {
-                                                                        setUnlockedText(decrypted);
+                                                                        try {
+                                                                            const parsed = JSON.parse(decrypted);
+                                                                            if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
+                                                                                setUnlockedText(parsed.content || '');
+                                                                                setUnlockedAttachments(parsed.attachments || []);
+                                                                            } else {
+                                                                                // Legacy format (just string)
+                                                                                setUnlockedText(decrypted);
+                                                                                setUnlockedAttachments([]);
+                                                                            }
+                                                                        } catch {
+                                                                            // Not JSON, assume legacy string
+                                                                            setUnlockedText(decrypted);
+                                                                            setUnlockedAttachments([]);
+                                                                        }
                                                                         setUnlockedMessageId(selectedMessage._id);
                                                                         addToast("Email unlocked!", "success");
                                                                     } else {
@@ -1330,7 +1590,19 @@ const MailBox = () => {
                                                             onClick={() => {
                                                                 const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
                                                                 if (decrypted) {
-                                                                    setUnlockedText(decrypted);
+                                                                    try {
+                                                                        const parsed = JSON.parse(decrypted);
+                                                                        if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
+                                                                            setUnlockedText(parsed.content || '');
+                                                                            setUnlockedAttachments(parsed.attachments || []);
+                                                                        } else {
+                                                                            setUnlockedText(decrypted);
+                                                                            setUnlockedAttachments([]);
+                                                                        }
+                                                                    } catch {
+                                                                        setUnlockedText(decrypted);
+                                                                        setUnlockedAttachments([]);
+                                                                    }
                                                                     setUnlockedMessageId(selectedMessage._id);
                                                                     addToast("Email unlocked!", "success");
                                                                 } else {
@@ -1345,41 +1617,84 @@ const MailBox = () => {
                                             </div>
                                         ) : (
                                             <>
-                                                {selectedMessage.html ? (
+                                                {selectedMessage.html && unlockedMessageId !== selectedMessage._id ? (
                                                     <div dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html) }} />
                                                 ) : (
                                                     <div className={styles.markdownBody}>
-                                                        <ReactMarkdown
-                                                            remarkPlugins={[remarkGfm]}
-                                                            rehypePlugins={[rehypeSanitize]}
-                                                        >
-                                                            {unlockedMessageId === selectedMessage._id ? unlockedText : selectedMessage.text}
-                                                        </ReactMarkdown>
+                                                        {unlockedMessageId === selectedMessage._id ? (
+                                                            <div>
+                                                                {/* Render Unlocked Content (HTML support) */}
+                                                                <div dangerouslySetInnerHTML={{ __html: processHtml(unlockedText || '') }} />
+
+                                                                {/* Render Unlocked Attachments */}
+                                                                {unlockedAttachments.length > 0 && (
+                                                                    <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                            <Paperclip size={14} /> Attachments ({unlockedAttachments.length})
+                                                                        </h4>
+                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
+                                                                            {unlockedAttachments.map((att, idx) => (
+                                                                                <a
+                                                                                    key={idx}
+                                                                                    href={att.content}
+                                                                                    download={att.name}
+                                                                                    style={{
+                                                                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                                                                        padding: '0.75rem', background: '#f8fafc', borderRadius: '8px',
+                                                                                        textDecoration: 'none', color: '#1e293b', border: '1px solid #e2e8f0',
+                                                                                        transition: 'all 0.2s', fontSize: '0.85rem'
+                                                                                    }}
+                                                                                    onMouseOver={e => e.currentTarget.style.borderColor = '#cbd5e1'}
+                                                                                    onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                                                                                >
+                                                                                    <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                                                                        {getFileIcon(att.type)}
+                                                                                    </div>
+                                                                                    <div style={{ overflow: 'hidden' }}>
+                                                                                        <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
+                                                                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{(att.size / 1024).toFixed(1)} KB</div>
+                                                                                    </div>
+                                                                                    <Download size={14} className="ml-auto text-gray-400" />
+                                                                                </a>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <ReactMarkdown
+                                                                remarkPlugins={[remarkGfm]}
+                                                                rehypePlugins={[rehypeSanitize]}
+                                                            >
+                                                                {selectedMessage.text}
+                                                            </ReactMarkdown>
+                                                        )}
                                                     </div>
                                                 )}
                                             </>
                                         )}
                                     </div>
 
-                                    {/* Inline Reply */}
+                                    {/* Inline Reply - Now triggers Modal */}
                                     <div className={styles.inlineReplyBox}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#64748b' }}>
-                                            <Reply size={16} /> <span style={{ fontSize: '0.9rem' }}>Reply to <strong>{selectedMessage.from}</strong></span>
-                                        </div>
-                                        <textarea
-                                            className={styles.inlineReplyTextarea}
-                                            placeholder="Write your reply..."
-                                            value={isInlineReplying ? composeData.body : ''}
-                                            onChange={e => { setIsInlineReplying(true); setComposeData(prev => ({ ...prev, to: selectedMessage.from, subject: `Re: ${selectedMessage.subject}`, body: e.target.value })); }}
-                                        />
-                                        {isInlineReplying && (
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                                                <button className={styles.iconBtn} onClick={() => setIsInlineReplying(false)} style={{ border: 'none' }}>Discard</button>
-                                                <button className={styles.actionBtnAccent} onClick={handleSend} disabled={!!sendStatus}>
-                                                    <Send size={14} /> {sendStatus || 'Send'}
-                                                </button>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                                            <div className={styles.replyAvatar}>
+                                                <User size={18} />
                                             </div>
-                                        )}
+                                            <div
+                                                className={styles.replyPlaceholderTrigger}
+                                                onClick={openReplyModal}
+                                            >
+                                                Reply to <strong>{selectedMessage.from}</strong>...
+                                            </div>
+                                            <button
+                                                className={styles.actionBtnAccent}
+                                                onClick={openReplyModal}
+                                                style={{ marginLeft: 'auto' }}
+                                            >
+                                                <Reply size={14} /> Reply
+                                            </button>
+                                        </div>
                                     </div>
                                 </>
                             ) : (
@@ -1448,6 +1763,7 @@ const MailBox = () => {
                                                                         });
                                                                         const text = resp?.message?.content || JSON.stringify(resp);
                                                                         setSummary(text);
+                                                                        setShowSummaryModal(true);
                                                                         addToast("Image analyzed!", "success");
                                                                     } catch (err: any) {
                                                                         console.error("Vision Error Object:", err);
@@ -1498,10 +1814,10 @@ const MailBox = () => {
                     incomingItems.forEach(file => {
                         const reader = new FileReader();
                         reader.onload = (e) => {
-                            const base64 = (e.target?.result as string).split(',')[1];
+                            const content = e.target?.result as string;
                             setAttachments(prev => [...prev, {
                                 name: file.name,
-                                content: base64,
+                                content: content,
                                 type: file.type,
                                 size: file.size
                             }]);
@@ -1521,6 +1837,11 @@ const MailBox = () => {
                 polishText={polishText}
                 isAiWriting={isSummarizing}
                 getFileIcon={getFileIcon}
+                senderAddress={senderAddress}
+                setSenderAddress={setSenderAddress}
+                availableAddresses={[emailAddress, ...externalIdentities].filter(addr =>
+                    addr && (addr.endsWith('mailcroc.qzz.io') || addr.endsWith('mailpanda.qzz.io'))
+                )}
             />
 
             {/* Delete Confirmation */}
@@ -1598,6 +1919,86 @@ const MailBox = () => {
                                 <Shuffle size={18} /> Generate New Identity
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Summary Modal */}
+            {showSummaryModal && summary && (
+                <div className={styles.summaryModalOverlay} onClick={() => setShowSummaryModal(false)}>
+                    <div className={styles.summaryModalContent} onClick={e => e.stopPropagation()}>
+                        <div className={styles.summaryModalHeader}>
+                            <h3><Sparkles size={20} className="text-lime-500" /> AI Insights</h3>
+                            <button className={styles.closeSummary} onClick={() => setShowSummaryModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className={styles.summaryModalBody}>
+                            <TypewriterMarkdown text={summary} />
+                        </div>
+                        <div className={styles.summaryModalFooter}>
+                            <button className={styles.copySummaryBtn} onClick={() => {
+                                navigator.clipboard.writeText(summary);
+                                addToast("Summary copied!", "success");
+                            }}>
+                                <Copy size={16} /> Copy Result
+                            </button>
+                            <button className={styles.closeSummaryBtn} onClick={() => setShowSummaryModal(false)}>
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Gmail Verification Modal */}
+            {showVerificationModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowVerificationModal(false)}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ textAlign: 'center', padding: '2rem', border: '2px solid #84cc16' }}>
+                        <div className={styles.modalHeader}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ShieldCheck size={24} color="#84cc16" /> Stealth Verification
+                            </h3>
+                            <button onClick={() => setShowVerificationModal(false)}><X size={20} /></button>
+                        </div>
+                        <div style={{ margin: '1.5rem 0' }}>
+                            <p style={{ color: '#64748b', fontSize: '0.95rem', marginBottom: '1rem' }}>
+                                Gmail is asking to verify your witty alias:
+                            </p>
+                            <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '8px', fontWeight: 'bold', color: '#1e292b', marginBottom: '1.5rem' }}>
+                                {verificationAlias}
+                            </div>
+                            <p style={{ color: '#1e292b', fontWeight: '600', marginBottom: '0.5rem' }}>Your Stealth Code:</p>
+                            <div style={{ fontSize: '2.5rem', letterSpacing: '4px', fontWeight: '800', color: '#84cc16', fontFamily: 'monospace', background: '#ecfdf5', padding: '1rem', borderRadius: '12px', border: '1px dashed #84cc16' }}>
+                                {verificationCode}
+                            </div>
+                        </div>
+                        <button
+                            className={styles.actionBtnPrimary}
+                            style={{ width: '100%', justifyContent: 'center', padding: '1rem' }}
+                            onClick={() => {
+                                navigator.clipboard.writeText(verificationCode);
+                                addToast("Code copied to clipboard!", "success");
+                            }}
+                        >
+                            <Copy size={18} /> Copy Code & Close
+                        </button>
+                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '1rem' }}>
+                            Enter this code in your Gmail "Send Mail As" settings to finish the stealth setup.
+                        </p>
+                    </div>
+                </div>
+            )}
+            {/* Sent Success Overlay */}
+            {showSentSuccess && (
+                <div className={styles.modalOverlay} style={{ zIndex: 9999 }}>
+                    <div className={styles.modalContent} style={{ textAlign: 'center', padding: '2rem' }}>
+                        <LottiePlayer
+                            animationData={mailSentAnim}
+                            loop={false}
+                            style={{ width: 200, height: 200, margin: '0 auto' }}
+                        />
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginTop: '1rem' }}>Mail Sent Successfully!</h3>
                     </div>
                 </div>
             )}

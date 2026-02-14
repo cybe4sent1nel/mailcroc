@@ -1,0 +1,24 @@
+
+≡ƒÜÇ Testing V4 SYNC-STEALTH for: stealth.v4.5059@mailcroc.qzz.io
+Target: fahadkhanxyz8816@gmail.com
+
+Sending request...
+
+API Response (8.2s):
+{
+  "success": true,
+  "message": "Email sent and synced to Gmail",
+  "privacy": "total",
+  "debug": {
+    "from": "stealth.v4.5059@mailcroc.qzz.io",
+    "isCustomDomain": true,
+    "useCloudflareProxy": false,
+    "workerUrl": "MISSING",
+    "cfError": "None",
+    "isGmailApiConfigured": true,
+    "gapiError": "Failed to create alias: {\"error\":{\"code\":403,\"message\":\"Access restricted to service accounts that have been delegated domain-wide authority\",\"errors\":[{\"message\":\"Access restricted to service accounts that have been delegated domain-wide authority\",\"domain\":\"global\",\"reason\":\"forbidden\"}],\"status\":\"PERMISSION_DENIED\"}}"
+  }
+}
+
+Γ£à V4 TEST PASSED!
+Now check your primary Gmail "Sent" folder!

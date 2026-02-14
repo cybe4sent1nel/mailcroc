@@ -67,6 +67,9 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
     const folder = encodeAddress(ownerAddress || 'unknown');
     const path = `emails/${folder}/${id}.json`;
 
+    // --- Isolation Logic ---
+    const currentOwner = await getAddressOwner(ownerAddress || 'unknown');
+
     const emailData = {
         _id: id,
         from: email.from || 'unknown',
@@ -82,6 +85,7 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
         category: email.category || 'primary',
         isThreat: email.isThreat || false,
         summary: email.summary || '',
+        ownerSessionId: currentOwner?.sessionId || null,
     };
 
     const content = Buffer.from(JSON.stringify(emailData, null, 2)).toString('base64');
@@ -105,9 +109,9 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
 }
 
 /**
- * Get all emails for an address
+ * Get all emails for an address (with optional session isolation)
  */
-export async function getEmailsByAddress(address: string): Promise<(IEmail & { _id: string })[]> {
+export async function getEmailsByAddress(address: string, sessionId?: string): Promise<(IEmail & { _id: string })[]> {
     const folder = encodeAddress(address);
     const path = `emails/${folder}`;
 
@@ -163,7 +167,13 @@ export async function getEmailsByAddress(address: string): Promise<(IEmail & { _
                 }
             })
         );
-        emails.push(...results.filter(Boolean));
+        const filteredResults = results.filter(Boolean).filter((email: any) => {
+            if (!sessionId) return true; // No filter requested
+            // If the email has an owner, it MUST match the requested session
+            // If the email has NO owner, it's considered "legacy" or "system" and visible to all (or we could hide it)
+            return !email.ownerSessionId || email.ownerSessionId === sessionId;
+        });
+        emails.push(...filteredResults);
     }
 
     // Sort by receivedAt descending
@@ -455,4 +465,141 @@ export async function getSecureMessage(id: string): Promise<string | null> {
     } catch {
         return null;
     }
+}
+
+// ============================================
+//  Address Claim Logic (Isolation)
+// ============================================
+
+/**
+ * Claim an address for a specific session
+ */
+export async function claimAddress(address: string, sessionId: string): Promise<{ success: boolean; message?: string }> {
+    const folder = encodeAddress(address);
+    const path = `claims/${folder}.json`;
+
+    // Check if claimed
+    const existing = await getAddressOwner(address);
+    if (existing && existing.sessionId !== sessionId) {
+        // Check if the claim is "expired" (e.g. older than 24 hours) 
+        // For simplicity now: strict denial if any claim exists
+        const createdAt = new Date(existing.claimedAt);
+        const now = new Date();
+        const diffHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
+        if (diffHours < 24) {
+            return { success: false, message: 'Address is already in use by another session.' };
+        }
+    }
+
+    // Save claim
+    const claimData = {
+        address,
+        sessionId,
+        claimedAt: new Date().toISOString()
+    };
+    const content = Buffer.from(JSON.stringify(claimData, null, 2)).toString('base64');
+
+    // Get sha if exists
+    const getRes = await fetch(repoUrl(path), { headers: headers() });
+    let sha;
+    if (getRes.ok) {
+        const fileData = await getRes.json();
+        sha = fileData.sha;
+    }
+
+    const res = await fetch(repoUrl(path), {
+        method: 'PUT',
+        headers: headers(),
+        body: JSON.stringify({
+            message: `🔒 Claimed address ${address}`,
+            content,
+            sha
+        }),
+    });
+
+    return { success: res.ok };
+}
+
+// --- Identity Logic (Multiple Sending Methods) ---
+
+export interface IIdentity {
+    address: string;
+    type: 'internal' | 'external_smtp' | 'gmail_alias';
+    smtpOptions?: {
+        host: string;
+        port: number;
+        user: string;
+        pass: string;
+        secure: boolean;
+    };
+    verificationStatus: 'pending' | 'verified';
+    verifiedAt?: string;
+}
+
+/**
+ * Save a sender identity (SMTP or Alias)
+ */
+export async function saveIdentity(identity: IIdentity): Promise<boolean> {
+    try {
+        const folder = encodeAddress(identity.address);
+        const path = `identities/${folder}.json`;
+        const content = Buffer.from(JSON.stringify(identity, null, 2)).toString('base64');
+
+        // Check for existing to get SHA if update
+        let sha: string | undefined;
+        try {
+            const res = await fetch(repoUrl(path), { headers: headers() });
+            if (res.ok) {
+                const data = await res.json();
+                sha = data.sha;
+            }
+        } catch { }
+
+        const res = await fetch(repoUrl(path), {
+            method: 'PUT',
+            headers: headers(),
+            body: JSON.stringify({
+                message: `👤 Update identity for ${identity.address}`,
+                content,
+                sha
+            }),
+        });
+        return res.ok;
+    } catch (err) {
+        console.error("Failed to save identity:", err);
+        return false;
+    }
+}
+
+/**
+ * Get identity for a specific sender address
+ */
+export async function getIdentityForAddress(address: string): Promise<IIdentity | null> {
+    try {
+        const folder = encodeAddress(address);
+        const path = `identities/${folder}.json`;
+        const res = await fetch(repoUrl(path), { headers: headers() });
+        if (!res.ok) return null;
+
+        const fileData = await res.json();
+        const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        return JSON.parse(content);
+    } catch { return null; }
+}
+
+/**
+ * Get the current owner of an address
+ */
+export async function getAddressOwner(address: string): Promise<{ sessionId: string; claimedAt: string } | null> {
+    try {
+        const folder = encodeAddress(address);
+        const path = `claims/${folder}.json`;
+        const res = await fetch(repoUrl(path), { headers: headers() });
+        if (!res.ok) return null;
+
+        const fileData = await res.json();
+        const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        return JSON.parse(content);
+    } catch { return null; }
 }

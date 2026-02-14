@@ -1,0 +1,191 @@
+.statusContainer {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #f8fafc;
+    min-height: 100vh;
+    color: #1e293b;
+}
+
+.statusNav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.backLink {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 0.875rem;
+}
+
+.statusLogo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.reportBtn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reportBtn:hover {
+    background: #f1f5f9;
+}
+
+.statusMain {
+    max-width: 800px;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+}
+
+.overallStatusBanner {
+    background: #f0fdf4;
+    border: 1px solid #bcf0da;
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 3rem;
+}
+
+.bannerText h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #166534;
+}
+
+.bannerText p {
+    margin: 0.25rem 0 0;
+    color: #15803d;
+    font-size: 0.95rem;
+}
+
+.sectionTitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #334155;
+}
+
+.statusCard {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.statusCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.statusCardTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+}
+
+.statusDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.bgGreen {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+.bgYellow {
+    background: #eab308;
+}
+
+.uptimePercentage {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.uptimeBars {
+    display: flex;
+    gap: 3px;
+    height: 34px;
+}
+
+.uptimeBar {
+    flex: 1;
+    border-radius: 2px;
+}
+
+.operational {
+    background: #22c55e;
+}
+
+.degraded {
+    background: #facc15;
+}
+
+.statusCardFooter {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.pastIncidents {
+    margin-top: 4rem;
+}
+
+.incidentRow {
+    padding: 1.5rem 0;
+    border-top: 1px solid #e2e8f0;
+}
+
+.incidentDate {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.incidentText {
+    margin-top: 0.5rem;
+    color: #94a3b8;
+}
+
+.statusFooter {
+    text-align: center;
+    padding: 4rem 0;
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+.footerLinks {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.footerLinks a {
+    color: #64748b;
+    text-decoration: none;
+}

@@ -1,50 +1,58 @@
-import styles from './Footer.module.css';
-import Image from 'next/image';
+import React from 'react';
 import Link from 'next/link';
+import { Mail, Twitter, Github, Shield } from 'lucide-react';
 
 const Footer = () => {
     return (
-        <footer className={styles.footer}>
-            <div className={styles.inner}>
-                <div className={styles.brand}>
-                    <div className={styles.logo}>
-                        <Image
-                            src="/logo.png"
-                            alt="MailCroc"
-                            width={40}
-                            height={40}
-                            className={styles.logoImage}
-                        />
-                        <span>MailCroc</span>
+        <footer className="mc-footer">
+            <div className="mc-footer-container">
+                <div className="mc-footer-top">
+                    <div className="mc-footer-brand">
+                        <div className="mc-footer-logo">
+                            <img src="/logo.png" alt="MailCroc Logo" width="32" height="32" />
+                            <span>MailCroc</span>
+                        </div>
+                        <p className="mc-footer-brand-p">
+                            The world's most advanced temporary email service. Private, secure, and lightning fast.
+                        </p>
                     </div>
-                    <p className={styles.tagline}>Privacy-first disposable email &amp; phone numbers.</p>
+
+                    <div className="mc-footer-links-grid">
+                        <div className="mc-footer-column">
+                            <h4 className="mc-footer-column-title">Product</h4>
+                            <Link href="/mail">Get Started</Link>
+                            <Link href="/pricing">Pricing</Link>
+                            <Link href="/features">Features</Link>
+                        </div>
+                        <div className="mc-footer-column">
+                            <h4 className="mc-footer-column-title">Legal</h4>
+                            <Link href="/privacy">Privacy Policy</Link>
+                            <Link href="/terms">Terms of Service</Link>
+                            <Link href="/developers">Developers</Link>
+                        </div>
+                        <div className="mc-footer-column">
+                            <h4 className="mc-footer-column-title">Support</h4>
+                            <Link href="/docs">Documentation</Link>
+                            <Link href="/status">System Status</Link>
+                        </div>
+                    </div>
                 </div>
 
-                <div className={styles.columns}>
-                    <div className={styles.col}>
-                        <h4>Product</h4>
-                        <Link href="/mail">Temp Mail</Link>
-                        <Link href="/features">Features</Link>
-                        <Link href="/pricing">Pricing</Link>
-                        <Link href="/docs">API Docs</Link>
+                <div className="mc-footer-bottom">
+                    <div className="mc-footer-copy">
+                        © 2026 MailCroc. All rights reserved.
                     </div>
-                    <div className={styles.col}>
-                        <h4>Company</h4>
-                        <Link href="#">About</Link>
-                        <Link href="#">Blog</Link>
-                        <Link href="#">Contact</Link>
-                    </div>
-                    <div className={styles.col}>
-                        <h4>Legal</h4>
-                        <Link href="/privacy">Privacy Policy</Link>
-                        <Link href="/terms">Terms of Service</Link>
+
+                    <div className="mc-footer-status-wrapper">
+                        <Link href="/status" className="mc-footer-status-badge">
+                            <div className="mc-footer-status-dot"></div>
+                            <span>All systems operational</span>
+                        </Link>
                     </div>
                 </div>
-            </div>
-            <div className={styles.bottom}>
-                <p>&copy; {new Date().getFullYear()} MailCroc. All rights reserved. Designed and Developed by <strong>Fahad Khan</strong></p>
             </div>
         </footer>
     );
 };
+
 export default Footer;

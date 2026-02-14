@@ -16,4 +16,6 @@ export interface IEmail {
     category?: 'primary' | 'social' | 'updates' | 'promotions' | 'spam';
     isThreat?: boolean;
     summary?: string;
+    ownerSessionId?: string;
+    speechAudio?: string; // Base64 audio content
 }

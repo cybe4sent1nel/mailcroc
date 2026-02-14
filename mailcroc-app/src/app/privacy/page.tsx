@@ -1,13 +1,11 @@
 
 import React from 'react';
-import Header from '@/components/Header/Header';
 import Footer from '@/components/Footer/Footer';
 import styles from './styles.module.css';
 
 export default function PrivacyPage() {
     return (
         <div className={styles.pageWrapper}>
-            <Header />
             <main className={styles.main}>
                 <h1>Privacy Policy</h1>
                 <p className={styles.date}>Last updated: {new Date().toLocaleDateString()}</p>

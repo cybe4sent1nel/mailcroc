@@ -3,11 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, ShieldCheck, Zap, Bot, Activity, ArrowLeft, Lock, Volume2, Fingerprint } from 'lucide-react';
 import Link from 'next/link';
+import IncidentReportModal from '@/components/IncidentReportModal/IncidentReportModal';
 import styles from './status.module.css';
 
 export default function StatusPage() {
     const [statusData, setStatusData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchStatus = () => {
@@ -65,7 +67,7 @@ export default function StatusPage() {
                     <span>System Status</span>
                 </div>
                 <div className={styles.navActions}>
-                    <button className={styles.reportBtn} onClick={() => alert("Reporting initialized. Monitoring team notified.")}>Report Incident</button>
+                    <button className={styles.reportBtn} onClick={() => setIsReportModalOpen(true)}>Report Incident</button>
                 </div>
             </nav>
 
@@ -134,6 +136,8 @@ export default function StatusPage() {
                     </div>
                 </div>
             </footer>
+
+            <IncidentReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
         </div>
     );
 }

@@ -29,14 +29,26 @@ const xorCipher = (text: string, key: string) => {
 };
 
 const encrypt = (text: string, key: string) => {
-    const ciphered = xorCipher(text, key);
-    return btoa(unescape(encodeURIComponent(ciphered)));
+    try {
+        // 1. Convert Unicode to UTF-8 binary string (0-255 characters)
+        const binaryString = unescape(encodeURIComponent(text));
+        // 2. XOR the binary string
+        const ciphered = xorCipher(binaryString, key);
+        // 3. Base64 encode
+        return btoa(ciphered);
+    } catch {
+        return "";
+    }
 };
 
 const decrypt = (encoded: string, key: string) => {
     try {
-        const decoded = decodeURIComponent(escape(atob(encoded)));
-        return xorCipher(decoded, key);
+        // 1. Base64 decode to binary string
+        const ciphered = atob(encoded);
+        // 2. XOR back to original binary string
+        const binaryString = xorCipher(ciphered, key);
+        // 3. Convert back to Unicode
+        return decodeURIComponent(escape(binaryString));
     } catch {
         return null;
     }
@@ -639,6 +651,28 @@ const MailBox = () => {
 
     const removeAttachment = (index: number) => {
         setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleDownloadAttachment = (att: Attachment) => {
+        try {
+            const [metadata, base64Data] = att.content.split(',');
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: att.type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = att.name;
+            a.click();
+            URL.revokeObjectURL(url);
+            addToast(`Downloading ${att.name}`, "success");
+        } catch (err) {
+            console.error("Download error:", err);
+            addToast("Failed to download attachment", "error");
+        }
     };
 
     const getFileIcon = (type: string) => {
@@ -1634,15 +1668,14 @@ const MailBox = () => {
                                                                         </h4>
                                                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
                                                                             {unlockedAttachments.map((att, idx) => (
-                                                                                <a
+                                                                                <div
                                                                                     key={idx}
-                                                                                    href={att.content}
-                                                                                    download={att.name}
+                                                                                    onClick={() => handleDownloadAttachment(att)}
                                                                                     style={{
                                                                                         display: 'flex', alignItems: 'center', gap: '10px',
                                                                                         padding: '0.75rem', background: '#f8fafc', borderRadius: '8px',
                                                                                         textDecoration: 'none', color: '#1e293b', border: '1px solid #e2e8f0',
-                                                                                        transition: 'all 0.2s', fontSize: '0.85rem'
+                                                                                        transition: 'all 0.2s', fontSize: '0.85rem', cursor: 'pointer'
                                                                                     }}
                                                                                     onMouseOver={e => e.currentTarget.style.borderColor = '#cbd5e1'}
                                                                                     onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
@@ -1655,7 +1688,7 @@ const MailBox = () => {
                                                                                         <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{(att.size / 1024).toFixed(1)} KB</div>
                                                                                     </div>
                                                                                     <Download size={14} className="ml-auto text-gray-400" />
-                                                                                </a>
+                                                                                </div>
                                                                             ))}
                                                                         </div>
                                                                     </div>

@@ -138,5 +138,5 @@ graph TD
 ---
 
 <p align="center">
-  Built by <strong>Generic</strong> | Powered by <strong>Vercel & Cloudflare</strong>
+  Built by <strong>FAHAD KHAN</strong> | Powered by <strong>Vercel & Cloudflare</strong>
 </p>

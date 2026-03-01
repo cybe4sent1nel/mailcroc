@@ -36,9 +36,6 @@ const DeveloperAnimation = () => {
 };
 
 export default function AboutPage() {
-    const amanLinkedIn = process.env.NEXT_PUBLIC_AMAN_LINKEDIN || '#';
-    const amanGithub = process.env.NEXT_PUBLIC_AMAN_GITHUB || '#';
-
     return (
         <div className={styles.pageRoot}>
             <div className={styles.container}>
@@ -120,13 +117,13 @@ export default function AboutPage() {
                         </div>
 
                         <div className={styles.profileCard}>
-                            <div className={styles.avatarSmall}>A</div>
-                            <h3 className={styles.profileName}>Aman</h3>
+                            <div className={styles.avatarSmall}>AK</div>
+                            <h3 className={styles.profileName}>Aman Kumar</h3>
                             <div className={styles.socialLinks}>
-                                <Link href={amanLinkedIn} target="_blank" className={styles.socialLink}>
+                                <Link href="https://www.linkedin.com/in/amankumar023?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" className={styles.socialLink}>
                                     <Linkedin size={18} />
                                 </Link>
-                                <Link href={amanGithub} target="_blank" className={styles.socialLink}>
+                                <Link href="https://github.com/amansingh023-art" target="_blank" className={styles.socialLink}>
                                     <Github size={18} />
                                 </Link>
                             </div>

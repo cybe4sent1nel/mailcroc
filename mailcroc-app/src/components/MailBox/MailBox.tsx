@@ -190,6 +190,7 @@ const MailBox = () => {
     const [isInlineReplying, setIsInlineReplying] = useState(false);
     const [isPasswordProtected, setIsPasswordProtected] = useState(false);
     const [isSubjectHidden, setIsSubjectHidden] = useState(true);
+    const [nextSubjectHiddenValue, setNextSubjectHiddenValue] = useState(true);
     const [showHideSubjectConfirm, setShowHideSubjectConfirm] = useState(false);
     const [emailPassword, setEmailPassword] = useState('');
     const [unlockInput, setUnlockInput] = useState('');
@@ -1895,11 +1896,9 @@ const MailBox = () => {
                 )}
                 isSubjectHidden={isSubjectHidden}
                 setIsSubjectHidden={(val) => {
-                    if (val) {
-                        setShowHideSubjectConfirm(true);
-                    } else {
-                        setIsSubjectHidden(false);
-                    }
+                    // Show confirmation for ANY change to this setting
+                    setNextSubjectHiddenValue(val);
+                    setShowHideSubjectConfirm(true);
                 }}
             />
 
@@ -1919,12 +1918,15 @@ const MailBox = () => {
                 isOpen={showHideSubjectConfirm}
                 onClose={() => setShowHideSubjectConfirm(false)}
                 onConfirm={() => {
-                    setIsSubjectHidden(true);
+                    setIsSubjectHidden(nextSubjectHiddenValue);
                     setShowHideSubjectConfirm(false);
                 }}
                 title="Privacy: Hide Subject"
-                message="Enabling this will replace your email subject with a witty, random alternative to hide the true purpose from sniffers. The recipient will see the random subject in their list. Proceed?"
-                confirmText="Yes, Hide It"
+                message={nextSubjectHiddenValue
+                    ? "Enabling this will replace your email subject with a witty, random alternative to hide the true purpose from sniffers. Proceed?"
+                    : "Turning this off will make your real subject visible in the email metadata. This is less secure. Proceed?"
+                }
+                confirmText="Yes, Proceed"
             />
 
 

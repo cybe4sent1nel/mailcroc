@@ -201,6 +201,7 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                     <div className={styles.passwordProtectionBar}>
                         <div className={styles.protectionToggle}>
                             <Switch
+                                id="protect-toggle"
                                 checked={isPasswordProtected}
                                 onChange={(checked) => {
                                     setIsPasswordProtected(checked);
@@ -215,6 +216,7 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
 
                         <div className={styles.protectionToggle}>
                             <Switch
+                                id="subject-hide-toggle"
                                 checked={isSubjectHidden}
                                 onChange={setIsSubjectHidden}
                             />

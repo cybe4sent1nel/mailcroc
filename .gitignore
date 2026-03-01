@@ -18,9 +18,12 @@ dist
 *.log
 *.json
 !package.json
+!package-lock.json
 !tsconfig.json
 !next.config.js
 !wrangler.toml
+!**/animations/*.json
+!**/public/**/*.json
 
 # Environment files
 .env*

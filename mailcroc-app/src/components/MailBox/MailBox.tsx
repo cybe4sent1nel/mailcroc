@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import styles from './MailBox.module.css';
 import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2, ShieldCheck } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
-import { generateEmailAddress, type GenerationConfig } from '@/lib/domains';
+import { generateEmailAddress, type GenerationConfig, WITTY_SUBJECTS } from '@/lib/domains';
 import LottiePlayer from '@/components/LottiePlayer';
 import { useToast } from '@/components/Toast/ToastContext';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -120,7 +120,7 @@ const MailBox = () => {
     // --- State: Identity & Config ---
     const [inboxTabs, setInboxTabs] = useState<InboxTab[]>([]);
     const [activeTabIndex, setActiveTabIndex] = useState(0);
-    const [toggles, setToggles] = useState({ standard: true, plus: true, dot: true, gmail: false, googlemail: false, hyphen: true });
+    const [toggles, setToggles] = useState({ standard: true, plus: true, dot: true, gmail: true, googlemail: true, hyphen: true });
     const [isCustomMode, setIsCustomMode] = useState(false);
     const [customInput, setCustomInput] = useState('');
     const [selectedDomain, setSelectedDomain] = useState('mailcroc.qzz.io');
@@ -189,6 +189,8 @@ const MailBox = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isInlineReplying, setIsInlineReplying] = useState(false);
     const [isPasswordProtected, setIsPasswordProtected] = useState(false);
+    const [isSubjectHidden, setIsSubjectHidden] = useState(true);
+    const [showHideSubjectConfirm, setShowHideSubjectConfirm] = useState(false);
     const [emailPassword, setEmailPassword] = useState('');
     const [unlockInput, setUnlockInput] = useState('');
     const [unlockedMessageId, setUnlockedMessageId] = useState<string | null>(null);
@@ -708,7 +710,9 @@ const MailBox = () => {
                     action: 'compose',
                     from: senderAddress || emailAddress,
                     to: composeData.to,
-                    subject: composeData.subject,
+                    subject: isSubjectHidden
+                        ? WITTY_SUBJECTS[Math.floor(Math.random() * WITTY_SUBJECTS.length)]
+                        : composeData.subject,
                     body: isPasswordProtected && emailPassword
                         ? `MC-LOCKED:${encrypt(JSON.stringify({
                             content: composeData.body,
@@ -1889,6 +1893,14 @@ const MailBox = () => {
                 availableAddresses={[emailAddress, ...externalIdentities].filter(addr =>
                     addr && (addr.endsWith('mailcroc.qzz.io') || addr.endsWith('mailpanda.qzz.io'))
                 )}
+                isSubjectHidden={isSubjectHidden}
+                setIsSubjectHidden={(val) => {
+                    if (val) {
+                        setShowHideSubjectConfirm(true);
+                    } else {
+                        setIsSubjectHidden(false);
+                    }
+                }}
             />
 
             {/* Delete Confirmation */}
@@ -1900,6 +1912,19 @@ const MailBox = () => {
                 message="Are you sure?"
                 confirmText="Delete"
                 isDestructive
+            />
+
+            {/* Hide Subject Confirmation */}
+            <ConfirmationModal
+                isOpen={showHideSubjectConfirm}
+                onClose={() => setShowHideSubjectConfirm(false)}
+                onConfirm={() => {
+                    setIsSubjectHidden(true);
+                    setShowHideSubjectConfirm(false);
+                }}
+                title="Privacy: Hide Subject"
+                message="Enabling this will replace your email subject with a witty, random alternative to hide the true purpose from sniffers. The recipient will see the random subject in their list. Proceed?"
+                confirmText="Yes, Hide It"
             />
 
 

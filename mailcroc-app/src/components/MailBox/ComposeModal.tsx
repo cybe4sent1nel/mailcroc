@@ -43,6 +43,8 @@ interface ComposeModalProps {
     senderAddress: string;
     setSenderAddress: (val: string) => void;
     availableAddresses: string[];
+    isSubjectHidden: boolean;
+    setIsSubjectHidden: (val: boolean) => void;
 }
 
 const ComposeModal: React.FC<ComposeModalProps> = ({
@@ -69,7 +71,9 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
     getFileIcon,
     senderAddress,
     setSenderAddress,
-    availableAddresses
+    availableAddresses,
+    isSubjectHidden,
+    setIsSubjectHidden
 }) => {
     const [aiWriteTopic, setAiWriteTopic] = useState('');
     const [showAiWritePopover, setShowAiWritePopover] = useState(false);
@@ -207,6 +211,14 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                                 }}
                             />
                             <span className={styles.protectionLabel}>{isPasswordProtected ? 'Protected' : 'Not protected'}</span>
+                        </div>
+
+                        <div className={styles.protectionToggle}>
+                            <Switch
+                                checked={isSubjectHidden}
+                                onChange={setIsSubjectHidden}
+                            />
+                            <span className={styles.protectionLabel}>{isSubjectHidden ? 'Subject Hidden' : 'Subject Visible'}</span>
                         </div>
                     </div>
                     {isPasswordProtected && (

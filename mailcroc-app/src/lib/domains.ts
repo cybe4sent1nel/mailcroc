@@ -90,58 +90,85 @@ export interface GenerationConfig {
     hyphen?: boolean; // New: control word separation
 }
 
+// ---- Witty Subjects for 'Hide Subject' feature ----
+export const WITTY_SUBJECTS = [
+    "Checking in from the digital void",
+    "This email contains zero pandas",
+    "A message of minor importance",
+    "Top secret (not really)",
+    "Unexpected signal detected",
+    "Coffee was here",
+    "Encrypting my thoughts...",
+    "Not a spam, just a croc",
+    "The badger has landed",
+    "Lost in transmission?",
+    "System message: 99% probability of relevance",
+    "Sent from a hidden crocodilian lair",
+    "A digital leaf on the wind",
+    "This subject line is self-aware",
+    "Error 404: Boring Subject not found",
+    "Just another day in the mailbox",
+    "Surprise inside! (It's just text)",
+    "Warp drive active. Message incoming.",
+    "Echo from the secure cloud",
+    "Midnight snack for your inbox"
+];
+
 /**
- * Generate an email address based on additive toggles
+ * Generate an email address based on a randomly selected active toggle
  */
 export function generateEmailAddress(config: GenerationConfig, customPrefix?: string): string {
-    // 1. Generate the base "witty" words (default to hyphenated unless hyphen toggle is explicitly false)
+    // 1. Generate the base "witty" words
     const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
     const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-    const num = Math.floor(10 + Math.random() * 89); // 2 digit num (10-99)
+    const num = Math.floor(10 + Math.random() * 89);
 
-    const useHyphen = config.hyphen !== false; // Default to true
+    const useHyphen = config.hyphen !== false;
     const separator = useHyphen ? '-' : '';
-
     let localPortion = customPrefix || `${adj}${separator}${noun}${num}`;
 
-    // 2. Determine Domain & Base (Gmail vs Owned)
+    // 2. Identify available strategies based on config
+    const strategies: string[] = [];
+    if (config.standard) strategies.push('standard');
+    if (config.plus) strategies.push('plus');
+    if (config.dot) strategies.push('dot');
+    if (config.gmail) strategies.push('gmail');
+    if (config.googlemail) strategies.push('googlemail');
+
+    // Default to standard if nothing is checked
+    const selectedStrategy = strategies.length > 0
+        ? strategies[Math.floor(Math.random() * strategies.length)]
+        : 'standard';
+
     let domain = DOMAIN_POOL[Math.floor(Math.random() * DOMAIN_POOL.length)];
-    let isGmailBase = false;
 
-    if (config.gmail || config.googlemail) {
-        const gmailUser = process.env.NEXT_PUBLIC_GMAIL_USERNAME;
-        if (gmailUser) {
-            const base = gmailUser.split('@')[0];
-            localPortion = `${base}+${localPortion}`; // Witty name becomes the tag
-            domain = config.googlemail ? 'googlemail.com' : 'gmail.com';
-            isGmailBase = true;
-        } else {
-            // Fallback to cosmetic gmail if no username configured
-            domain = config.googlemail ? 'googlemail.com' : 'gmail.com';
+    // 3. Apply the selected ONE strategy
+    switch (selectedStrategy) {
+        case 'gmail':
+        case 'googlemail': {
+            const gmailUser = process.env.NEXT_PUBLIC_GMAIL_USERNAME;
+            const base = gmailUser ? gmailUser.split('@')[0] : 'mailcroc';
+            localPortion = `${base}+${localPortion}`;
+            domain = selectedStrategy === 'googlemail' ? 'googlemail.com' : 'gmail.com';
+            break;
         }
-    }
-
-    // 3. Apply Additive Transformations
-    // Note: If we are in Gmail Base mode, localPortion already has the base+witty combo
-
-    // DOT Trick (if enabled)
-    if (config.dot) {
-        // If it's a Gmail base, we might only want to dot the base part or the whole thing?
-        // Usually, users want the whole local part to look unique.
-        localPortion = insertRandomDots(localPortion);
-    }
-
-    // PLUS Trick (if enabled and NOT already a gmail base which already uses +)
-    if (config.plus && !isGmailBase) {
-        const tag = Math.random().toString(36).substring(2, 6);
-        localPortion = `${localPortion}+${tag}`;
-    }
-
-    // Standard "fake subdomain" variety (only for our owned domains)
-    if (!isGmailBase && !config.gmail && !config.googlemail && Math.random() > 0.7) {
-        const sub = FAKE_SUBDOMAINS[Math.floor(Math.random() * FAKE_SUBDOMAINS.length)];
-        const sep = SEPARATORS[Math.floor(Math.random() * SEPARATORS.length)];
-        return `${sub}${sep}${localPortion}@${domain}`;
+        case 'dot':
+            localPortion = insertRandomDots(localPortion);
+            break;
+        case 'plus':
+            const tag = Math.random().toString(36).substring(2, 6);
+            localPortion = `${localPortion}+${tag}`;
+            break;
+        case 'standard':
+        default:
+            // Optional: for standard, we sometimes add a fake subdomain prefix 
+            // to keep it interesting but still "standard" format
+            if (Math.random() > 0.6) {
+                const sub = FAKE_SUBDOMAINS[Math.floor(Math.random() * FAKE_SUBDOMAINS.length)];
+                const sep = SEPARATORS[Math.floor(Math.random() * SEPARATORS.length)];
+                return `${sub}${sep}${localPortion}@${domain}`;
+            }
+            break;
     }
 
     return `${localPortion}@${domain}`;

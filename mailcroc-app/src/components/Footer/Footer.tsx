@@ -40,7 +40,7 @@ const Footer = () => {
 
                 <div className="mc-footer-bottom">
                     <div className="mc-footer-copy">
-                        © 2026 MailCroc. All rights reserved.
+                        © 2026 MailCroc. All rights reserved. Designed and developed by <a href="https://fahadops.vercel.app" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Fahad Khan</a>.
                     </div>
 
                     <div className="mc-footer-status-wrapper">

@@ -1,0 +1,183 @@
+.container {
+    min-height: 100vh;
+    background-color: var(--color-bg-creme);
+    padding: 6rem 1.5rem;
+    color: var(--color-text-main);
+    font-family: var(--font-inter);
+}
+
+.inner {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.title {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: var(--color-text-main);
+    letter-spacing: -1.5px;
+}
+
+.highlight {
+    background-color: var(--color-bg-lavender);
+    padding: 0.05em 0.3em;
+    border-radius: 12px;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+}
+
+.section {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    margin-bottom: 3rem;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f1f5f9;
+}
+
+.sectionTitle {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 2rem;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.textBlock {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--color-text-muted);
+    margin-bottom: 1.5rem;
+}
+
+/* Profiles Grid */
+.profilesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.profileCard {
+    background: var(--color-bg-creme);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.profileCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.avatarFallback {
+    width: 80px;
+    height: 80px;
+    background: var(--color-bg-lavender);
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+}
+
+.profileName {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+}
+
+.profileRole {
+    font-size: 0.95rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.socialLinks {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.socialLink {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-main);
+    transition: background 0.2s, color 0.2s;
+    border: 1px solid var(--color-border);
+}
+
+.socialLink:hover {
+    background: var(--color-text-main);
+    color: #fff;
+}
+
+/* Animation Container */
+.animationContainer {
+    margin: 3rem auto;
+    max-width: 500px;
+    border-radius: 24px;
+    overflow: hidden;
+    background: #fafafa;
+    border: 1px solid #f1f5f9;
+}
+
+/* Shoutout Section */
+.shoutoutSection {
+    text-align: center;
+    padding: 2.5rem;
+    background: var(--color-bg-lavender);
+    border-radius: 20px;
+    margin-top: 4rem;
+}
+
+.shoutoutTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--color-text-main);
+}
+
+.kokolabLogo {
+    display: inline-block;
+    transition: transform 0.2s;
+}
+
+.kokolabLogo:hover {
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    .title {
+        font-size: 2.5rem;
+    }
+
+    .section {
+        padding: 2rem 1.5rem;
+    }
+}

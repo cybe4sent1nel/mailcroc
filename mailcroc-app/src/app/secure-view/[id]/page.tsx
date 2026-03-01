@@ -13,7 +13,7 @@ import unlockedAnim from '../../../../public/animations/Unlocked.json';
 
 interface Attachment {
     name: string;
-    data: string; // Base64 Data URL
+    content: string; // Base64 Data URL or raw base64
     type: string;
     size: number;
 }
@@ -27,15 +27,16 @@ const xorCipher = (text: string, key: string) => {
 
 const decrypt = (encoded: string, key: string) => {
     try {
+        const sanitized = encoded.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
         // 1. Base64 decode to binary string
-        const ciphered = atob(encoded);
+        const ciphered = atob(sanitized);
         // 2. XOR back to original binary string
         const binaryString = xorCipher(ciphered, key);
         // 3. Convert back to Unicode
         return decodeURIComponent(escape(binaryString));
     } catch (e) {
         console.error("Decrypt error:", e);
-        return null;
+        return null; // Prevents crash
     }
 };
 
@@ -102,8 +103,11 @@ export default function SecureViewPage() {
 
     const handleDownloadAttachment = (att: Attachment) => {
         try {
-            const [metadata, base64Data] = att.data.split(',');
-            const binaryString = atob(base64Data);
+            const rawContent = (att as any).data || att.content; // Fallback for old records
+            if (!rawContent) throw new Error("No attachment data");
+            const base64Data = rawContent.includes(',') ? rawContent.split(',')[1] : rawContent;
+            const sanitized = base64Data.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+            const binaryString = atob(sanitized);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);

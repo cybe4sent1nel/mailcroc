@@ -67,6 +67,7 @@ const Header = () => {
                         <HelpCircle size={16} style={{ marginRight: '6px' }} /> FAQ
                     </Link>
                     <Link href="/developers" className={styles.navLink}>Developers</Link>
+                    <Link href="/about" className={styles.navLink}>About</Link>
                     <Link href="/secure-view" className={styles.navLink}>Unlock Mail</Link>
                 </nav>
 

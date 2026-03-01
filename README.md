@@ -27,27 +27,30 @@ It relies on a serverless architecture, using **Cloudflare Email Workers** to in
 ### 🛡️ Privacy & Security
 *   **🔐 Password Protected Emails**: Send encrypted emails to external addresses (Gmail/Outlook) via a secure web portal. Only accessible with your shared code.
 *   **Zero Logs**: We do not store IP addresses or browser fingerprints.
-*   **Ephemeral Inboxes**: All emails are stored in a private repository and can be auto-expired.
-*   **Stealth Mode**: Uses a pool of 100+ domains to bypass "unacceptable email" filters.
+*   **Stealth Mode (Email Masking)**: Uses a pool of 100+ domains to bypass "unacceptable email" filters. Connect your own personal Gmail to send anonymous emails.
+*   **Auto-Expiry Sessions**: Instantly expire and wipe your temporary inbox when you're done.
 
 ### 🤖 AI-Powered Intelligence
-*   **Help me write (Gemini-style)**: Generate professional replies or new emails instantly using our integrated AI engine (powered by Puter.js).
+*   **Help me write (Smart Compose)**: Generate professional replies or new emails instantly using our integrated AI engine (Powered by OpenRouter & Puter.js).
 *   **Smart Summarization**: Get the gist of long emails with one click.
-*   **Vision & Voice**: Extract text from images and have your emails read aloud by professional AI voices.
+*   **Extract Details**: AI can intelligently extract receipts, meeting times, and key details from threads.
+*   **Vision & Voice**: Extract text from attached images and have your emails read aloud by professional AI voices (ElevenLabs).
 
 ### ⚡ Real-Time Experience
 *   **Instant Delivery**: Emails appear in your inbox milliseconds after they are received via Socket.IO.
-*   **No Refreshing**: The UI updates live. No more mashing the F5 button.
+*   **Live UI Updates**: The interface updates instantly. No more hitting the refresh button.
 
 ### 📧 Advanced Email Capabilities
 *   **Reply & Compose**: Full support for sending new emails and replying to received ones.
-*   **Attachments**: Send and receive files (Images, PDFs, Docs) up to 25MB.
+*   **Universal Attachments**: Send and receive files (Images, PDFs, Docs, Audio, Video, Archives).
 *   **Export Options**: One-click export of emails to **PDF**, **Markdown**, or **JSON**.
-*   **Archiving**: Old emails are automatically moved to GitHub Releases to keep the live system fast.
+*   **Address Variations**: Generate standard aliases, +tags, dot-tricks, and custom handles.
 
 ### 💻 Modern UI/UX
+*   **Premium Design**: Features stunning micro-animations (Lottie), dynamic layout, and glassmorphism.
 *   **PWA Support**: Installable as a native-like app on iOS, Android, and Desktop with offline support.
-*   **Draggable Compose**: A premium, draggable workspace for multitasking.
+*   **Draggable Compose**: A dynamic, draggable workspace for multitasking.
+*   **Unified Dashboard**: Monitor system health directly from the built-in status page.
 *   **Offline Mode**: View previously loaded emails even without an internet connection.
 
 ## 🏗️ Architecture
@@ -58,35 +61,31 @@ MailCroc operates on a 100% serverless infrastructure, ensuring high availabilit
 graph TD
     subgraph Client
         Browser[User Browser / PWA]
-        AI[Puter.js AI Engine]
+        AI[OpenRouter/Puter AI Engine]
     end
 
     subgraph Serverless_Core
         Vercel[Next.js on Vercel]
-        CF_Worker[Cloudflare Ingress]
+        CF_Worker[Cloudflare Ingress & Relay]
     end
 
     subgraph Storage
         GitHub_Repo[Live JSON Store]
-        GitHub_Releases[Archival Store]
     end
 
     %% Flows
     Browser <-->|HTTPS| Vercel
     CF_Worker -->|Webhook| Vercel
     Vercel -->|Commit| GitHub_Repo
-    Vercel -->|Archive| GitHub_Releases
     Browser <-->|AI Tasks| AI
 ```
 
-> 📚 **Deep Dive**: For detailed sequence diagrams and component breakdowns, check out [ARCHITECTURE.md](./ARCHITECTURE.md).
-
 ## 🛠️ Tech Stack
 
--   **Framework**: [Next.js 16 (App Router)](https://nextjs.org/)
+-   **Framework**: [Next.js 14+ (App Router)](https://nextjs.org/)
 -   **Language**: [TypeScript](https://www.typescriptlang.org/)
--   **AI Engine**: [Puter.js](https://js.puter.com/)
--   **Animations**: Lottie (via `lottie-react`)
+-   **AI Engine**: OpenRouter, ElevenLabs, [Puter.js](https://js.puter.com/)
+-   **Animations**: Lottie (via `lottie-react`), Framer Motion
 -   **Real-time**: Socket.IO
 -   **Deployment**: Vercel & Cloudflare Workers
 
@@ -94,8 +93,9 @@ graph TD
 
 ### Prerequisites
 -   Node.js 18+
--   A generic GitHub account (for storage)
--   Cloudflare account (for email routing)
+-   A generic GitHub account (for serverless DB storage)
+-   Cloudflare account (for email ingress routing)
+-   OpenRouter API Key (for backend AI)
 
 ### Local Development
 
@@ -120,13 +120,13 @@ graph TD
 ## 📦 Deployment
 
 ### Vercel (Frontend & API)
-1.  Push code to GitHub and import to Vercel.
+1.  Push code to GitHub and import to Vercel/Render.
 2.  Set the **Root Directory** to `mailcroc-app`.
 3.  Add `GITHUB_TOKEN`, `GITHUB_REPO_OWNER`, and `GITHUB_REPO_NAME` to Env Vars.
 
 ### Cloudflare (Email Ingress)
 1.  Deploy the worker in `mailcroc-worker/` via `npx wrangler deploy`.
-2.  Route your domain's email traffic to the worker in the Cloudflare Dashboard.
+2.  Route your domain's email traffic to the worker in the Cloudflare Dashboard under Email Routing rules.
 
 ## 📖 Usage Guide
 
@@ -138,5 +138,5 @@ graph TD
 ---
 
 <p align="center">
-  Built by <strong>FAHAD KHAN</strong> | Powered by <strong>Vercel & Cloudflare</strong>
+  Designed and developed by <a href="https://fahadops.vercel.app"><b>Fahad Khan</b></a>
 </p>

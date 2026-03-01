@@ -43,8 +43,10 @@ const encrypt = (text: string, key: string) => {
 
 const decrypt = (encoded: string, key: string) => {
     try {
+        // Fix potential InvalidCharacterError by stripping invalid characters
+        const sanitized = encoded.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
         // 1. Base64 decode to binary string
-        const ciphered = atob(encoded);
+        const ciphered = atob(sanitized);
         // 2. XOR back to original binary string
         const binaryString = xorCipher(ciphered, key);
         // 3. Convert back to Unicode
@@ -655,8 +657,9 @@ const MailBox = () => {
 
     const handleDownloadAttachment = (att: Attachment) => {
         try {
-            const [metadata, base64Data] = att.content.split(',');
-            const binaryString = atob(base64Data);
+            const base64Data = att.content.includes(',') ? att.content.split(',')[1] : att.content;
+            const sanitized = base64Data.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+            const binaryString = atob(sanitized);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
@@ -718,6 +721,8 @@ const MailBox = () => {
             if (res.ok) {
                 setSendStatus('Sent!');
                 setShowSentSuccess(true);
+                try { new Audio('/mixkit-long-pop-2358.wav').play().catch(() => { }); } catch { }
+
                 setMessages(prev => [{
                     _id: `sent-temp-${Date.now()}`,
                     from: senderAddress || emailAddress,
@@ -818,26 +823,30 @@ const MailBox = () => {
             }
 
             let text = "";
-            // Primary: Puter.js
-            if ((window as any).puter) {
-                try {
-                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
-                    text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
-                } catch (e) {
-                    console.warn("Puter AI failed, trying backend fallback...", e);
-                }
-            }
 
-            // Fallback: Backend API
-            if (!text) {
+            // Primary: Backend API (OpenRouter/ElevenLabs)
+            try {
                 const res = await fetch('/api/ai/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ topic: prompt, tone: 'Professional' })
                 });
+
                 if (res.ok) {
                     const data = await res.json();
                     text = data.content;
+                }
+            } catch (err) {
+                console.warn("Backend AI failed, trying Puter fallback...", err);
+            }
+
+            // Fallback: Puter.js
+            if (!text && (window as any).puter) {
+                try {
+                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
+                } catch (e) {
+                    console.warn("Puter AI failed...", e);
                 }
             }
 
@@ -881,16 +890,8 @@ const MailBox = () => {
                 else if (refinement === 'shorten') prompt = `Rewrite this email to be much more concise and brief:\n\n${currentText}`;
             }
 
-            // Try Puter first
-            if ((window as any).puter) {
-                try {
-                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
-                    text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
-                } catch (e) { console.warn("Puter AI Write failed", e); }
-            }
-
-            // Fallback
-            if (!text) {
+            // Try Backend Fallback First (OpenRouter)
+            try {
                 const res = await fetch('/api/ai/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -900,6 +901,14 @@ const MailBox = () => {
                     const data = await res.json();
                     text = data.content;
                 }
+            } catch (err) { console.warn("Backend Write failed", err); }
+
+            // Fallback to Puter
+            if (!text && (window as any).puter) {
+                try {
+                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
+                } catch (e) { console.warn("Puter AI Write failed", e); }
             }
 
             if (text) {
@@ -975,16 +984,8 @@ const MailBox = () => {
             const prompt = `Fix grammar, spelling, and improve the flow of this text to make it professional, but keep the core meaning and length similar. Return the result as clean HTML suitable for an email body (e.g. use <p>, <strong>, <em>, <br> only):\n\n${text}`;
             let result = "";
 
-            // Try Puter first
-            if ((window as any).puter) {
-                try {
-                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
-                    result = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
-                } catch (e) { console.warn("Puter Polish failed", e); }
-            }
-
-            // Fallback
-            if (!result) {
+            // Try Backend API First (OpenRouter)
+            try {
                 const res = await fetch('/api/ai/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -994,6 +995,14 @@ const MailBox = () => {
                     const data = await res.json();
                     result = data.content;
                 }
+            } catch (err) { console.warn("Backend Polish failed", err); }
+
+            // Fallback to Puter
+            if (!result && (window as any).puter) {
+                try {
+                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    result = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
+                } catch (e) { console.warn("Puter Polish failed", e); }
             }
 
             return cleanAiResponse(result) || text;

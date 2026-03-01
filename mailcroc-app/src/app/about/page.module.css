@@ -75,6 +75,7 @@
 .highlight {
     background: linear-gradient(to right, #8b5cf6, #d946ef);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -134,16 +135,24 @@
 
 /* Animation Styles */
 .animationWrapper {
-    height: 400px;
+    height: 500px;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 }
 
 .animationContainer {
     width: 100%;
-    max-width: 450px;
+    max-width: 550px;
     transition: transform 0.3s ease;
+    filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.2));
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
 }
 
 .animationPlaceholder {

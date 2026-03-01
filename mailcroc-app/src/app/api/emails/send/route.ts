@@ -84,17 +84,9 @@ export async function POST(req: NextRequest) {
         if (body.isPasswordProtected) {
             const { saveSecureMessage } = await import('@/lib/github-db');
 
-            const securePayload = {
-                content: finalBody,
-                attachments: body.attachments?.map((att: any) => ({
-                    name: att.name,
-                    data: att.content,
-                    type: att.type,
-                    size: att.size
-                })) || []
-            };
-
-            const secureId = await saveSecureMessage(JSON.stringify(securePayload));
+            // emailBody already contains "MC-LOCKED:..." which is the fully encrypted package
+            // (content + attachments) from the frontend. We just save it as is.
+            const secureId = await saveSecureMessage(emailBody || '');
             const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mailcroc.qzz.io';
             portalLink = `${baseUrl}/secure-view/${secureId}`;
 

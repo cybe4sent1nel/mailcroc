@@ -43,15 +43,20 @@ const encrypt = (text: string, key: string) => {
 
 const decrypt = (encoded: string, key: string) => {
     try {
-        // Fix potential InvalidCharacterError by stripping invalid characters
-        const sanitized = encoded.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        if (!encoded) return null;
+        // Fix potential InvalidCharacterError by stripping invalid characters and handling padding
+        let sanitized = encoded.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        while (sanitized.length % 4 !== 0) {
+            sanitized += '=';
+        }
+
         // 1. Base64 decode to binary string
         const ciphered = atob(sanitized);
         // 2. XOR back to original binary string
         const binaryString = xorCipher(ciphered, key);
         // 3. Convert back to Unicode
         return decodeURIComponent(escape(binaryString));
-    } catch {
+    } catch (e) {
         return null;
     }
 };

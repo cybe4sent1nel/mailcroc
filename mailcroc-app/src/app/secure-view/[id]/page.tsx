@@ -27,15 +27,23 @@ const xorCipher = (text: string, key: string) => {
 
 const decrypt = (encoded: string, key: string) => {
     try {
-        const sanitized = encoded.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
-        // 1. Base64 decode to binary string
+        if (!encoded) return null;
+        // 1. Sanitize the string: remove whitespace, handle URL-safe base64, and filter for valid base64 alphabet
+        let sanitized = encoded.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+
+        // Ensure string length is a multiple of 4 by adding padding if missing
+        while (sanitized.length % 4 !== 0) {
+            sanitized += '=';
+        }
+
+        // 2. Base64 decode to binary string
         const ciphered = atob(sanitized);
-        // 2. XOR back to original binary string
+        // 3. XOR back to original binary string
         const binaryString = xorCipher(ciphered, key);
-        // 3. Convert back to Unicode
+        // 4. Convert back to Unicode
         return decodeURIComponent(escape(binaryString));
     } catch (e) {
-        console.error("Decrypt error:", e);
+        console.error("Decrypt error (raw):", e);
         return null; // Prevents crash
     }
 };
@@ -67,8 +75,24 @@ export default function SecureViewPage() {
     const handleUnlock = () => {
         if (!lockedContent) return;
 
-        // Remove prefix if it exists (for compatibility)
-        const cleanContent = lockedContent.replace('MC-LOCKED:', '');
+        let cleanContent = lockedContent;
+
+        // Robust detection: If it looks like a JSON object, try to extract the content property
+        if (cleanContent.trim().startsWith('{')) {
+            try {
+                const parsed = JSON.parse(cleanContent);
+                if (parsed.content) {
+                    cleanContent = parsed.content;
+                }
+            } catch (e) {
+                console.warn("Payload looked like JSON but failed to parse:", e);
+            }
+        }
+
+        // Remove prefix if it exists
+        cleanContent = cleanContent.replace('MC-LOCKED:', '').trim();
+
+        // Aggressive sanitization for atob
         const decrypted = decrypt(cleanContent, password);
 
         if (decrypted) {
@@ -206,19 +230,22 @@ export default function SecureViewPage() {
                         <h2>This Message is Protected</h2>
                         <p>The sender has secured this email via MailCroc. Please enter the shared code provided by the sender to view it.</p>
 
-                        <div className={styles.inputGroup}>
+                        <form
+                            className={styles.inputGroup}
+                            onSubmit={(e) => { e.preventDefault(); handleUnlock(); }}
+                        >
                             <input
                                 type="password"
                                 placeholder="Enter unlock code"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className={styles.input}
-                                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                                autoComplete="current-password"
                             />
-                            <button onClick={handleUnlock} className={styles.unlockBtn}>
+                            <button type="submit" className={styles.unlockBtn}>
                                 <Unlock size={18} /> Unlock Message
                             </button>
-                        </div>
+                        </form>
 
                         <div className={styles.infoBox}>
                             <Info size={16} />

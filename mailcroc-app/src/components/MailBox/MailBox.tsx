@@ -621,7 +621,13 @@ const MailBox = () => {
 
                 setMessages(prev => {
                     if (prev.some(m => m._id === newMsg._id)) return prev;
-                    try { new Audio('/animations/notification.wav').play().catch(() => { }); } catch { }
+
+                    // Play notification sound on new email
+                    try {
+                        const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
+                        audio.volume = 0.8;
+                        audio.play().catch(e => console.warn("Audio play blocked:", e));
+                    } catch (err) { }
 
                     // Gmail Verification Auto-Capture
                     const lowerFrom = (newMsg.from || "").toLowerCase();

@@ -134,6 +134,7 @@ graph TD
 2.  **Secure Your Mail**: Toggle "Password Protection" in the compose modal to send an encrypted link.
 3.  **Use AI**: Click "Help me write" in the compose window to generate content instantly.
 4.  **Export**: Use the export dropdown to save emails as PDF or Markdown.
+5.  **Technical Deep Dive**: Refer to [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system logic and library details.
 
 ---
 

@@ -1,184 +1,111 @@
-# MailCroc System Architecture
+# 🐊 MailCroc System Architecture & Technical Documentation
 
-This document provides a detailed technical breakdown of the MailCroc system, separated into logical components and workflows.
+MailCroc is a premium, high-privacy disposable email platform engineered for the modern web. This document outlines the technology stack, core infrastructure, and functional logic behind every feature.
 
-## 1. High-Level Architecture
+---
 
-The system is built on a serverless, event-driven architecture to ensure scalability and zero maintenance.
+## 🏗️ 1. Core Architecture Overview
 
+MailCroc operates on a **Serverless-First** architecture, combining the edge performance of Cloudflare with the scalability of GitHub as a data store. This approach ensures high availability with near-zero maintenance.
+
+### **The Digital Flow Diagram**
 ```mermaid
 graph TD
-    subgraph Client_Side
+    subgraph "External World"
+        Sender[Generic Mail Sender]
+    end
+
+    subgraph "Edge Layer (Cloudflare)"
+        CF_Worker[Cloudflare Ingress Worker]
+        SMTP_Route[Email Routing Rules]
+    end
+
+    subgraph "Application Layer (Vercel)"
+        Next_API[Next.js API Routes]
+        SocketIO[Socket.IO Server]
+        Auth[Identity Logic]
+    end
+
+    subgraph "Storage Layer"
+        GitHub_DB[GitHub Repo Store]
+    end
+
+    subgraph "Client Dashboard"
         Browser[User Browser / PWA]
-        Lottie[Lottie Animations]
-        Puter_JS[Puter.js AI Engine]
+        AI_Draft[AI Assistant Panel]
     end
 
-    subgraph CDN_Edge
-        CF_DNS[Cloudflare DNS & Email Routing]
-        CF_Worker[Cloudflare Email Worker]
-    end
+    %% Email Path
+    Sender -->|SMTP| SMTP_Route
+    SMTP_Route -->|MIME| CF_Worker
+    CF_Worker -->|Clean JSON| Next_API
+    Next_API -->|Commit| GitHub_DB
+    Next_API -->|Emit| SocketIO
+    SocketIO -->|Live Notification| Browser
 
-    subgraph Application_Server
-        Vercel[Vercel Serverless Functions]
-        API_Webhook[POST /api/webhook/email]
-        API_Socket[POST /api/socket/notify]
-        Secure_Portal[Secure Portal /secure-view]
-    end
-
-    subgraph RealTime_Services
-        SocketServer[Socket.IO Server]
-    end
-
-    subgraph Storage_Layer
-        GitHub_Repo[GitHub Repository - Live Storage]
-        GitHub_Releases[GitHub Releases - Archives]
-    end
-
-    %% Flows
-    Browser <-->|HTTPS| Vercel
-    Browser <-->|WebSocket| SocketServer
-    Browser <-->|AI Tasks| Puter_JS
-    
-    External_Email[Incoming Email] -->|SMTP| CF_DNS
-    CF_DNS -->|Trigger| CF_Worker
-    CF_Worker -->|POST JSON| API_Webhook
-    
-    API_Webhook -->|Commit JSON| GitHub_Repo
-    API_Webhook -->|Notify| API_Socket
-    API_Socket -->|Emit Event| SocketServer
-
-    Vercel -->|Cron Cleanup| GitHub_Releases
-    GitHub_Releases -.->|Delete| GitHub_Repo
+    %% User Path
+    Browser -->|Request| Next_API
+    Next_API -->|Read Blob| GitHub_DB
+    Browser -->|Task| AI_Draft
 ```
 
 ---
 
-## 2. Component Breakdown
+## 🛠️ 2. Deep Dive Into Components
 
-### A. Email Ingestion (The "Croc" Worker)
-*   **Role**: Acts as the SMTP ingress.
-*   **Technology**: Cloudflare Email Workers.
-*   **Function**: Intercepts incoming emails, parses raw MIME data, and forwards a clean JSON payload to our Vercel Webhook.
+### **A. Ingress: The Mail Engine**
+- **Cloudflare Email Workers**: Acts as the SMTP gatekeeper. It intercepts incoming emails for designated domains. Instead of storing them temporarily, it parses them immediately on the edge.
+- **MailParser/Nodemailer**: Used in the worker to sanitize MIME objects, extract attachments, and prepare clean JSON payloads. This prevents malicious scripts or malformed data from ever reaching our central API.
+- **Webhook Relay**: The worker converts email traffic into HTTP POST requests, relayed instantly to the Next.js API. This ensures "push" delivery rather than outdated "pull" polling.
 
-### B. The Application Core (Vercel)
-*   **Role**: Frontend UI and API coordination.
-*   **Technology**: Next.js 14 (App Router).
-*   **Key Responsibilities**:
-    *   **UI**: Renders the inbox, generates identities, and handles file uploads.
-    *   **Secure Portal**: Decrypts and displays password-protected messages client-side.
-    *   **Storage Access**: Communicates with GitHub API to save/read emails.
+### **B. Storage: GitHub as a Database**
+- **GitHub API (@octokit/rest)**: A unique architectural choice. Instead of a traditional database, MailCroc uses the GitHub API to store email data as JSON files. This provides built-in versioning, high uptime, and an infinitely scalable free-tier storage pool.
+- **Persistence Logic**: Each session creates a unique identifier, and emails are stored as blobs within that session's tree. When a session expires, the files are deleted or ignored, ensuring no long-term logs exist.
 
-### C. AI Engine (Multi-Provider)
-*   **Role**: Intelligent email management.
-*   **Primary**: OpenRouter backend API (server-side, reliable).
-*   **Fallback**: Puter.js (client-side, zero-config).
-*   **Capabilities**: 
-    *   **Summarization**: Condenses long emails into bullet points.
-    *   **Help me write**: Generates replies or new emails based on topics.
-    *   **Speech-to-Text**: Reads emails aloud via ElevenLabs.
-*   **Fallback**: If the primary backend is unavailable, the system transparently falls back to Puter.js client-side AI.
-
-### D. The Storage System (GitHub Multi-Tier)
-*   **Live Store**: GitHub REST API stores emails as JSON files in a private repo.
-*   **Archive Store**: An automated cron job bundles old emails into ZIP assets and uploads them to **GitHub Releases**, keeping the live repository clean and performant.
+### **C. Real-Time: Socket.IO Sync**
+- **Socket.io**: Enables millisecond-level synchronization. When the backend receives an email, it emits a `new_email` event. The client dashboard is in a constant listening state, meaning the email appears "live" without the user ever clicking refresh.
 
 ---
 
-## 3. Workflows in Detail
+## 💻 3. Frontend Tech Stack & Libraries
 
-### Workflow A: Receiving an Email (Live)
-```mermaid
-sequenceDiagram
-    participant Sender as External Sender
-    participant CF as Cloudflare Worker
-    participant API as Vercel Webhook
-    participant GH as GitHub Repo
-    participant Socket as Socket.IO Server
-    participant Client as User Frontend
+We use the most modern React ecosystem to ensure the UI feels alive and responsive.
 
-    Sender->>CF: Sends Email (SMTP)
-    activate CF
-    CF->>CF: Parse Raw Email -> JSON
-    CF->>API: POST /api/webhook/email (JSON + Secret)
-    activate API
-    
-    API->>API: Validate Secret
-    API->>GH: PUT /repos/.../contents/emails/...json
-    activate GH
-    GH-->>API: 201 Created (Success)
-    deactivate GH
-    
-    API->>Socket: POST /notify (Email Metadata)
-    activate Socket
-    Socket-->>Client: emit('new-email', data)
-    Socket-->>API: 200 OK
-    deactivate Socket
-    
-    API-->>CF: 200 OK
-    deactivate API
-    deactivate CF
-    
-    Client->>Client: Display New Email Toast
-```
-
-### Workflow B: Secure Portal Access (Client-Side Encryption)
-```mermaid
-sequenceDiagram
-    participant User as Recipient
-    participant Portal as Secure Portal (/secure-view)
-    participant GH as GitHub API
-    participant JS as Client-Side Crypto
-
-    User->>Portal: Enters Message ID & Password
-    Portal->>GH: Fetch Encrypted Content (.json)
-    GH-->>Portal: Return Encrypted Data
-    Portal->>JS: Decrypt with User Password
-    JS-->>Portal: Cleartext Markdown
-    Portal->>User: Renders Secure Content
-```
-
-### Workflow C: GitHub Archival Cron
-```mermaid
-sequenceDiagram
-    participant Cron as Vercel Cron (.cleanup)
-    participant GH_API as GitHub REST API
-    participant Release as GitHub Releases
-
-    Cron->>GH_API: List Files in /emails older than 24h
-    GH_API-->>Cron: File List
-    Cron->>Cron: Package into ZIP Bundle
-    Cron->>Release: Create Release & Upload Asset
-    Cron->>GH_API: Delete original files from Repo
-```
+| Library | Functioning & Purpose |
+| :--- | :--- |
+| **Next.js 16+** | The backbone of the app. We use **App Router** for fast server-side transitions and **Middleware** for session protection. |
+| **Lucide React** | Provides the entire icon suite. Every icon (Trash, Pin, Send) is a lightweight SVG component. |
+| **Framer Motion** | Controls the "physics" of the app. Slide-ins, smooth fades, and button hover effects use its animation engine. |
+| **Lottie-React** | Powers the high-end vector graphics you see on the "Sent" and "About" pages. These are JSON-based animations that stay sharp at any resolution. |
+| **Tiptap Editor** | A headless rich-text editor used in the Compose Modal. It handles the formatting (bold, links, lists) while keeping the output clean for email clients. |
+| **html2canvas / jspdf** | Works entirely in the browser to take a snapshot of your email and convert it into a downloadable PDF on the fly. |
 
 ---
 
-## 4. Directory Structure
+## 🤖 4. Intelligence Suite (AI Engine)
 
-```mermaid
-classDiagram
-    class ProjectRoot {
-        +mailcroc-app/ (Frontend + API)
-        +mailcroc-worker/ (CF Worker)
-        +README.md
-    }
-    
-    class MailCrocApp {
-        +src/app/ (Pages)
-        +src/app/secure-view/ (Secure Portal)
-        +src/components/ (UI/Lottie)
-        +src/lib/ (Logic/Encryption)
-        +public/ (Animations)
-    }
-    
-    class Keyfiles {
-        +page.tsx (Landing)
-        +MailBox.tsx (Inbox Logic)
-        +api/webhook/route.ts (Ingestion)
-        +api/cron/cleanup/route.ts (Archiver)
-    }
+MailCroc isn't just a mailbox; it's an assistant.
 
-    ProjectRoot *-- MailCrocApp
-    MailCrocApp *-- Keyfiles
-```
+- **Primary Engine**: **OpenRouter** connects us to the world's most powerful LLMs (like Claude or GPT-4). It's the logic behind "Help me write" and "Formalize my draft."
+- **Edge Intelligence**: **Puter.js** is our high-speed fallback. If the main API is busy, Puter handles text generation and **Vision Analysis** (reading text from images) instantly.
+- **Voice System**: **ElevenLabs** converts text into audio. We send the cleaned email text to their API and stream back a high-quality Voice (Male/Female) to read it aloud.
+
+---
+
+## 🛡️ 5. Key Feature Functioning
+
+### **Privacy: Identity Generation**
+The algorithm in `lib/domains.ts` uses advanced strategies like:
+- **Plus Tagging**: `user+amazon@mailcroc.qzz.io` to track who sells your data.
+- **Dot Trickery**: Gmail-style `u.s.e.r@...` to bypass "one email per account" limits.
+- **Domain Shuffling**: Randomly cycling through stealth domains to stay ahead of blocklists.
+
+### **Security: Hide Subject**
+When you toggle this, our backend intercepts the `subject` field and replaces it with a **Witty Alternative** from a pre-defined list. This ensures that even if someone metadata-sniffs the email, they have no idea what it's truly about until the recipient opens it.
+
+### **Secure View Protection**
+Uses **Base64 Sanitization** and browser-side decryption. Even if our database was breached, the messages are stored in an encrypted state (MC-LOCKED). Only the user with the correct code can unlock them in their private browser session.
+
+---
+
+Designed with ❤️ by the **MailCroc Developer Team**.

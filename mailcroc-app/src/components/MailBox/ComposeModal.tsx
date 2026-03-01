@@ -220,7 +220,7 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                                 checked={isSubjectHidden}
                                 onChange={setIsSubjectHidden}
                             />
-                            <span className={styles.protectionLabel}>{isSubjectHidden ? 'Subject Hidden' : 'Subject Visible'}</span>
+                            <span className={styles.protectionLabel}>{isSubjectHidden ? 'Subject Hidden' : 'Hide Subject'}</span>
                         </div>
                     </div>
                     {isPasswordProtected && (

@@ -189,8 +189,8 @@ const MailBox = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isInlineReplying, setIsInlineReplying] = useState(false);
     const [isPasswordProtected, setIsPasswordProtected] = useState(false);
-    const [isSubjectHidden, setIsSubjectHidden] = useState(true);
-    const [nextSubjectHiddenValue, setNextSubjectHiddenValue] = useState(true);
+    const [isSubjectHidden, setIsSubjectHidden] = useState(false);
+    const [nextSubjectHiddenValue, setNextSubjectHiddenValue] = useState(false);
     const [showHideSubjectConfirm, setShowHideSubjectConfirm] = useState(false);
     const [emailPassword, setEmailPassword] = useState('');
     const [unlockInput, setUnlockInput] = useState('');

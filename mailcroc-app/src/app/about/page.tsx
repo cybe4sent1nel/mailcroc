@@ -19,7 +19,7 @@ const ScrollLottie = () => {
     const [animData, setAnimData] = useState<any>(null);
 
     useEffect(() => {
-        fetch('/animations/developer%20team.json')
+        fetch('/animations/developer-team.json')
             .then(res => res.json())
             .then(data => setAnimData(data))
             .catch(() => { });

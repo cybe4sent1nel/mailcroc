@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useInView } from 'framer-motion';
@@ -10,13 +10,20 @@ import styles from './page.module.css';
 
 // Dynamically import Lottie for client-side only
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
-import devAnimData from '../../../public/animations/developer team.json';
 
 // Local Component to handle the Lottie scroll behavior
 const ScrollLottie = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const lottieRef = useRef<any>(null);
-    const isInView = useInView(containerRef, { amount: 0.5 }); // triggers when 50% visible
+    const isInView = useInView(containerRef, { amount: 0.5 });
+    const [animData, setAnimData] = useState<any>(null);
+
+    useEffect(() => {
+        fetch('/animations/developer%20team.json')
+            .then(res => res.json())
+            .then(data => setAnimData(data))
+            .catch(() => { });
+    }, []);
 
     useEffect(() => {
         if (lottieRef.current) {
@@ -28,11 +35,13 @@ const ScrollLottie = () => {
         }
     }, [isInView]);
 
+    if (!animData) return null;
+
     return (
         <div ref={containerRef} className={styles.animationContainer}>
             <Lottie
                 lottieRef={lottieRef}
-                animationData={devAnimData}
+                animationData={animData}
                 loop={false}
                 autoplay={false}
             />

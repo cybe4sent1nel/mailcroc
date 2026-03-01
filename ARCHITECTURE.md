@@ -69,13 +69,15 @@ graph TD
     *   **Secure Portal**: Decrypts and displays password-protected messages client-side.
     *   **Storage Access**: Communicates with GitHub API to save/read emails.
 
-### C. AI Engine (Puter.js Integration)
+### C. AI Engine (Multi-Provider)
 *   **Role**: Intelligent email management.
+*   **Primary**: OpenRouter backend API (server-side, reliable).
+*   **Fallback**: Puter.js (client-side, zero-config).
 *   **Capabilities**: 
     *   **Summarization**: Condenses long emails into bullet points.
     *   **Help me write**: Generates replies or new emails based on topics.
-    *   **Speech-to-Text**: Reads emails aloud.
-*   **Fallback**: If Puter.js is unavailable, the system transparently falls back to individual LLM API endpoints.
+    *   **Speech-to-Text**: Reads emails aloud via ElevenLabs.
+*   **Fallback**: If the primary backend is unavailable, the system transparently falls back to Puter.js client-side AI.
 
 ### D. The Storage System (GitHub Multi-Tier)
 *   **Live Store**: GitHub REST API stores emails as JSON files in a private repo.

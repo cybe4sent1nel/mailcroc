@@ -1,6 +1,7 @@
 {
     "name": "mailcroc-email-worker",
     "version": "1.0.0",
+    "description": "Cloudflare Email Worker for MailCroc ingress",
     "private": true,
     "dependencies": {
         "postal-mime": "^2.4.1"
@@ -11,5 +12,6 @@
     "scripts": {
         "deploy": "wrangler deploy",
         "dev": "wrangler dev"
-    }
+    },
+    "author": "Fahad Khan"
 }

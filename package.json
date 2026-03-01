@@ -1,7 +1,7 @@
 {
     "name": "mailcroc-root",
     "version": "1.0.0",
-    "description": "Root project for MailCroc",
+    "description": "MailCroc — The Ultimate Real-Time Disposable Email Service",
     "private": true,
     "scripts": {
         "dev:all": "npm run dev:all --prefix mailcroc-app",
@@ -10,7 +10,11 @@
         "start": "npm run start --prefix mailcroc-app",
         "lint": "npm run lint --prefix mailcroc-app"
     },
-    "keywords": [],
-    "author": "",
+    "keywords": [
+        "temp-mail",
+        "disposable-email",
+        "privacy"
+    ],
+    "author": "Fahad Khan <https://fahadops.vercel.app>",
     "license": "ISC"
 }

@@ -1656,7 +1656,7 @@ const MailBox = () => {
                                         </div>
 
                                         {/* IN-MAIL AI SUMMARY */}
-                                        {(summary || selectedMessage.summary) && selectedMessage && (activeFolder !== 'sent') && (
+                                        {selectedMessage.summary && selectedMessage && (activeFolder !== 'sent') && (
                                             <div className={styles.inMailSummary}>
                                                 <div className={styles.summaryHeader}>
                                                     <div className={styles.summaryTitle}>
@@ -1664,7 +1664,6 @@ const MailBox = () => {
                                                         <span>AI Summary</span>
                                                     </div>
                                                     <button onClick={() => {
-                                                        setSummary(null);
                                                         if (selectedMessage) {
                                                             setSelectedMessage({ ...selectedMessage, summary: undefined });
                                                         }
@@ -1672,7 +1671,7 @@ const MailBox = () => {
                                                 </div>
                                                 <div className={styles.summaryContent}>
                                                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                                                        {summary || selectedMessage.summary || ''}
+                                                        {selectedMessage.summary || ''}
                                                     </ReactMarkdown>
                                                 </div>
                                             </div>

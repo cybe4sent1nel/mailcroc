@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         // Notify Socket.IO server (Render backend) for real-time updates
         try {
             const socketServerUrl = process.env.SOCKET_SERVER_URL || process.env.NEXT_PUBLIC_SOCKET_URL || 'http://127.0.0.1:3001';
-            fetch(`${socketServerUrl}/notify`, {
+            const notifyRes = await fetch(`${socketServerUrl}/notify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -78,9 +78,12 @@ export async function POST(req: NextRequest) {
                     summary: savedEmail.summary,
                     ownerSessionId: savedEmail.ownerSessionId
                 }),
-            }).catch(e => console.error('Failed to notify socket server:', e.message));
-        } catch (err) {
-            console.error('Notification error:', err);
+            });
+            if (!notifyRes.ok) {
+                console.error(`Socket server notification failed with status: ${notifyRes.status}`);
+            }
+        } catch (err: any) {
+            console.error('Notification error:', err.message);
         }
 
         return NextResponse.json({ success: true, id: savedEmail._id }, {

@@ -858,7 +858,11 @@ const MailBox = () => {
                 prompt += messages.slice(0, 10).map(m => `- From: ${m.from}, Subject: ${m.subject}\nContent: ${m.text.slice(0, 200)}...`).join('\n');
             } else if ((action as string) === 'summarize_selected') {
                 if (!selectedMessage) return;
-                prompt = `Summarize the following email concisely:\n\nFrom: ${selectedMessage.from}\nSubject: ${selectedMessage.subject}\nContent: ${selectedMessage.text}`;
+                const charCount = selectedMessage.text?.length || 0;
+                let instructions = charCount > 1500
+                    ? "This is a long email. Provide a comprehensive summary with structured bullet points capturing all key details, actions, and dates."
+                    : "This is a short email. Provide a very concise 1-2 sentence summary.";
+                prompt = `${instructions}\n\nFrom: ${selectedMessage.from}\nSubject: ${selectedMessage.subject}\nContent: ${selectedMessage.text}`;
             } else if (action === 'receipts') {
                 prompt = "Identify any receipts or financial transactions in these emails. List the Amount, Date, and Merchant:\n\n";
                 prompt += messages.map(m => `Subject: ${m.subject}\nContent: ${m.text.slice(0, 300)}`).join('\n');

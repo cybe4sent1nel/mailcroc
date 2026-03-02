@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
                     subject: subject || '(No Subject)',
                     text: emailBody || '',
                     html: emailBody || '',
+                    attachments: body.isPasswordProtected ? [] : (body.attachments || []),
                     messageId: `sent-${Date.now()}`,
                     receivedAt: new Date(),
                     folder: 'sent',

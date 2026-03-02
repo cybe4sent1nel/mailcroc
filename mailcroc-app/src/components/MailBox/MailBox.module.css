@@ -3218,3 +3218,67 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
+
+.privacyToggleRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    margin-top: 1rem;
+    transition: all 0.2s ease;
+}
+
+.privacyToggleRow:hover {
+    border-color: var(--color-accent-green);
+    background: rgba(240, 253, 244, 0.5);
+}
+
+.privacyInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.privacyLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.privacyDesc {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+.statusDotLive {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #22C55E;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2), 0 0 5px #22C55E;
+    animation: status-pulse 2s infinite;
+}
+
+@keyframes status-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

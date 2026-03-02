@@ -139,7 +139,12 @@ export async function DELETE(req: NextRequest) {
     }
     try {
         const body = await req.json();
-        const { emailId, address } = body;
+        const { emailId, address, action, sessionId } = body;
+
+        if (action === 'wipe' && address && sessionId) {
+            const success = await import('@/lib/github-db').then(m => m.deleteEmailsBySession(address, sessionId));
+            return NextResponse.json({ success });
+        }
 
         if (!emailId || !address) {
             return NextResponse.json({ error: 'Missing emailId or address' }, { status: 400 });

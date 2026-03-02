@@ -72,6 +72,12 @@ export default function SecureViewPage() {
         if (id) fetchMessage();
     }, [id]);
 
+    const processHtml = (html: string) => {
+        if (!html) return '';
+        if (html.includes('<')) return html;
+        return html.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #3b82f6;">$1</a>').replace(/\n/g, '<br/>');
+    };
+
     const handleUnlock = () => {
         if (!lockedContent) return;
 
@@ -99,15 +105,19 @@ export default function SecureViewPage() {
             try {
                 // Try parsing as JSON (new format with attachments)
                 const parsed = JSON.parse(decrypted);
-                if (typeof parsed === 'object' && parsed.content) {
-                    setMessageData(parsed);
+                if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
+                    setMessageData({
+                        subject: parsed.subject || '',
+                        content: processHtml(parsed.content || ''),
+                        attachments: parsed.attachments || []
+                    });
                 } else {
                     // Fallback for old format or plain string
-                    setMessageData({ content: decrypted, attachments: [] });
+                    setMessageData({ content: processHtml(decrypted), attachments: [] });
                 }
             } catch {
                 // Not JSON, assume plain text/html
-                setMessageData({ content: decrypted, attachments: [] });
+                setMessageData({ content: processHtml(decrypted), attachments: [] });
             }
             setStatus('unlocked');
             addToast("Message unlocked successfully", "success");
@@ -306,8 +316,20 @@ export default function SecureViewPage() {
                                 </div>
                             )}
                             <div className={styles.markdownBody}>
-                                {/* Render HTML content properly */}
-                                <div dangerouslySetInnerHTML={{ __html: messageData?.content || '' }} />
+                                {(() => {
+                                    const content = messageData?.content || '';
+                                    const isHtml = /<[a-z][\s\S]*>/i.test(content) || content.includes('<!DOCTYPE html>');
+
+                                    if (isHtml) {
+                                        return <div dangerouslySetInnerHTML={{ __html: content }} />;
+                                    }
+
+                                    return (
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                                            {content}
+                                        </ReactMarkdown>
+                                    );
+                                })()}
                             </div>
 
                             {/* Attachments Section */}

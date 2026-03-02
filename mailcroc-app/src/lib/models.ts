@@ -1,6 +1,13 @@
 /**
  * Email type definition (no mongoose dependency)
  */
+export interface Attachment {
+    name: string;
+    type: string;
+    size: number;
+    content: string; // Base64
+}
+
 export interface IEmail {
     from: string;
     to: string[];
@@ -18,4 +25,5 @@ export interface IEmail {
     summary?: string;
     ownerSessionId?: string;
     speechAudio?: string; // Base64 audio content
+    attachments?: Attachment[];
 }

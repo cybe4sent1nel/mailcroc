@@ -85,6 +85,7 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
         category: email.category || 'primary',
         isThreat: email.isThreat || false,
         summary: email.summary || '',
+        attachments: email.attachments || [],
         ownerSessionId: currentOwner?.sessionId || null,
     };
 
@@ -301,6 +302,21 @@ async function deleteFile(path: string, sha: string): Promise<boolean> {
 }
 
 /**
+ * Delete all emails for a specific address and session
+ */
+export async function deleteEmailsBySession(address: string, sessionId: string): Promise<boolean> {
+    const emails = await getEmailsByAddress(address, sessionId);
+    if (emails.length === 0) return true;
+
+    // Delete in parallel
+    const results = await Promise.all(
+        emails.map(email => deleteEmail(email._id, address))
+    );
+
+    return results.every(Boolean);
+}
+
+/**
  * Delete all emails for a specific address
  */
 export async function deleteInbox(address: string): Promise<boolean> {
@@ -481,14 +497,24 @@ export async function claimAddress(address: string, sessionId: string): Promise<
     // Check if claimed
     const existing = await getAddressOwner(address);
     if (existing && existing.sessionId !== sessionId) {
-        // Check if the claim is "expired" (e.g. older than 24 hours) 
-        // For simplicity now: strict denial if any claim exists
-        const createdAt = new Date(existing.claimedAt);
-        const now = new Date();
-        const diffHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+        // If there's a lastActive, check if it's within the last 5 minutes (Live Session)
+        if (existing.lastActive) {
+            const lastActive = new Date(existing.lastActive);
+            const now = new Date();
+            const diffMinutes = (now.getTime() - lastActive.getTime()) / (1000 * 60);
 
-        if (diffHours < 24) {
-            return { success: false, message: 'Address is already in use by another session.' };
+            if (diffMinutes < 5) {
+                return { success: false, message: 'This ID is currently in use by another session. Please try again after 5 minutes or generate a new ID.' };
+            }
+        } else {
+            // Fallback to legacy 24h check for old claims without lastActive
+            const createdAt = new Date(existing.claimedAt);
+            const now = new Date();
+            const diffHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+
+            if (diffHours < 24) {
+                return { success: false, message: 'Address is already in use by another session.' };
+            }
         }
     }
 
@@ -496,7 +522,8 @@ export async function claimAddress(address: string, sessionId: string): Promise<
     const claimData = {
         address,
         sessionId,
-        claimedAt: new Date().toISOString()
+        claimedAt: existing?.claimedAt || new Date().toISOString(),
+        lastActive: new Date().toISOString()
     };
     const content = Buffer.from(JSON.stringify(claimData, null, 2)).toString('base64');
 
@@ -591,11 +618,11 @@ export async function getIdentityForAddress(address: string): Promise<IIdentity 
 /**
  * Get the current owner of an address
  */
-export async function getAddressOwner(address: string): Promise<{ sessionId: string; claimedAt: string } | null> {
+export async function getAddressOwner(address: string): Promise<{ sessionId: string; claimedAt: string; lastActive?: string } | null> {
     try {
         const folder = encodeAddress(address);
         const path = `claims/${folder}.json`;
-        const res = await fetch(repoUrl(path), { headers: headers() });
+        const res = await fetch(repoUrl(path), { headers: headers(), cache: 'no-store' });
         if (!res.ok) return null;
 
         const fileData = await res.json();

@@ -185,6 +185,7 @@ const MailBox = () => {
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [sendStatus, setSendStatus] = useState<string | null>(null);
     const [showSentSuccess, setShowSentSuccess] = useState(false);
+    const [showReceivedAnim, setShowReceivedAnim] = useState(false);
 
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isInlineReplying, setIsInlineReplying] = useState(false);
@@ -211,6 +212,8 @@ const MailBox = () => {
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [verificationCode, setVerificationCode] = useState('');
     const [verificationAlias, setVerificationAlias] = useState('');
+    const [isInstantClean, setIsInstantClean] = useState(false);
+    const [showInstantCleanConfirm, setShowInstantCleanConfirm] = useState(false);
 
     // --- State: Dragging ---
     const [composePos, setComposePos] = useState({ x: 100, y: 100 });
@@ -503,6 +506,16 @@ const MailBox = () => {
         // Claim it
         const sid = localStorage.getItem('mailcroc_session_id') || sessionId;
         if (sid) {
+            // Wipe old data first before switching (for privacy)
+            const prevAddress = currentConfig?.address;
+            if (prevAddress && sid) {
+                fetch('/api/emails', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'wipe', address: prevAddress, sessionId: sid })
+                }).catch(() => { });
+            }
+
             const success = await claimIdentity(address, sid);
             if (!success) return null;
         }
@@ -553,6 +566,16 @@ const MailBox = () => {
             if (success) {
                 setCurrentConfig(config);
                 localStorage.setItem('mailcroc_config', JSON.stringify(config));
+
+                // Wipe old data first before switching
+                const prevAddress = currentConfig?.address;
+                if (prevAddress && sessionId) {
+                    fetch('/api/emails', {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'wipe', address: prevAddress, sessionId: sessionId })
+                    }).catch(() => { });
+                }
 
                 // --- Wipe Everything ---
                 setMessages([]);
@@ -676,6 +699,10 @@ const MailBox = () => {
                 setMessages(prev => {
                     if (prev.some(m => m._id === newMsg._id)) return prev;
 
+                    // Show received animation
+                    setShowReceivedAnim(true);
+                    setTimeout(() => setShowReceivedAnim(false), 4000);
+
                     // Play notification sound on new email
                     try {
                         const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
@@ -709,6 +736,38 @@ const MailBox = () => {
             return () => { socket?.off('new_email', handleNewEmail); socket?.emit('leave', emailAddress); };
         }
     }, [emailAddress]);
+
+    // --- Heartbeat & Instant Clean Logic ---
+    useEffect(() => {
+        if (!emailAddress || !sessionId) return;
+
+        // Periodic Heartbeat to keep the claim alive (every 1 min)
+        const heartbeatInterval = setInterval(() => {
+            fetch('/api/addresses/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ address: emailAddress, sessionId })
+            }).catch(() => { });
+        }, 60000);
+
+        // Wipe on Unload if Instant Clean is ON
+        const handleUnload = () => {
+            if (isInstantClean && emailAddress && sessionId) {
+                // Use beacon for reliability during unload
+                navigator.sendBeacon('/api/emails', JSON.stringify({
+                    action: 'wipe',
+                    address: emailAddress,
+                    sessionId: sessionId
+                }));
+            }
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+        return () => {
+            clearInterval(heartbeatInterval);
+            window.removeEventListener('beforeunload', handleUnload);
+        };
+    }, [emailAddress, sessionId, isInstantClean]);
 
     // --- Actions ---
     const copyToClipboard = () => {
@@ -783,6 +842,7 @@ const MailBox = () => {
                         : composeData.body,
                     isPasswordProtected,
                     attachments: isPasswordProtected ? [] : attachments, // Hide attachments if protected
+                    sessionId: sessionId,
                     privacyLevel: 'high' // Robust privacy hint
                 })
             });
@@ -1336,6 +1396,24 @@ const MailBox = () => {
                                 <label><input type="checkbox" checked={toggles.hyphen} onChange={() => setToggles({ ...toggles, hyphen: !toggles.hyphen })} /> -Hyphen</label>
                                 <label><input type="checkbox" checked={toggles.gmail} onChange={() => setToggles({ ...toggles, gmail: !toggles.gmail })} /> Gmail</label>
                                 <label><input type="checkbox" checked={toggles.googlemail} onChange={() => setToggles({ ...toggles, googlemail: !toggles.googlemail })} /> GoogleMail</label>
+
+                                <div className={styles.privacyToggleRow}>
+                                    <div className={styles.privacyInfo}>
+                                        <div className={styles.privacyLabel}>
+                                            <ShieldCheck size={14} className="text-green-500" />
+                                            <span>Instant Clean</span>
+                                        </div>
+                                        <p className={styles.privacyDesc}>Auto-wipe all mail on exit</p>
+                                    </div>
+                                    <Switch
+                                        id="instant-clean-toggle"
+                                        checked={isInstantClean}
+                                        onChange={(val) => {
+                                            if (val) setShowInstantCleanConfirm(true);
+                                            else setIsInstantClean(false);
+                                        }}
+                                    />
+                                </div>
 
                                 <div className={styles.externalAccounts}>
                                     <h5 className={styles.smallTitle}>Connected Emails</h5>
@@ -2144,6 +2222,34 @@ const MailBox = () => {
                 </div>
             )}
 
+            {/* Received Mail Overlay */}
+            {showReceivedAnim && (
+                <div className={styles.modalOverlay} style={{ zIndex: 9999 }}>
+                    <div className={styles.modalContent} style={{ textAlign: 'center', padding: '2rem', border: '2px solid #84cc16' }}>
+                        <LottiePlayer
+                            animationData={newMsgAnim}
+                            loop={true}
+                            style={{ width: 200, height: 200, margin: '0 auto' }}
+                        />
+                        <h3 style={{ fontSize: '1.5em', fontWeight: 'bold', marginTop: '1rem', color: '#16a34a' }}>
+                            New Mail Received! 🥒✨
+                        </h3>
+                        <p style={{ color: '#64748b', marginTop: '0.5rem' }}>A new message has arrived in your stealth inbox.</p>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmationModal
+                isOpen={showInstantCleanConfirm}
+                onClose={() => setShowInstantCleanConfirm(false)}
+                onConfirm={() => {
+                    setIsInstantClean(true);
+                    setShowInstantCleanConfirm(false);
+                }}
+                title="Enable Instant Clean?"
+                message="With this enabled, closing your browser tab or refreshing the page will PERMANENTLY delete all received and sent emails for this session. This action cannot be undone."
+                confirmText="Enable Protection"
+            />
         </div>
     );
 };

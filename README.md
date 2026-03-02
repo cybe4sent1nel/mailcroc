@@ -22,6 +22,14 @@
 
 It relies on a serverless architecture, using **Cloudflare Email Workers** to ingest emails and **GitHub** as a free, high-tier storage solution.
 
+### 🎥 Watch the Demo
+<div align="center">
+  <div style="position: relative; padding-bottom: 56.25%; height: 0; width: 100%; max-width: 800px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+    <iframe src="https://www.loom.com/embed/d565773da9f04848bef0f1bfe9f403b5" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+  </div>
+  <p><a href="https://www.loom.com/share/d565773da9f04848bef0f1bfe9f403b5"><b>🌐 Open Demo in New Tab</b></a></p>
+</div>
+
 ## 🚀 Key Features
 
 ### 🛡️ Privacy & Security

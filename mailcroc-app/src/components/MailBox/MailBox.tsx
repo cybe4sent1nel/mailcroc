@@ -96,6 +96,7 @@ interface EmailMessage {
     isThreat?: boolean;
     aiAnalysis?: string;
     speechAudio?: string;
+    attachments?: Attachment[];
 }
 
 interface InboxTab {
@@ -157,7 +158,6 @@ const MailBox = () => {
         }
     };
 
-    // --- State: Layout & Nav ---
     const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam'>('inbox');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true); // Default collapsed
@@ -247,6 +247,39 @@ const MailBox = () => {
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isDragging]);
+
+    // 🟢 Heartbeat Effect (Address Persistence)
+    useEffect(() => {
+        if (!sessionId || !currentConfig?.address) return;
+
+        const heartbeat = async () => {
+            try {
+                await fetch('/api/addresses/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: currentConfig.address, sessionId })
+                });
+            } catch (err) { console.warn("Heartbeat failed", err); }
+        };
+
+        heartbeat(); // Run immediately
+        const interval = setInterval(heartbeat, 60000); // 60s
+        return () => clearInterval(interval);
+    }, [sessionId, currentConfig?.address]);
+
+    // 🧹 Instant Clean (Auto-Wipe on Tab Close)
+    useEffect(() => {
+        const handleUnload = () => {
+            if (isInstantClean && currentConfig?.address && sessionId) {
+                // Use beacon for fire-and-forget reliability on unload
+                const url = `/api/emails?action=wipe&address=${encodeURIComponent(currentConfig.address)}&sessionId=${encodeURIComponent(sessionId)}`;
+                navigator.sendBeacon(url);
+            }
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+        return () => window.removeEventListener('beforeunload', handleUnload);
+    }, [isInstantClean, currentConfig?.address, sessionId]);
 
     // --- Refs ---
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -371,6 +404,7 @@ const MailBox = () => {
                 const jsPDF = (await import('jspdf')).default;
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
 
                 pdf.setFontSize(22);
                 pdf.setTextColor(40, 167, 69); // MailCroc Green
@@ -385,7 +419,10 @@ const MailBox = () => {
 
                 let yPos = 50;
                 messages.forEach((msg, index) => {
-                    if (yPos > 270) {
+                    const attachmentsCount = msg.attachments?.length || 0;
+
+                    // Check for page break BEFORE drawing a new message block
+                    if (yPos > pageHeight - 40) {
                         pdf.addPage();
                         yPos = 20;
                     }
@@ -401,14 +438,33 @@ const MailBox = () => {
                     pdf.setTextColor(80);
                     pdf.text(`From: ${msg.from} | Received: ${new Date(msg.receivedAt).toLocaleString()}`, 10, yPos);
 
+                    if (attachmentsCount > 0) {
+                        yPos += 4;
+                        pdf.setTextColor(40, 167, 69); // Green for attachments
+                        pdf.text(`📎 Attachments: ${attachmentsCount} file(s)`, 10, yPos);
+                        pdf.setTextColor(80);
+                    }
+
                     yPos += 7;
                     pdf.setFontSize(10);
                     pdf.setTextColor(50);
-                    const splitText = pdf.splitTextToSize(msg.text?.substring(0, 500) || '(No Content)', pageWidth - 20);
-                    pdf.text(splitText, 10, yPos);
 
-                    yPos += (splitText.length * 5) + 12;
-                    pdf.setDrawColor(230);
+                    // Remove truncation (was 500) and split text properly
+                    const fullText = msg.text || '(No Content)';
+                    const splitText = pdf.splitTextToSize(fullText, pageWidth - 20);
+
+                    // Handle multi-page text if a single email is very long
+                    for (let i = 0; i < splitText.length; i++) {
+                        if (yPos > pageHeight - 20) {
+                            pdf.addPage();
+                            yPos = 20;
+                        }
+                        pdf.text(splitText[i], 10, yPos);
+                        yPos += 5;
+                    }
+
+                    yPos += 10;
+                    pdf.setDrawColor(240);
                     pdf.line(10, yPos - 5, pageWidth - 10, yPos - 5);
                     yPos += 5;
                 });
@@ -737,37 +793,7 @@ const MailBox = () => {
         }
     }, [emailAddress]);
 
-    // --- Heartbeat & Instant Clean Logic ---
-    useEffect(() => {
-        if (!emailAddress || !sessionId) return;
 
-        // Periodic Heartbeat to keep the claim alive (every 1 min)
-        const heartbeatInterval = setInterval(() => {
-            fetch('/api/addresses/heartbeat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address: emailAddress, sessionId })
-            }).catch(() => { });
-        }, 60000);
-
-        // Wipe on Unload if Instant Clean is ON
-        const handleUnload = () => {
-            if (isInstantClean && emailAddress && sessionId) {
-                // Use beacon for reliability during unload
-                navigator.sendBeacon('/api/emails', JSON.stringify({
-                    action: 'wipe',
-                    address: emailAddress,
-                    sessionId: sessionId
-                }));
-            }
-        };
-
-        window.addEventListener('beforeunload', handleUnload);
-        return () => {
-            clearInterval(heartbeatInterval);
-            window.removeEventListener('beforeunload', handleUnload);
-        };
-    }, [emailAddress, sessionId, isInstantClean]);
 
     // --- Actions ---
     const copyToClipboard = () => {

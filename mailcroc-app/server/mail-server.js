@@ -117,6 +117,9 @@ const httpServer = createServer((req, res) => {
                     io.to(data.ownerSessionId).emit("new_email", data);
                 }
 
+                // Push to SSE clients
+                notifyClients(data);
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
             } catch (err) {
@@ -128,10 +131,77 @@ const httpServer = createServer((req, res) => {
         return;
     }
 
+    // SSE STREAM
+    if (req.method === 'GET' && req.url.startsWith('/stream')) {
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const address = url.searchParams.get('address')?.toLowerCase().trim();
+        const sessionId = url.searchParams.get('sessionId');
+
+        if (!address && !sessionId) {
+            res.writeHead(400);
+            res.end('Missing address or sessionId');
+            return;
+        }
+
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*'
+        });
+
+        const clientId = Date.now();
+        const newClient = { id: clientId, res, address, sessionId };
+        clients.push(newClient);
+
+        // Keep-alive heartbeat
+        const keepAlive = setInterval(() => {
+            res.write(': keep-alive\n\n');
+        }, 30000);
+
+        req.on('close', () => {
+            clearInterval(keepAlive);
+            clients = clients.filter(c => c.id !== clientId);
+            console.log(`[SSE] Client ${clientId} disconnected`);
+        });
+
+        console.log(`[SSE] Client ${clientId} connected for: ${address || sessionId}`);
+        return;
+    }
+
     // Default response
     res.writeHead(404);
     res.end();
 });
+
+let clients = [];
+
+function notifyClients(data) {
+    const recipients = data.to || [];
+    const sessionId = data.ownerSessionId;
+
+    clients.forEach(client => {
+        let shouldNotify = false;
+
+        // Notify if address matches
+        if (client.address && recipients.some(r => {
+            const exact = r.toLowerCase().trim();
+            const normalized = normalizeEmail(exact);
+            return client.address === exact || client.address === normalized;
+        })) {
+            shouldNotify = true;
+        }
+
+        // Notify if sessionId matches
+        if (client.sessionId && sessionId === client.sessionId) {
+            shouldNotify = true;
+        }
+
+        if (shouldNotify) {
+            client.res.write(`data: ${JSON.stringify(data)}\n\n`);
+        }
+    });
+}
 
 const io = new Server(httpServer, {
     cors: {
@@ -308,6 +378,9 @@ const server = new SMTPServer({
                         io.to(normalized).emit("new_email", emitData);
                     }
                 });
+
+                // Push to SSE clients
+                notifyClients(emitData);
 
                 callback();
             } catch (dbErr) {

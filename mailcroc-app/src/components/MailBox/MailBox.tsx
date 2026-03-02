@@ -577,6 +577,55 @@ const MailBox = () => {
 
     useEffect(() => { if (emailAddress) fetchMessages(); }, [emailAddress, fetchMessages]);
 
+    const triggerArrivalFeedback = useCallback(() => {
+        console.log("🎊 Triggering Arrival Feedback (Animation + Sound)");
+        setShowReceivedAnim(true);
+        setTimeout(() => setShowReceivedAnim(false), 5000);
+
+        try {
+            // Using a fresh audio object each time for best compatibility
+            const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
+            audio.volume = 0.8;
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => console.warn("Audio play blocked (User must interact with page first):", e.message));
+            }
+        } catch (err) {
+            console.warn("Audio Context Error:", err);
+        }
+    }, []);
+
+    const handleIncomingMessage = useCallback((newMsg: any) => {
+        console.log("✨ New Email Signal Received!", newMsg._id);
+
+        if (newMsg.ownerSessionId && newMsg.ownerSessionId !== sessionId) {
+            console.log("⏭️ Skipping email for different session");
+            return;
+        }
+
+        setMessages(prev => {
+            if (prev.some(m => m._id === newMsg._id)) return prev;
+
+            triggerArrivalFeedback();
+
+            // Gmail Verification Auto-Capture
+            const isGoogleVerification =
+                (newMsg.from?.toLowerCase().includes('google.com') || newMsg.from?.toLowerCase().includes('gmail.com')) &&
+                (newMsg.subject?.toLowerCase().includes('gmail confirmation') || newMsg.text?.includes('verification code'));
+
+            if (isGoogleVerification) {
+                const codeMatch = (newMsg.text || newMsg.html || "").match(/verification code:?\s*(\d{6,})/i);
+                if (codeMatch && codeMatch[1]) {
+                    setVerificationCode(codeMatch[1]);
+                    setVerificationAlias(newMsg.to[0]);
+                    setShowVerificationModal(true);
+                }
+            }
+
+            return [newMsg, ...prev];
+        });
+    }, [sessionId, triggerArrivalFeedback]);
+
     // --- Socket Logic ---
     useEffect(() => {
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
@@ -585,97 +634,63 @@ const MailBox = () => {
             return;
         }
 
-        if (!socket) {
-            console.log(`📡 Connecting to Socket Server: ${socketUrl}`);
-            socket = io(socketUrl, {
-                reconnection: true,
-                reconnectionDelay: 1000,
-                transports: ['websocket', 'polling']
-            });
+        const socket = io(socketUrl, {
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: Infinity,
+            transports: ['websocket', 'polling']
+        });
 
-            socket.on('connect', () => {
-                console.log("🟢 Socket Connected!");
-                setIsConnected(true);
-                // Re-join rooms on connect/reconnect
-                if (emailAddress) {
-                    console.log(`📨 Re-joining Email Room: ${emailAddress}`);
-                    socket?.emit('join', emailAddress);
-                }
-                if (sessionId) {
-                    console.log(`🆔 Re-joining Session Room: ${sessionId}`);
-                    socket?.emit('join', sessionId);
-                }
-            });
-            socket.on('disconnect', () => {
-                console.log("🔴 Socket Disconnected");
-                setIsConnected(false);
-            });
-            socket.on('connect_error', (err) => {
-                console.error("⚠️ Socket Connection Error:", err.message);
-            });
-        }
+        socket.on('connect', () => {
+            console.log("🟢 Socket Connected!");
+            setIsConnected(true);
+            if (emailAddress) socket.emit('join', emailAddress);
+            if (sessionId) socket.emit('join', sessionId);
+        });
 
-        if (socket) {
-            // Room joins are handled in the 'connect' event listener for reliability
-            // but we also trigger them here for the initial mount/address change
-            if (socket.connected) {
-                if (emailAddress) socket.emit('join', emailAddress);
-                if (sessionId) socket.emit('join', sessionId);
+        socket.on('disconnect', () => {
+            console.log("🔴 Socket Disconnected");
+            setIsConnected(false);
+        });
+
+        socket.on('new_email', handleIncomingMessage);
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [emailAddress, sessionId, handleIncomingMessage]);
+
+    // --- SSE Logic (Resilient Push) ---
+    useEffect(() => {
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+        if (!socketUrl || (!emailAddress && !sessionId)) return;
+
+        console.log("📡 Initializing SSE Stream...");
+        const sseUrl = `${socketUrl}/stream?address=${encodeURIComponent(emailAddress || '')}&sessionId=${encodeURIComponent(sessionId || '')}`;
+        const eventSource = new EventSource(sseUrl);
+
+        eventSource.onopen = () => console.log("🟢 SSE Stream Connected!");
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                handleIncomingMessage(data);
+            } catch (err) {
+                console.error("SSE Parse Error:", err);
             }
+        };
 
-            const handleNewEmail = (newMsg: any) => {
-                console.log("✨ New Email Received via Socket!", newMsg);
+        eventSource.onerror = (err) => {
+            console.warn("🔴 SSE Connection Error, reconnecting...", err);
+            eventSource.close();
+        };
 
-                // If message has an ownerSessionId, it MUST be for us
-                if (newMsg.ownerSessionId && newMsg.ownerSessionId !== sessionId) {
-                    console.log("⏭️ Skipping email for different session");
-                    return;
-                }
-
-                setMessages(prev => {
-                    if (prev.some(m => m._id === newMsg._id)) return prev;
-
-                    // SHOW RECEIVED ANIMATION & SOUND
-                    setShowReceivedAnim(true);
-                    setTimeout(() => setShowReceivedAnim(false), 5000);
-
-                    // Play Notification Sound
-                    try {
-                        const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
-                        audio.volume = 0.8;
-                        const playPromise = audio.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch(e => console.warn("Audio play blocked (user interaction required):", e.message));
-                        }
-                    } catch (err) { }
-
-                    // Gmail Verification Auto-Capture
-                    const lowerFrom = (newMsg.from || "").toLowerCase();
-                    const lowerSub = (newMsg.subject || "").toLowerCase();
-                    if (lowerFrom.includes('google.com') && lowerSub.includes('gmail confirmation')) {
-                        const bodyText = (newMsg.text || newMsg.html || "");
-                        const codeMatch = bodyText.match(/Confirmation code:?\s*([0-9A-Z]{5,15})/i);
-                        if (codeMatch) {
-                            setVerificationCode(codeMatch[1]);
-                            setShowVerificationModal(true);
-                            addToast("Gmail Confirmation Captured! 🥒✨", "success");
-                        }
-                    }
-
-                    const isThreat = lowerSub.includes('verify') || lowerSub.includes('urgent');
-                    return [{ ...newMsg, isThreat, category: 'primary' }, ...prev];
-                });
-            };
-
-            socket.on('new_email', handleNewEmail);
-            return () => {
-                console.log(`👋 Leaving Rooms: ${emailAddress} & ${sessionId}`);
-                socket?.off('new_email', handleNewEmail);
-                if (emailAddress) socket?.emit('leave', emailAddress);
-                if (sessionId) socket?.emit('leave', sessionId);
-            };
-        }
-    }, [emailAddress, sessionId]);
+        return () => {
+            console.log("👋 Closing SSE Stream");
+            eventSource.close();
+        };
+    }, [emailAddress, sessionId, handleIncomingMessage]);
 
 
 

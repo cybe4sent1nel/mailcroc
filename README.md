@@ -24,10 +24,12 @@ It relies on a serverless architecture, using **Cloudflare Email Workers** to in
 
 ### 🎥 Watch the Demo
 <div align="center">
-  <div style="position: relative; padding-bottom: 56.25%; height: 0; width: 100%; max-width: 800px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
-    <iframe src="https://www.loom.com/embed/d565773da9f04848bef0f1bfe9f403b5" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
-  </div>
-  <p><a href="https://www.loom.com/share/d565773da9f04848bef0f1bfe9f403b5"><b>🌐 Open Demo in New Tab</b></a></p>
+  <a href="https://www.loom.com/share/d565773da9f04848bef0f1bfe9f403b5">
+    <p><b>MAILCROC DEMO VIDEO - Watch Video</b></p>
+  </a>
+  <a href="https://www.loom.com/share/d565773da9f04848bef0f1bfe9f403b5">
+    <img style="max-width:300px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);" src="https://cdn.loom.com/sessions/thumbnails/d565773da9f04848bef0f1bfe9f403b5-de7ec8034bfbb387-full-play.gif#t=0.1" alt="MailCroc Demo">
+  </a>
 </div>
 
 ## 🚀 Key Features

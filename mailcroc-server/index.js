@@ -89,6 +89,11 @@ const httpServer = createServer((req, res) => {
                     }
                 });
 
+                if (data.ownerSessionId) {
+                    console.log(`[NOTIFY] Emitting to session: ${data.ownerSessionId}`);
+                    io.to(data.ownerSessionId).emit("new_email", data);
+                }
+
                 res.writeHead(200, { "Content-Type": "application/json" });
                 res.end(JSON.stringify({ success: true }));
             } catch (err) {

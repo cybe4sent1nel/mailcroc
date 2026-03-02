@@ -36,9 +36,16 @@ export async function POST(req: NextRequest) {
         // Analyze content
         const analysis = await analyzeEmail(body.subject || '', body.text || '');
 
+        const extractEmail = (str: string) => {
+            const match = str.match(/<(.+)>/);
+            return (match ? match[1] : str).trim().toLowerCase();
+        };
+        const rawTo = Array.isArray(body.to) ? body.to : [body.to];
+        const cleanedTo = rawTo.map(extractEmail).filter(Boolean);
+
         const savedEmail = await saveEmail({
             from: body.from || 'unknown',
-            to: Array.isArray(body.to) ? body.to : [body.to],
+            to: cleanedTo,
             subject: body.subject || '(No Subject)',
             text: body.text || '',
             html: body.html || '',

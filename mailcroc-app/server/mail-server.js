@@ -74,7 +74,7 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || "dev-secret";
 const httpServer = createServer((req, res) => {
     // Enable CORS for localhost
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {

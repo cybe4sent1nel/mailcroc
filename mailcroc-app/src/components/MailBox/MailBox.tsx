@@ -582,17 +582,7 @@ const MailBox = () => {
         setShowReceivedAnim(true);
         setTimeout(() => setShowReceivedAnim(false), 5000);
 
-        try {
-            // Using a fresh audio object each time for best compatibility
-            const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
-            audio.volume = 0.8;
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(e => console.warn("Audio play blocked (User must interact with page first):", e.message));
-            }
-        } catch (err) {
-            console.warn("Audio Context Error:", err);
-        }
+        try { new Audio('/mixkit-correct-answer-tone-2870.wav').play().catch(() => { }); } catch { }
     }, []);
 
     const handleIncomingMessage = useCallback((newMsg: any) => {

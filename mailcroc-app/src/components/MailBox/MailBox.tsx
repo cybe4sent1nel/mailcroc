@@ -4,6 +4,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import styles from './MailBox.module.css';
 import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2, ShieldCheck } from 'lucide-react';
+import { type EmailMessage, type InboxTab, type Attachment } from '@/types/mail';
 import { io, Socket } from 'socket.io-client';
 import { generateEmailAddress, type GenerationConfig, WITTY_SUBJECTS } from '@/lib/domains';
 import LottiePlayer from '@/components/LottiePlayer';
@@ -80,36 +81,7 @@ import mailSentAnim from '../../../public/animations/sent email.json';
 import sessionExpAnim from '../../../public/animations/sessionexpire.json';
 import newMsgAnim from '../../../public/animations/Mailbox.json';
 
-// Types
-interface EmailMessage {
-    _id: string;
-    from: string;
-    to: string[] | string;
-    subject: string;
-    receivedAt: string;
-    text: string;
-    html: string;
-    pinned?: boolean;
-    read?: boolean;
-    folder?: 'inbox' | 'sent' | 'trash' | 'drafts' | 'spam';
-    category?: 'social' | 'updates' | 'promotions' | 'primary';
-    isThreat?: boolean;
-    aiAnalysis?: string;
-    speechAudio?: string;
-    attachments?: Attachment[];
-}
 
-interface InboxTab {
-    address: string;
-    config: any;
-}
-
-interface Attachment {
-    name: string;
-    content: string; // Base64
-    type: string;
-    size: number;
-}
 
 let socket: Socket | null = null;
 
@@ -364,159 +336,28 @@ const MailBox = () => {
     };
 
     const handleExportInbox = async (format: 'md' | 'json' | 'pdf') => {
+        const { exportToJSON, exportToMarkdown, exportInboxToPDF } = await import('@/lib/export-utils');
+
         if (format === 'json') {
-            const dataStr = JSON.stringify(messages, null, 2);
-            const blob = new Blob([dataStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `inbox_export_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            exportToJSON(messages, emailAddress);
             addToast("Inbox exported to JSON", "success");
         } else if (format === 'md') {
-            let mdContent = `# Inbox Export - ${new Date().toLocaleString()}\n\n`;
-            mdContent += `Total Messages: ${messages.length}\n\n`;
-            mdContent += `---\n\n`;
-
-            messages.forEach((msg, index) => {
-                mdContent += `## ${index + 1}. ${msg.subject || '(No Subject)'}\n`;
-                mdContent += `**From:** ${msg.from}\n`;
-                mdContent += `**Date:** ${new Date(msg.receivedAt).toLocaleString()}\n`;
-                mdContent += `**Folder:** ${msg.folder}\n\n`;
-                mdContent += `${msg.text || '(No Content)'}\n\n`;
-                mdContent += `---\n\n`;
-            });
-
-            const blob = new Blob([mdContent], { type: "text/markdown" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `inbox_export_${new Date().toISOString().split('T')[0]}.md`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            exportToMarkdown(messages, emailAddress);
             addToast("Inbox exported to Markdown", "success");
         } else if (format === 'pdf') {
-            addToast("Generating Inbox PDF...", "info");
-            try {
-                const jsPDF = (await import('jspdf')).default;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-
-                pdf.setFontSize(22);
-                pdf.setTextColor(40, 167, 69); // MailCroc Green
-                pdf.text('MailCroc Inbox Export', 10, 20);
-
-                pdf.setFontSize(10);
-                pdf.setTextColor(100);
-                pdf.text(`Address: ${emailAddress}`, 10, 28);
-                pdf.text(`Date: ${new Date().toLocaleString()}`, 10, 33);
-                pdf.text(`Total Messages: ${messages.length}`, 10, 38);
-                pdf.line(10, 42, pageWidth - 10, 42);
-
-                let yPos = 50;
-                messages.forEach((msg, index) => {
-                    const attachmentsCount = msg.attachments?.length || 0;
-
-                    // Check for page break BEFORE drawing a new message block
-                    if (yPos > pageHeight - 40) {
-                        pdf.addPage();
-                        yPos = 20;
-                    }
-
-                    pdf.setFontSize(12);
-                    pdf.setTextColor(0);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(`${index + 1}. ${msg.subject || '(No Subject)'}`, 10, yPos);
-
-                    yPos += 5;
-                    pdf.setFontSize(9);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(80);
-                    pdf.text(`From: ${msg.from} | Received: ${new Date(msg.receivedAt).toLocaleString()}`, 10, yPos);
-
-                    if (attachmentsCount > 0) {
-                        yPos += 4;
-                        pdf.setTextColor(40, 167, 69); // Green for attachments
-                        pdf.text(`📎 Attachments: ${attachmentsCount} file(s)`, 10, yPos);
-                        pdf.setTextColor(80);
-                    }
-
-                    yPos += 7;
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(50);
-
-                    // Remove truncation (was 500) and split text properly
-                    const fullText = msg.text || '(No Content)';
-                    const splitText = pdf.splitTextToSize(fullText, pageWidth - 20);
-
-                    // Handle multi-page text if a single email is very long
-                    for (let i = 0; i < splitText.length; i++) {
-                        if (yPos > pageHeight - 20) {
-                            pdf.addPage();
-                            yPos = 20;
-                        }
-                        pdf.text(splitText[i], 10, yPos);
-                        yPos += 5;
-                    }
-
-                    yPos += 10;
-                    pdf.setDrawColor(240);
-                    pdf.line(10, yPos - 5, pageWidth - 10, yPos - 5);
-                    yPos += 5;
-                });
-
-                pdf.save(`inbox_export_${new Date().toISOString().split('T')[0]}.pdf`);
-                addToast("Inbox exported to PDF", "success");
-            } catch (err) {
-                console.error(err);
-                addToast("Failed to export PDF", "error");
-            }
+            await exportInboxToPDF(messages, emailAddress);
+            addToast("Inbox exported to PDF", "success");
         }
     };
 
     const handleExportPDF = async () => {
         if (!selectedMessage) return;
+        const { exportSingleEmailToPDF } = await import('@/lib/export-utils');
 
         try {
-            const element = document.getElementById('email-content-export');
-            if (!element) {
-                addToast("Could not find email content", "error");
-                return;
-            }
-
-            // Dynamically import to avoid server-side issues
-            const html2canvas = (await import('html2canvas')).default;
-            const jsPDF = (await import('jspdf')).default;
-
             addToast("Generating PDF...", "info");
-
-            const canvas = await html2canvas(element, {
-                scale: 2,
-                logging: false,
-                useCORS: true // Important for images
-            });
-
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'px',
-                format: [canvas.width, canvas.height] // Match content size
-            });
-
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-
-            // Add metadata links if possible (basic implementation)
-            // Note: complex link preservation in html2canvas -> jsPDF is tricky.
-            // A better approach for text-heavy emails is arguably 'html2pdf.js' or server-side.
-            // For now, this captures the visual representation perfectly.
-
-            pdf.save(`${selectedMessage.subject.replace(/[^a-z0-9]/gi, '_').slice(0, 30) || 'email'}.pdf`);
+            await exportSingleEmailToPDF('email-content-export', selectedMessage.subject);
             addToast("PDF Downloaded", "success");
-
         } catch (error) {
             console.error("PDF Export Error:", error);
             addToast("Failed to generate PDF", "error");

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { ShieldAlert, Unlock, ArrowLeft, Mail, Info, Download, FileText, Paperclip, CheckCircle, Image as ImageIcon, FileAudio, FileVideo, Archive, File as FileIcon } from 'lucide-react';
+import { type Attachment } from '@/types/mail';
 import styles from './SecureView.module.css';
 import { useToast } from '@/components/Toast/ToastContext';
 import LottiePlayer from '@/components/LottiePlayer';
@@ -11,12 +12,7 @@ import rehypeSanitize from 'rehype-sanitize';
 
 import unlockedAnim from '../../../../public/animations/Unlocked.json';
 
-interface Attachment {
-    name: string;
-    content: string; // Base64 Data URL or raw base64
-    type: string;
-    size: number;
-}
+
 
 // --- Encryption Helpers ---
 const xorCipher = (text: string, key: string) => {

@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { X, Plus, Copy, Paperclip, FileText, Sparkles, Briefcase, AlignLeft, Scissors, Mic } from 'lucide-react';
+import { type Attachment } from '@/types/mail';
 import SendButton from '../ui/SendButton';
 import styles from './MailBox.module.css';
 import { AILogo } from '../Icons/AILogo';
@@ -11,12 +12,7 @@ import Switch from '../Switch/Switch';
 // Recursive Dynamic Import for maximum isolation
 const RichTextMailEditor = dynamic(() => import('../Editor/RichTextMailEditor'), { ssr: false });
 
-interface Attachment {
-    name: string;
-    size: number;
-    type: string;
-    content: string;
-}
+
 
 interface ComposeModalProps {
     show: boolean;

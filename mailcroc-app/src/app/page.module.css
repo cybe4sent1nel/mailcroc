@@ -869,3 +869,26 @@
     gap: 2rem;
   }
 }
+
+.demoSection {
+  padding: 6rem 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.videoContainer {
+  margin-top: 3rem;
+  border-radius: 2rem;
+  overflow: hidden;
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.2);
+  border: 8px solid #ffffff;
+  outline: 1px solid var(--color-border);
+  background: #ffffff;
+}
+
+.videoWrapper {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+}

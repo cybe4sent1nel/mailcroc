@@ -122,6 +122,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Demo Video Section */}
+      <section className={styles.demoSection}>
+        <div className={styles.sectionHeader}>
+          <ScrollWave as="h2" className={styles.sectionTitle}>Experience the Stealth</ScrollWave>
+          <p className={styles.sectionSubtitle}>Watch how MailCroc redefines temporary communication in real-time.</p>
+        </div>
+        <div className={styles.videoContainer}>
+          <div className={styles.videoWrapper}>
+            <iframe
+              src="https://www.loom.com/embed/d565773da9f04848bef0f1bfe9f403b5"
+              frameBorder="0"
+              allowFullScreen
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            ></iframe>
+          </div>
+        </div>
+      </section>
+
       <TrustedBrands />
 
       {/* Feature Cards */}

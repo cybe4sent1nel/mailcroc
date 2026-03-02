@@ -52,7 +52,7 @@ export default function SecureViewPage() {
     const { id } = useParams();
     const { addToast } = useToast();
     const [lockedContent, setLockedContent] = useState<string | null>(null);
-    const [messageData, setMessageData] = useState<{ content: string, attachments: any[] } | null>(null);
+    const [messageData, setMessageData] = useState<{ subject?: string, content: string, attachments: any[] } | null>(null);
     const [password, setPassword] = useState('');
     const [status, setStatus] = useState<'loading' | 'error' | 'locked' | 'unlocked'>('loading');
     const contentRef = useRef<HTMLDivElement>(null);
@@ -159,13 +159,44 @@ export default function SecureViewPage() {
 
             const canvas = await html2canvas(contentRef.current, { scale: 2, useCORS: true });
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'px',
-                format: [canvas.width, canvas.height]
-            });
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-            pdf.save('secure-message.pdf');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            const imgWidth = pageWidth - 20; // 10mm margin each side
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.setFontSize(18);
+            pdf.text('MailCroc Secure Message', 10, 15);
+            pdf.setFontSize(12);
+            pdf.text(`Subject: ${messageData?.subject || 'No Subject'}`, 10, 22);
+            pdf.setFontSize(10);
+            pdf.setTextColor(100);
+            pdf.text(`Generated on ${new Date().toLocaleString()}`, 10, 28);
+            pdf.line(10, 32, pageWidth - 10, 32);
+
+            pdf.addImage(imgData, 'PNG', 10, 38, imgWidth, imgHeight);
+
+            // Add attachments list if any
+            if (messageData?.attachments && messageData.attachments.length > 0) {
+                let yPos = 45 + imgHeight;
+                if (yPos > pageHeight - 20) {
+                    pdf.addPage();
+                    yPos = 20;
+                }
+                pdf.setFontSize(12);
+                pdf.setTextColor(0);
+                pdf.text('Attachments:', 10, yPos);
+                yPos += 7;
+                pdf.setFontSize(10);
+                pdf.setTextColor(80);
+                messageData.attachments.forEach((att: any) => {
+                    pdf.text(`- ${att.name} (${(att.size / 1024).toFixed(1)} KB)`, 15, yPos);
+                    yPos += 5;
+                });
+            }
+
+            pdf.save(`${messageData?.subject || 'secure-message'}.pdf`);
             addToast("PDF Downloaded", "success");
         } catch (err) {
             console.error(err);
@@ -268,6 +299,12 @@ export default function SecureViewPage() {
                         </div>
 
                         <div className={styles.messageContainer} ref={contentRef}>
+                            {messageData?.subject && (
+                                <div className={styles.subjectHeader}>
+                                    <h2 className={styles.actualSubject}>{messageData.subject}</h2>
+                                    <div className={styles.divider} />
+                                </div>
+                            )}
                             <div className={styles.markdownBody}>
                                 {/* Render HTML content properly */}
                                 <div dangerouslySetInnerHTML={{ __html: messageData?.content || '' }} />

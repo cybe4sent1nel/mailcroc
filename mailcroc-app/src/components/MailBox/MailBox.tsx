@@ -327,7 +327,7 @@ const MailBox = () => {
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    const handleExportInbox = (format: 'md' | 'json') => {
+    const handleExportInbox = async (format: 'md' | 'json' | 'pdf') => {
         if (format === 'json') {
             const dataStr = JSON.stringify(messages, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
@@ -339,7 +339,7 @@ const MailBox = () => {
             link.click();
             document.body.removeChild(link);
             addToast("Inbox exported to JSON", "success");
-        } else {
+        } else if (format === 'md') {
             let mdContent = `# Inbox Export - ${new Date().toLocaleString()}\n\n`;
             mdContent += `Total Messages: ${messages.length}\n\n`;
             mdContent += `---\n\n`;
@@ -362,6 +362,60 @@ const MailBox = () => {
             link.click();
             document.body.removeChild(link);
             addToast("Inbox exported to Markdown", "success");
+        } else if (format === 'pdf') {
+            addToast("Generating Inbox PDF...", "info");
+            try {
+                const jsPDF = (await import('jspdf')).default;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+
+                pdf.setFontSize(22);
+                pdf.setTextColor(40, 167, 69); // MailCroc Green
+                pdf.text('MailCroc Inbox Export', 10, 20);
+
+                pdf.setFontSize(10);
+                pdf.setTextColor(100);
+                pdf.text(`Address: ${emailAddress}`, 10, 28);
+                pdf.text(`Date: ${new Date().toLocaleString()}`, 10, 33);
+                pdf.text(`Total Messages: ${messages.length}`, 10, 38);
+                pdf.line(10, 42, pageWidth - 10, 42);
+
+                let yPos = 50;
+                messages.forEach((msg, index) => {
+                    if (yPos > 270) {
+                        pdf.addPage();
+                        yPos = 20;
+                    }
+
+                    pdf.setFontSize(12);
+                    pdf.setTextColor(0);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.text(`${index + 1}. ${msg.subject || '(No Subject)'}`, 10, yPos);
+
+                    yPos += 5;
+                    pdf.setFontSize(9);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setTextColor(80);
+                    pdf.text(`From: ${msg.from} | Received: ${new Date(msg.receivedAt).toLocaleString()}`, 10, yPos);
+
+                    yPos += 7;
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(50);
+                    const splitText = pdf.splitTextToSize(msg.text?.substring(0, 500) || '(No Content)', pageWidth - 20);
+                    pdf.text(splitText, 10, yPos);
+
+                    yPos += (splitText.length * 5) + 12;
+                    pdf.setDrawColor(230);
+                    pdf.line(10, yPos - 5, pageWidth - 10, yPos - 5);
+                    yPos += 5;
+                });
+
+                pdf.save(`inbox_export_${new Date().toISOString().split('T')[0]}.pdf`);
+                addToast("Inbox exported to PDF", "success");
+            } catch (err) {
+                console.error(err);
+                addToast("Failed to export PDF", "error");
+            }
         }
     };
 
@@ -722,6 +776,7 @@ const MailBox = () => {
                         : composeData.subject,
                     body: isPasswordProtected && emailPassword
                         ? `MC-LOCKED:${encrypt(JSON.stringify({
+                            subject: composeData.subject,
                             content: composeData.body,
                             attachments: attachments
                         }), emailPassword)}`
@@ -1372,6 +1427,12 @@ const MailBox = () => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <FileText size={16} className="text-blue-500" />
                                                     <span>Markdown</span>
+                                                </div>
+                                            </div>
+                                            <div className={styles.timeOption} onClick={() => { handleExportInbox('pdf'); setShowExportDropdown(false); }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <FileText size={16} className="text-red-500" />
+                                                    <span>PDF Doc</span>
                                                 </div>
                                             </div>
                                             <div className={styles.timeOption} onClick={() => { handleExportInbox('json'); setShowExportDropdown(false); }}>

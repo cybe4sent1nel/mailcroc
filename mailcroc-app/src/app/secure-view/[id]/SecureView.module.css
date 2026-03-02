@@ -320,3 +320,21 @@
 .attachmentItem:hover .downloadIcon {
     opacity: 1;
 }
+
+.subjectHeader {
+    margin-bottom: 1.5rem;
+}
+
+.actualSubject {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-text-main);
+    margin-bottom: 0.75rem;
+}
+
+.divider {
+    height: 2px;
+    background: var(--color-accent-green);
+    width: 40px;
+    border-radius: 2px;
+}

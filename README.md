@@ -26,9 +26,10 @@ It relies on a serverless architecture, using **Cloudflare Email Workers** to in
 
 ### 🛡️ Privacy & Security
 *   **🔐 Password Protected Emails**: Send encrypted emails to external addresses (Gmail/Outlook) via a secure web portal. Only accessible with your shared code.
+*   **🔒 Instant Session Isolation**: Each session is 100% private. Emails are tied to a unique `sessionId`, ensuring no cross-user visibility.
+*   **🧹 Instant Clean (Auto-Wipe)**: A dedicated toggle that permanently deletes all mail (sent & received) the moment you close the tab or refresh.
+*   **💓 Heartbeat Protection**: Active sessions are protected by a live heartbeat. If you're using an ID, no one else can claim it.
 *   **Zero Logs**: We do not store IP addresses or browser fingerprints.
-*   **Stealth Mode (Email Masking)**: Uses a pool of 100+ domains to bypass "unacceptable email" filters. Connect your own personal Gmail to send anonymous emails.
-*   **Auto-Expiry Sessions**: Instantly expire and wipe your temporary inbox when you're done.
 
 ### 🤖 AI-Powered Intelligence
 *   **Help me write (Smart Compose)**: Generate professional replies or new emails instantly using our integrated AI engine (Powered by OpenRouter & Puter.js).
@@ -38,6 +39,7 @@ It relies on a serverless architecture, using **Cloudflare Email Workers** to in
 
 ### ⚡ Real-Time Experience
 *   **Instant Delivery**: Emails appear in your inbox milliseconds after they are received via Socket.IO.
+*   **✨ Lottie Notifications**: Beautiful, real-time animations and "Correct Answer" sounds alert you the moment a new mail arrives.
 *   **Live UI Updates**: The interface updates instantly. No more hitting the refresh button.
 
 ### 📧 Advanced Email Capabilities

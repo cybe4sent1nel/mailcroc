@@ -82,10 +82,20 @@ graph TD
 
 ### **B. Stealth Mode: Hide Subject**
 - **The Tech**: Interceptor logic in the `handleSend` API.
-- **The Logic**: If enabled, the system replaces your actual subject line with a randomly selected **Witty Alternative** from our `WITTY_SUBJECTS` library.
+- **The Logic**: If enabled, the system replaces your actual subject line with a randomly selected **Witty Alternative** from our `WITY_SUBJECTS` library.
 - **The Benefits**: **Metadata Privacy**. Snoopers looking at your email logs will only see "Checking in from the digital void" instead of the sensitive topic you are actually discussing.
 
-### **C. Secure Message Portal (E2EE)**
+### **C. Session Metadata: Instant Clean & Auto-Wipe**
+- **The Tech**: `navigator.sendBeacon`, `ownerSessionId` property.
+- **The Logic**: When "Instant Clean" is toggled, the browser sends a fire-and-forget **Wipe Request** to the backend the second the user leaves the tab or refreshes (via the `beforeunload` event).
+- **The Benefits**: **Clean Trace**. This ensures that your private data is purged immediately after use, making "temporary" truly temporary even on server-side storage.
+
+### **D. Heartbeat Protection: Identity Lock**
+- **The Tech**: Custom API `/api/addresses/heartbeat` with 60s intervals.
+- **The Logic**: The app pings the server to update a `lastActive` timestamp on the claimed address. If another user tries to set the same custom ID within 5 minutes of an active heartbeat, they are blocked.
+- **The Benefits**: **Exclusive Ownership**. No two users can ever accidentally collide or intercept mail from a shared custom handle simultaneously.
+
+### **E. Secure Message Portal (E2EE)**
 - **The Tech**: **Web Crypto API** & **Base64 Sanitization**.
 - **The Logic**: The frontend encrypts your message using a password-derived key. The encrypted blob is stored with an `MC-LOCKED:` prefix. Decryption happens **only** in the recipient's browser.
 - **The Benefits**: **Total Confidentiality**. Even MailCroc administrators cannot read your secure messages, as we never hold the unlock key.

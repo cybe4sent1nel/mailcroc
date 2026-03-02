@@ -596,6 +596,15 @@ const MailBox = () => {
             socket.on('connect', () => {
                 console.log("🟢 Socket Connected!");
                 setIsConnected(true);
+                // Re-join rooms on connect/reconnect
+                if (emailAddress) {
+                    console.log(`📨 Re-joining Email Room: ${emailAddress}`);
+                    socket?.emit('join', emailAddress);
+                }
+                if (sessionId) {
+                    console.log(`🆔 Re-joining Session Room: ${sessionId}`);
+                    socket?.emit('join', sessionId);
+                }
             });
             socket.on('disconnect', () => {
                 console.log("🔴 Socket Disconnected");
@@ -607,13 +616,11 @@ const MailBox = () => {
         }
 
         if (socket) {
-            if (emailAddress) {
-                console.log(`📨 Joining Email Room: ${emailAddress}`);
-                socket.emit('join', emailAddress);
-            }
-            if (sessionId) {
-                console.log(`🆔 Joining Session Room: ${sessionId}`);
-                socket.emit('join', sessionId);
+            // Room joins are handled in the 'connect' event listener for reliability
+            // but we also trigger them here for the initial mount/address change
+            if (socket.connected) {
+                if (emailAddress) socket.emit('join', emailAddress);
+                if (sessionId) socket.emit('join', sessionId);
             }
 
             const handleNewEmail = (newMsg: any) => {
@@ -636,7 +643,10 @@ const MailBox = () => {
                     try {
                         const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
                         audio.volume = 0.8;
-                        audio.play().catch(e => console.warn("Audio play blocked:", e.message));
+                        const playPromise = audio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(e => console.warn("Audio play blocked (user interaction required):", e.message));
+                        }
                     } catch (err) { }
 
                     // Gmail Verification Auto-Capture
@@ -893,7 +903,15 @@ const MailBox = () => {
                 setComposeData(prev => ({ ...prev, body: plainTextDraft }));
                 setShowDockedCompose(true);
                 addToast("Draft generated!", "success");
+            } else if (action === 'summarize_selected') {
+                // Individual summary: show in-mail only
+                if (selectedMessage) {
+                    setSelectedMessage({ ...selectedMessage, summary: cleanedText });
+                    setSummary(null); // Clear global summary to prioritize message summary
+                }
+                addToast("Summary generated", "success");
             } else {
+                // Bulk summary: show modal
                 setSummary(cleanedText);
                 setShowSummaryModal(true);
                 addToast("Analysis complete", "success");
@@ -1640,7 +1658,12 @@ const MailBox = () => {
                                                         <AILogo size={14} color="#84cc16" />
                                                         <span>AI Summary</span>
                                                     </div>
-                                                    <button onClick={() => { setSummary(null); if (selectedMessage) selectedMessage.summary = undefined; }} className={styles.closeSummary}>×</button>
+                                                    <button onClick={() => {
+                                                        setSummary(null);
+                                                        if (selectedMessage) {
+                                                            setSelectedMessage({ ...selectedMessage, summary: undefined });
+                                                        }
+                                                    }} className={styles.closeSummary}>×</button>
                                                 </div>
                                                 <div className={styles.summaryContent}>
                                                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>

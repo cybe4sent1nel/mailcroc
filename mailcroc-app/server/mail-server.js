@@ -111,6 +111,12 @@ const httpServer = createServer((req, res) => {
                     }
                 });
 
+                // ALSO EMIT TO SESSION ID IF PRESENT (Temp User ID)
+                if (data.ownerSessionId) {
+                    console.log(`[API] Notifying Session Room: ${data.ownerSessionId}`);
+                    io.to(data.ownerSessionId).emit("new_email", data);
+                }
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
             } catch (err) {

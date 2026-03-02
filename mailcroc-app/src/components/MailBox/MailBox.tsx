@@ -580,31 +580,63 @@ const MailBox = () => {
     // --- Socket Logic ---
     useEffect(() => {
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
-        if (!socketUrl) return;
-        if (!socket) {
-            socket = io(socketUrl);
-            socket.on('connect', () => setIsConnected(true));
-            socket.on('disconnect', () => setIsConnected(false));
+        if (!socketUrl) {
+            console.warn("Socket URL not configured");
+            return;
         }
-        if (emailAddress && socket) {
-            socket.emit('join', emailAddress);
+
+        if (!socket) {
+            console.log(`📡 Connecting to Socket Server: ${socketUrl}`);
+            socket = io(socketUrl, {
+                reconnection: true,
+                reconnectionDelay: 1000,
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                console.log("🟢 Socket Connected!");
+                setIsConnected(true);
+            });
+            socket.on('disconnect', () => {
+                console.log("🔴 Socket Disconnected");
+                setIsConnected(false);
+            });
+            socket.on('connect_error', (err) => {
+                console.error("⚠️ Socket Connection Error:", err.message);
+            });
+        }
+
+        if (socket) {
+            if (emailAddress) {
+                console.log(`📨 Joining Email Room: ${emailAddress}`);
+                socket.emit('join', emailAddress);
+            }
+            if (sessionId) {
+                console.log(`🆔 Joining Session Room: ${sessionId}`);
+                socket.emit('join', sessionId);
+            }
+
             const handleNewEmail = (newMsg: any) => {
-                // strict filter: ensure message is for this address
-                const toAddresses = Array.isArray(newMsg.to) ? newMsg.to : [newMsg.to];
-                if (!toAddresses.some((addr: string) => addr.toLowerCase() === emailAddress.toLowerCase())) return;
+                console.log("✨ New Email Received via Socket!", newMsg);
+
+                // If message has an ownerSessionId, it MUST be for us
+                if (newMsg.ownerSessionId && newMsg.ownerSessionId !== sessionId) {
+                    console.log("⏭️ Skipping email for different session");
+                    return;
+                }
 
                 setMessages(prev => {
                     if (prev.some(m => m._id === newMsg._id)) return prev;
 
-                    // Show received animation
+                    // SHOW RECEIVED ANIMATION & SOUND
                     setShowReceivedAnim(true);
-                    setTimeout(() => setShowReceivedAnim(false), 4000);
+                    setTimeout(() => setShowReceivedAnim(false), 5000);
 
-                    // Play notification sound on new email
+                    // Play Notification Sound
                     try {
                         const audio = new Audio('/mixkit-correct-answer-tone-2870.wav');
                         audio.volume = 0.8;
-                        audio.play().catch(e => console.warn("Audio play blocked:", e));
+                        audio.play().catch(e => console.warn("Audio play blocked:", e.message));
                     } catch (err) { }
 
                     // Gmail Verification Auto-Capture
@@ -612,27 +644,28 @@ const MailBox = () => {
                     const lowerSub = (newMsg.subject || "").toLowerCase();
                     if (lowerFrom.includes('google.com') && lowerSub.includes('gmail confirmation')) {
                         const bodyText = (newMsg.text || newMsg.html || "");
-                        // Regex for Gmail confirmation code (usually 9 digits)
                         const codeMatch = bodyText.match(/Confirmation code:?\s*([0-9A-Z]{5,15})/i);
-                        const aliasMatch = bodyText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-
                         if (codeMatch) {
                             setVerificationCode(codeMatch[1]);
-                            if (aliasMatch) setVerificationAlias(aliasMatch[1]);
                             setShowVerificationModal(true);
                             addToast("Gmail Confirmation Captured! 🥒✨", "success");
                         }
                     }
 
-                    // Auto-analyze new message
                     const isThreat = lowerSub.includes('verify') || lowerSub.includes('urgent');
                     return [{ ...newMsg, isThreat, category: 'primary' }, ...prev];
                 });
             };
+
             socket.on('new_email', handleNewEmail);
-            return () => { socket?.off('new_email', handleNewEmail); socket?.emit('leave', emailAddress); };
+            return () => {
+                console.log(`👋 Leaving Rooms: ${emailAddress} & ${sessionId}`);
+                socket?.off('new_email', handleNewEmail);
+                if (emailAddress) socket?.emit('leave', emailAddress);
+                if (sessionId) socket?.emit('leave', sessionId);
+            };
         }
-    }, [emailAddress]);
+    }, [emailAddress, sessionId]);
 
 
 
@@ -822,12 +855,16 @@ const MailBox = () => {
 
             let text = "";
 
-            // Primary: Backend API (OpenRouter/ElevenLabs)
+            // Primary: Backend AI (OpenRouter)
             try {
                 const res = await fetch('/api/ai/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ topic: prompt, tone: 'Professional' })
+                    body: JSON.stringify({
+                        topic: prompt,
+                        tone: 'Professional',
+                        action: (action === 'summarize' || action === 'summarize_selected') ? 'summarize' : 'write'
+                    })
                 });
 
                 if (res.ok) {
@@ -1349,7 +1386,10 @@ const MailBox = () => {
                                 <h2 className={styles.currentEmail} title={emailAddress}>{emailAddress}</h2>
                                 <button className={styles.copyBtn} onClick={copyToClipboard}><Copy size={18} /></button>
                                 <button className={styles.copyBtn} onClick={() => setShowQR(true)} title="Show QR"><QrCode size={18} /></button>
-                                <span className={styles.statusDot} title="Active" />
+                                <span
+                                    className={isConnected ? styles.statusDot : styles.statusDotDisconnected}
+                                    title={isConnected ? "Real-time updates active 🟢" : "Real-time updates disconnected 🔴"}
+                                />
                             </div>
 
                             <div className={styles.headerControls}>
@@ -1593,17 +1633,19 @@ const MailBox = () => {
                                         </div>
 
                                         {/* IN-MAIL AI SUMMARY */}
-                                        {summary && selectedMessage && (activeFolder !== 'sent') && (
+                                        {(summary || selectedMessage.summary) && selectedMessage && (activeFolder !== 'sent') && (
                                             <div className={styles.inMailSummary}>
                                                 <div className={styles.summaryHeader}>
                                                     <div className={styles.summaryTitle}>
                                                         <AILogo size={14} color="#84cc16" />
                                                         <span>AI Summary</span>
                                                     </div>
-                                                    <button onClick={() => setSummary(null)} className={styles.closeSummary}>×</button>
+                                                    <button onClick={() => { setSummary(null); if (selectedMessage) selectedMessage.summary = undefined; }} className={styles.closeSummary}>×</button>
                                                 </div>
                                                 <div className={styles.summaryContent}>
-                                                    {summary}
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                                                        {summary || selectedMessage.summary || ''}
+                                                    </ReactMarkdown>
                                                 </div>
                                             </div>
                                         )}

@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
             category: analysis.category,
             isThreat: analysis.isThreat,
             summary: analysis.summary,
+            ownerSessionId: body.ownerSessionId || undefined // Allow override from request
         });
 
         console.log(`Webhook: saved email from ${body.from} to ${body.to}`);
@@ -67,7 +68,8 @@ export async function POST(req: NextRequest) {
                     pinned: savedEmail.pinned,
                     category: savedEmail.category,
                     isThreat: savedEmail.isThreat,
-                    summary: savedEmail.summary
+                    summary: savedEmail.summary,
+                    ownerSessionId: savedEmail.ownerSessionId
                 }),
             }).catch(e => console.error('Failed to notify socket server:', e.message));
         } catch (err) {

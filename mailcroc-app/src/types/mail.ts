@@ -19,6 +19,7 @@ export interface EmailMessage {
     category?: 'social' | 'updates' | 'promotions' | 'primary';
     isThreat?: boolean;
     aiAnalysis?: string;
+    summary?: string;
     speechAudio?: string;
     attachments?: Attachment[];
 }

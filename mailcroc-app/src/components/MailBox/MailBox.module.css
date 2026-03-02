@@ -650,6 +650,16 @@
     background: #22c55e;
     border-radius: 50%;
     box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+    transition: all 0.3s ease;
+}
+
+.statusDotDisconnected {
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+    transition: all 0.3s ease;
 }
 
 .headerControls {

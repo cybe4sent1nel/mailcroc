@@ -86,7 +86,7 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
         isThreat: email.isThreat || false,
         summary: email.summary || '',
         attachments: email.attachments || [],
-        ownerSessionId: currentOwner?.sessionId || null,
+        ownerSessionId: email.ownerSessionId || currentOwner?.sessionId || null,
     };
 
     const content = Buffer.from(JSON.stringify(emailData, null, 2)).toString('base64');

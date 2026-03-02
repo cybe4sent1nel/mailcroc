@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateApiKey, unauthorizedResponse } from '@/lib/apiAuth';
 import { findEmailById } from '@/lib/github-db';
 
-export const runtime = 'edge';
+// Standard Node.js runtime preferred to avoid Edge region outages (dxb1)
+// export const runtime = 'edge';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     if (!validateApiKey(req)) return unauthorizedResponse();

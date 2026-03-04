@@ -1531,7 +1531,7 @@ const MailBox = () => {
                                     placeholder="Enter username"
                                     value={customInput}
                                     onChange={e => setCustomInput(e.target.value)}
-                                    maxLength={25}
+                                    maxLength={60}
                                 />
                                 <span className={styles.domainSuffix}>@</span>
                                 <select

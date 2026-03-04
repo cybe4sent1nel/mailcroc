@@ -73,6 +73,10 @@ export async function POST(req: NextRequest) {
             relayAddress = 'relay@mailcroc.qzz.io';
         } else if (domain === 'mailpanda.qzz.io') {
             relayAddress = 'relay@mailpanda.qzz.io';
+        } else if (domain === 'gmail.com' || domain === 'googlemail.com') {
+            // Gmail API overwrites From headers completely if they don't exactly match the authenticated user.
+            // By supplying the root address, Gmail allows our custom 'Display Name' ("temp@alias.com") to pass through!
+            relayAddress = 'wecare.woven@gmail.com';
         }
 
         // Customized From Header: "temp@domain" <relay@domain>

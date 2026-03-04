@@ -459,6 +459,8 @@ const MailBox = () => {
         const reservedAddresses = [
             'relay@mailcroc.qzz.io',
             'relay@mailpanda.qzz.io',
+            'inbox@mailcroc.qzz.io',
+            'inbox@mailpanda.qzz.io',
             'wecare.woven@gmail.com',
             'wecare.woven@googlemail.com'
         ];
@@ -557,6 +559,11 @@ const MailBox = () => {
         if (!emailAddress || !sessionId) return;
         setIsRefreshing(true);
         try {
+            // 🔄 If this is a Gmail alias, silently trigger the Inbox Sync Poller concurrently
+            if (emailAddress.includes('@gmail.com') || emailAddress.includes('@googlemail.com')) {
+                fetch('/api/cron/gmail-sync').catch(e => console.warn('Gmail Sync failed:', e));
+            }
+
             const res = await fetch(`/api/emails?address=${encodeURIComponent(emailAddress)}&sessionId=${sessionId}`, { headers: { 'x-api-key': 'public_beta_key_v1' } });
             if (res.ok) {
                 const data = await res.json();

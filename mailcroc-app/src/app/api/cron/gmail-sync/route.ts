@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { saveEmail, getReplyRoute, getAddressOwner } from '@/lib/github-db';
+import { saveEmail, getReplyRoute, getAddressOwner, getEmailsByAddress } from '@/lib/github-db';
 import { analyzeEmail } from '@/lib/ai';
 import { analyzeThreatsAndCleanHTML } from '@/lib/security';
 
@@ -26,8 +26,8 @@ async function getGmailAccessToken() {
     }
 }
 
-function getHeader(headers: { name: string, value: string }[], name: string) {
-    const header = headers.find((h) => h.name.toLowerCase() === name.toLowerCase());
+function getHeader(hdrs: { name: string, value: string }[], name: string) {
+    const header = hdrs.find((h) => h.name.toLowerCase() === name.toLowerCase());
     return header ? header.value : '';
 }
 
@@ -77,8 +77,10 @@ function normalizeEmail(email: string): string {
 
 /**
  * GET /api/cron/gmail-sync
- * Polls the authorized Gmail Inbox for UNREAD emails sent to `wecare.woven+*@gmail.com` or `@googlemail.com`.
- * Downloads them into the MailCroc ecosystem with proper session isolation.
+ *
+ * Polls the authorized Gmail Inbox for recent emails sent to wecare.woven+*@gmail.com
+ * Uses messageId-based deduplication so we never import the same email twice,
+ * even if the UNREAD label was already removed by a previous sync run.
  */
 export async function GET() {
     try {
@@ -87,44 +89,77 @@ export async function GET() {
             return NextResponse.json({ error: 'Failed to authenticate with Gmail API' }, { status: 500 });
         }
 
-        // Search for ALL unread emails — Gmail automatically delivers +alias emails to the base inbox.
-        // We catch them all here and route them to the correct alias folder in our system.
-        const query = 'is:unread';
-        const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
+        // Fetch recent inbox messages (not just unread — we use messageId dedup instead)
+        // This catches emails even if a previous sync run marked them read but failed to save them
+        const query = 'in:inbox newer_than:1d';
+        const listRes = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=25`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
         const listData = await listRes.json();
         const messages = listData.messages || [];
 
-        const syncedEmails = [];
+        const syncedEmails: string[] = [];
+        const skipped: string[] = [];
 
         for (const msg of messages) {
-            const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`, {
-                headers: { Authorization: `Bearer ${accessToken}` }
-            });
+            const msgRes = await fetch(
+                `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
             const msgData = await msgRes.json();
 
             const hdrs = msgData.payload.headers;
             const rawFrom = getHeader(hdrs, 'From');
             const rawTo = getHeader(hdrs, 'To');
             const rawDeliveredTo = getHeader(hdrs, 'Delivered-To');
-            const rawXOrigTo = getHeader(hdrs, 'X-Original-To');
             const subject = getHeader(hdrs, 'Subject') || '(No Subject)';
             const messageId = getHeader(hdrs, 'Message-ID') || msg.id;
 
-            // Clean & normalize the addresses
+            // Skip SENT messages (no need to import our own outbound mails)
+            const labels = msgData.labelIds || [];
+            if (labels.includes('SENT') && !labels.includes('INBOX')) {
+                continue;
+            }
+
             const from = normalizeEmail(extractEmailStr(rawFrom));
 
-            // Determine the actual alias recipient.
-            // Priority: X-Original-To > Delivered-To > To header
-            // This ensures we capture the actual +alias address, not just the base address after forwarding.
-            let toAddress = normalizeEmail(extractEmailStr(rawXOrigTo || rawDeliveredTo || rawTo));
+            // Determine the actual alias recipient
+            // Priority: Delivered-To > To (Gmail doesn't use X-Original-To)
+            // The To header shows what the sender typed (might be @googlemail.com)
+            // Delivered-To shows what Gmail resolved it to (always @gmail.com)
+            const rawToAddr = extractEmailStr(rawTo);
+            const deliveredTo = rawDeliveredTo ? extractEmailStr(rawDeliveredTo) : '';
 
-            // Check reply routes — if the sender was previously sent a mail from a temp address, reroute
+            // Use the To header as the primary alias (what the sender typed)
+            // But normalize it for consistent storage
+            let toAddress = normalizeEmail(rawToAddr);
+
+            // If the email is not addressed to our alias domain, skip it
+            const gmailUsername = (process.env.NEXT_PUBLIC_GMAIL_USERNAME || 'wecare.woven@gmail.com')
+                .split('@')[0].toLowerCase();
+            if (!toAddress.startsWith(gmailUsername + '+') && toAddress !== gmailUsername + '@gmail.com') {
+                // Check Delivered-To as well
+                const deliveredNorm = normalizeEmail(deliveredTo);
+                if (!deliveredNorm.startsWith(gmailUsername + '+')) {
+                    continue; // Not addressed to our alias system
+                }
+                toAddress = deliveredNorm;
+            }
+
+            // Check reply routes
             const routeDest = await getReplyRoute(from);
             if (routeDest) {
                 console.log(`[Gmail Sync] Reply route matched: ${from} → ${routeDest}`);
                 toAddress = normalizeEmail(routeDest);
+            }
+
+            // --- DEDUPLICATION: Check if this messageId already exists in our DB ---
+            const existingEmails = await getEmailsByAddress(toAddress);
+            const alreadyExists = existingEmails.some(e => e.messageId === messageId);
+            if (alreadyExists) {
+                skipped.push(toAddress);
+                continue; // Already imported
             }
 
             const bodyParts = getBodyData(msgData.payload);
@@ -138,10 +173,9 @@ export async function GET() {
             const finalIsThreat = analysis.isThreat || security.isThreat;
             const finalThreatReason = security.threatReason || analysis.threatReason;
 
-            // --- SESSION ISOLATION ---
-            // Look up who owns this alias address to attach the correct ownerSessionId
+            // Session isolation: look up who owns this alias address
             const addressOwner = await getAddressOwner(toAddress);
-            const ownerSessionId = addressOwner?.sessionId || null;
+            const ownerSessionId = addressOwner?.sessionId || undefined;
 
             // Save to DB under the specific alias address with session ownership
             const savedEmail = await saveEmail({
@@ -156,12 +190,12 @@ export async function GET() {
                 threatReason: finalThreatReason,
                 blockedTrackers: security.blockedTrackers,
                 summary: analysis.summary,
-                ownerSessionId: ownerSessionId || undefined
+                ownerSessionId: ownerSessionId
             });
 
             console.log(`[Gmail Sync] Saved email from ${from} → ${toAddress} (session: ${ownerSessionId || 'none'})`);
 
-            // Notify Socket.IO Server for real-time push with ownerSessionId
+            // Notify Socket.IO Server for real-time push
             try {
                 const socketServerUrl = process.env.SOCKET_SERVER_URL || process.env.NEXT_PUBLIC_SOCKET_URL || 'http://127.0.0.1:3001';
                 await fetch(`${socketServerUrl}/notify`, {
@@ -179,29 +213,32 @@ export async function GET() {
                         threatReason: savedEmail.threatReason,
                         blockedTrackers: savedEmail.blockedTrackers,
                         summary: savedEmail.summary,
-                        ownerSessionId: ownerSessionId  // Session-targeted notification
+                        ownerSessionId: ownerSessionId
                     })
                 });
             } catch (notifyErr) {
                 console.error('Socket notification failed:', notifyErr);
             }
 
-            // Mark message as READ in Gmail so we don't fetch it again
+            // Mark message as READ in Gmail
             await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}/modify`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    removeLabelIds: ['UNREAD']
-                })
+                body: JSON.stringify({ removeLabelIds: ['UNREAD'] })
             });
 
             syncedEmails.push(toAddress);
         }
 
-        return NextResponse.json({ success: true, count: syncedEmails.length, targets: syncedEmails });
+        return NextResponse.json({
+            success: true,
+            synced: syncedEmails.length,
+            skipped: skipped.length,
+            targets: syncedEmails
+        });
     } catch (e) {
         console.error('Gmail Sync error:', e);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

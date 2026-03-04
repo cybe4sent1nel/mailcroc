@@ -933,10 +933,10 @@ const MailBox = () => {
                 setShowDockedCompose(true);
                 addToast("Draft generated!", "success");
             } else if (action === 'summarize_selected') {
-                // Individual summary: show in-mail only
+                // Individual summary: show the detailed modal view instead of inline
                 if (selectedMessage) {
-                    setSelectedMessage({ ...selectedMessage, summary: cleanedText });
-                    setSummary(null); // Clear global summary to prioritize message summary
+                    setSummary(cleanedText);
+                    setShowSummaryModal(true);
                 }
                 addToast("Summary generated", "success");
             } else {

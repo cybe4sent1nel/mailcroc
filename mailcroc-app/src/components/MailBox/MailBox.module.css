@@ -3603,3 +3603,19 @@
 div:hover>.attachmentPreview {
     display: block !important;
 }
+
+/* ============================================ */
+/*  EMAIL REPLY THREAD FORMATTING               */
+/* ============================================ */
+.msgBody .gmail_quote,
+.msgBody blockquote {
+    border-left: 2px solid #e2e8f0;
+    margin: 1.5rem 0 0 0;
+    padding: 0.5rem 0 0.5rem 1rem;
+    color: #64748b;
+}
+
+.msgBody .gmail_quote *,
+.msgBody blockquote * {
+    color: #64748b !important;
+}

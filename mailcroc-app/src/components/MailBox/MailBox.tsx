@@ -915,7 +915,7 @@ const MailBox = () => {
         const originalContent = selectedMessage.html || selectedMessage.text || "";
         const quotedContent = `<br><br><div style="border-left: 2px solid #e2e8f0; padding-left: 1rem; color: #64748b; margin-top: 2rem;">
             <p style="margin: 0.25rem 0;"><strong>From:</strong> ${selectedMessage.from}</p>
-            <p style="margin: 0.25rem 0;"><strong>Date:</strong> ${new Date(selectedMessage.receivedAt).toLocaleString()}</p>
+            <p style="margin: 0.25rem 0;"><strong>Date:</strong> ${new Date(selectedMessage.receivedAt).toLocaleString([], { hour12: true })}</p>
             <p style="margin: 0.25rem 0;"><strong>Subject:</strong> ${selectedMessage.subject}</p>
             <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 1rem 0;">
             ${originalContent}
@@ -1323,7 +1323,7 @@ const MailBox = () => {
         setComposeData({
             to: '',
             subject: `Fwd: ${selectedMessage.subject}`,
-            body: `\n\n---------- Forwarded message ---------\nFrom: ${selectedMessage.from}\nDate: ${new Date(selectedMessage.receivedAt).toLocaleString()}\nSubject: ${selectedMessage.subject}\n\n${selectedMessage.text || ''}`
+            body: `\n\n---------- Forwarded message ---------\nFrom: ${selectedMessage.from}\nDate: ${new Date(selectedMessage.receivedAt).toLocaleString([], { hour12: true })}\nSubject: ${selectedMessage.subject}\n\n${selectedMessage.text || ''}`
         });
         setShowDockedCompose(true);
     };
@@ -1764,7 +1764,7 @@ const MailBox = () => {
                                                     <button onClick={(e) => handlePinMessage(e, msg)} className={`${styles.iconBtnSmall} ${msg.pinned ? 'text-yellow-500' : 'text-gray-400'}`} title={msg.pinned ? "Unpin" : "Pin"}><Star size={14} fill={msg.pinned ? "currentColor" : "none"} /></button>
                                                     <button onClick={(e) => handleDeleteMessage(e, msg)} className={styles.iconBtnSmall} title="Delete"><Trash2 size={14} /></button>
                                                 </div>
-                                                <span className={styles.msgDate}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className={styles.msgDate}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                                             </div>
                                             <div className={styles.msgSubjectRow}>
                                                 {msg.isThreat && <ShieldAlert size={14} className="text-red-500 mr-1" />}
@@ -1894,7 +1894,7 @@ const MailBox = () => {
                                         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '1rem 0' }}>{selectedMessage.subject}</h2>
                                         <div className={styles.meta}>
                                             <span>From: <strong>{selectedMessage.from}</strong></span>
-                                            <span>{new Date(selectedMessage.receivedAt).toLocaleString()}</span>
+                                            <span>{new Date(selectedMessage.receivedAt).toLocaleString([], { hour12: true })}</span>
                                         </div>
 
                                         {/* IN-MAIL AI SUMMARY */}
@@ -2144,7 +2144,7 @@ const MailBox = () => {
                                                                                 maxWidth: '280px', maxHeight: '200px', overflow: 'hidden',
                                                                             }}>
                                                                                 <img
-                                                                                    src={att.content.startsWith('data:') ? att.content : `data:${att.type};base64,${att.content}`}
+                                                                                    src={att.content.startsWith('data:') ? att.content : `data:${att.type};base64,${att.content.replace(/\\s+/g, '').replace(/-/g, '+').replace(/_/g, '/')}`}
                                                                                     alt={att.name}
                                                                                     style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }}
                                                                                 />

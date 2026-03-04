@@ -63,6 +63,59 @@ function getBodyData(payload: { body?: { data?: string }, mimeType?: string, par
     return { text, html };
 }
 
+// Extract attachments from Gmail API payload
+interface GmailPart {
+    partId?: string;
+    mimeType?: string;
+    filename?: string;
+    body?: { data?: string; attachmentId?: string; size?: number };
+    headers?: { name: string; value: string }[];
+    parts?: GmailPart[];
+}
+
+async function getAttachments(payload: GmailPart, messageId: string, accessToken: string): Promise<{ name: string; type: string; size: number; content: string }[]> {
+    const attachments: { name: string; type: string; size: number; content: string }[] = [];
+
+    async function walkParts(parts: GmailPart[]) {
+        for (const part of parts) {
+            // Attachment parts have a filename and attachmentId
+            if (part.filename && part.filename.length > 0 && part.body?.attachmentId) {
+                try {
+                    const attRes = await fetch(
+                        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${part.body.attachmentId}`,
+                        { headers: { Authorization: `Bearer ${accessToken}` } }
+                    );
+                    if (attRes.ok) {
+                        const attData = await attRes.json();
+                        // Gmail returns URL-safe base64 — convert to standard base64
+                        const base64Content = (attData.data || '')
+                            .replace(/-/g, '+')
+                            .replace(/_/g, '/');
+                        attachments.push({
+                            name: part.filename,
+                            type: part.mimeType || 'application/octet-stream',
+                            size: attData.size || part.body.size || 0,
+                            content: base64Content,
+                        });
+                    }
+                } catch (err) {
+                    console.error(`[Gmail Sync] Failed to fetch attachment ${part.filename}:`, err);
+                }
+            }
+            // Recurse into nested parts (multipart/* types)
+            if (part.parts) {
+                await walkParts(part.parts);
+            }
+        }
+    }
+
+    if (payload.parts) {
+        await walkParts(payload.parts);
+    }
+
+    return attachments;
+}
+
 function extractEmailStr(str: string) {
     const match = str.match(/<(.+)>/);
     return (match ? match[1] : str).trim().toLowerCase();
@@ -166,6 +219,9 @@ export async function GET() {
             const textContent = bodyParts.text || '';
             const htmlContent = bodyParts.html || textContent;
 
+            // Extract attachments from Gmail API
+            const gmailAttachments = await getAttachments(msgData.payload, msg.id, accessToken);
+
             // Run AI Analysis (OpenRouter primary)
             const analysis = await analyzeEmail(subject, textContent);
             const security = await analyzeThreatsAndCleanHTML(from, subject, htmlContent);
@@ -190,6 +246,7 @@ export async function GET() {
                 threatReason: finalThreatReason,
                 blockedTrackers: security.blockedTrackers,
                 summary: analysis.summary,
+                attachments: gmailAttachments,
                 ownerSessionId: ownerSessionId
             });
 

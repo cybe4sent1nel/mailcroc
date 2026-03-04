@@ -119,8 +119,26 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // --- SENDER ADDRESS FIX: Extract real From header if forwarded ---
+        let incomingFrom = body.from || 'unknown';
+        if (incomingFrom.includes('+caf_=')) {
+            if (body.headers) {
+                let foundFrom = null;
+                if (Array.isArray(body.headers)) {
+                    const fromObj = body.headers.find((h: any) => h.name?.toLowerCase() === 'from');
+                    if (fromObj) foundFrom = fromObj.value;
+                } else if (typeof body.headers === 'string') {
+                    const fMatch = body.headers.match(/^From:\s*(.+)$/im);
+                    if (fMatch) foundFrom = fMatch[1].trim();
+                } else if (typeof body.headers === 'object') {
+                    foundFrom = (body.headers as any).from || (body.headers as any).From;
+                }
+                if (foundFrom) incomingFrom = foundFrom;
+            }
+        }
+
         // --- REPLY ROUTING INTERCEPTION ---
-        const originalFrom = extractEmail(body.from || '');
+        const originalFrom = extractEmail(incomingFrom);
         const routeDest = await getReplyRoute(originalFrom);
         if (routeDest) {
             console.log(`[ROUTE MATCH] Intercepted reply from ${originalFrom}. Re-routing to ${routeDest}`);
@@ -171,11 +189,12 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Enrich attachments with scan results
+        // Enrich attachments with scan results — PRESERVE content (base64 data) for frontend rendering
         const enrichedAttachments = incomingAttachments.map((att: { name?: string; type?: string; size?: number; content?: string; data?: string }) => ({
             name: att.name || 'attachment',
             type: att.type || 'application/octet-stream',
             size: att.size || 0,
+            content: att.content || att.data || '', // Critical: preserve the base64-encoded file data
             scanResult: attachmentScanResults[att.name || 'unknown'] || { verdict: 'unknown', details: 'Not scanned' },
         }));
 
@@ -183,7 +202,7 @@ export async function POST(req: NextRequest) {
         const finalThreatReason = security.threatReason || analysis.threatReason;
 
         const savedEmail = await saveEmail({
-            from: body.from || 'unknown',
+            from: incomingFrom,
             to: cleanedTo,
             subject: body.subject || '(No Subject)',
             text: body.text || '',

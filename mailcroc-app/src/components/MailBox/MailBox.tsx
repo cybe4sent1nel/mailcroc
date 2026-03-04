@@ -1392,7 +1392,14 @@ const MailBox = () => {
         return msg.folder === targetFolder;
     });
 
-    const getInitials = (s: string) => s ? s.slice(0, 2).toUpperCase() : '??';
+    const getInitials = (s: string) => {
+        const str = s ? s.replace(/<[^>]+>/g, '').trim() : '';
+        return str ? str.slice(0, 2).toUpperCase() : '??';
+    };
+    const extractEmailAddress = (s: string) => {
+        const match = (s || '').match(/<(.+)>/);
+        return match ? match[1].trim().toLowerCase() : (s || '').trim().toLowerCase();
+    };
     const getAvatarColor = (s: string) => {
         const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1'];
         return colors[(s || '').length % colors.length];
@@ -1739,7 +1746,17 @@ const MailBox = () => {
                             ) : (
                                 filteredMessages.map(msg => (
                                     <div key={msg._id} className={`${styles.messageItem} ${selectedMessage?._id === msg._id ? styles.active : ''} ${!msg.read ? styles.unread : ''}`} onClick={() => setSelectedMessage(msg)}>
-                                        <div className={styles.avatar} style={{ backgroundColor: getAvatarColor(msg.from) }}>{getInitials(msg.from)}</div>
+                                        <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+                                            <img
+                                                src={`https://unavatar.io/${extractEmailAddress(msg.from)}?fallback=false`}
+                                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                alt={getInitials(msg.from)}
+                                            />
+                                            <div className={styles.avatar} style={{ backgroundColor: getAvatarColor(msg.from), position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, margin: 0 }}>
+                                                {getInitials(msg.from)}
+                                            </div>
+                                        </div>
                                         <div className={styles.msgContent}>
                                             <div className={styles.msgHeaderRow}>
                                                 <span className={styles.msgSender}>{activeFolder === 'sent' ? `To: ${msg.to}` : msg.from}</span>
@@ -2147,8 +2164,14 @@ const MailBox = () => {
                                     {/* Inline Reply - Now triggers Modal */}
                                     <div className={styles.inlineReplyBox}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                                            <div className={styles.replyAvatar}>
-                                                <User size={18} />
+                                            <div className={styles.replyAvatar} style={{ overflow: 'hidden', position: 'relative' }}>
+                                                <img
+                                                    src={`https://unavatar.io/${extractEmailAddress(selectedMessage.from)}?fallback=false`}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                    alt="Avatar"
+                                                />
+                                                <User size={18} style={{ position: 'relative', zIndex: 1 }} />
                                             </div>
                                             <div
                                                 className={styles.replyPlaceholderTrigger}

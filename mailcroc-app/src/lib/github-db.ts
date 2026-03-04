@@ -84,6 +84,8 @@ export async function saveEmail(email: Omit<IEmail, 'receivedAt' | 'pinned'> & {
         folder: email.folder || 'inbox',
         category: email.category || 'primary',
         isThreat: email.isThreat || false,
+        threatReason: email.threatReason || undefined,
+        blockedTrackers: email.blockedTrackers || [],
         summary: email.summary || '',
         attachments: email.attachments || [],
         ownerSessionId: email.ownerSessionId || currentOwner?.sessionId || null,

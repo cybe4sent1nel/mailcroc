@@ -1,6 +1,7 @@
 export interface AIAnalysis {
     category: 'primary' | 'social' | 'updates' | 'promotions' | 'spam';
     isThreat: boolean;
+    threatReason?: string;
     summary?: string;
 }
 
@@ -13,7 +14,8 @@ export async function analyzeEmail(subject: string, content: string): Promise<AI
         const prompt = `Analyze this email. Return JSON only.
         {
           "category": "primary" | "social" | "updates" | "promotions" | "spam",
-          "isThreat": boolean, // true if scam/phishing/urgent-fake
+          "isThreat": boolean, // true if it contains social engineering (Phishing, Digital Arrest scams, Urgent Payment Fraud, Account Suspensions, Blackmail).
+          "threatReason": "1 sentence explaining EXACTLY why it's a threat (or null if safe)",
           "summary": "1 sentence summary"
         }
         
@@ -42,6 +44,7 @@ export async function analyzeEmail(subject: string, content: string): Promise<AI
         return {
             category: result.category || 'primary',
             isThreat: !!result.isThreat,
+            threatReason: result.threatReason || undefined,
             summary: result.summary
         };
     } catch (e) {

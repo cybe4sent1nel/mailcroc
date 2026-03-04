@@ -18,6 +18,8 @@ export interface EmailMessage {
     folder?: 'inbox' | 'sent' | 'trash' | 'drafts' | 'spam';
     category?: 'social' | 'updates' | 'promotions' | 'primary';
     isThreat?: boolean;
+    threatReason?: string;
+    blockedTrackers?: string[];
     aiAnalysis?: string;
     summary?: string;
     speechAudio?: string;

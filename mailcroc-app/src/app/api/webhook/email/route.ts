@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveEmail, getReplyRoute } from '@/lib/github-db';
 import { analyzeEmail } from '@/lib/ai';
+import { analyzeThreatsAndCleanHTML } from '@/lib/security';
 
 /**
  * Webhook endpoint for Cloudflare Email Worker.
@@ -34,8 +35,6 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
 
         // Analyze content
-        const analysis = await analyzeEmail(body.subject || '', body.text || '');
-
         const extractEmail = (str: string) => {
             const match = str.match(/<(.+)>/);
             return (match ? match[1] : str).trim().toLowerCase();
@@ -53,15 +52,25 @@ export async function POST(req: NextRequest) {
             cleanedTo = [routeDest];
         }
 
+        // Deep Security Scan & AI Analysis
+        const analysis = await analyzeEmail(body.subject || '', body.text || '');
+        const security = analyzeThreatsAndCleanHTML(body.from || '', body.subject || '', body.html || '');
+
+        // Merge threat intelligence (Static logic overrides AI false-negatives)
+        const finalIsThreat = analysis.isThreat || security.isThreat;
+        const finalThreatReason = security.threatReason || analysis.threatReason;
+
         const savedEmail = await saveEmail({
             from: body.from || 'unknown',
             to: cleanedTo,
             subject: body.subject || '(No Subject)',
             text: body.text || '',
-            html: body.html || '',
+            html: security.cleanHtml,
             messageId: body.messageId || '',
             category: analysis.category,
-            isThreat: analysis.isThreat,
+            isThreat: finalIsThreat,
+            threatReason: finalThreatReason,
+            blockedTrackers: security.blockedTrackers,
             summary: analysis.summary,
             ownerSessionId: body.ownerSessionId || undefined // Allow override from request
         });
@@ -85,6 +94,8 @@ export async function POST(req: NextRequest) {
                     pinned: savedEmail.pinned,
                     category: savedEmail.category,
                     isThreat: savedEmail.isThreat,
+                    threatReason: savedEmail.threatReason,
+                    blockedTrackers: savedEmail.blockedTrackers,
                     summary: savedEmail.summary,
                     ownerSessionId: savedEmail.ownerSessionId
                 }),

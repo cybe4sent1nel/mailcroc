@@ -181,6 +181,7 @@ const MailBox = () => {
     const [showAiDraftInput, setShowAiDraftInput] = useState(false);
     const [showAiSidePanel, setShowAiSidePanel] = useState(false);
     const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [showTrackerModal, setShowTrackerModal] = useState(false);
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [verificationCode, setVerificationCode] = useState('');
     const [verificationAlias, setVerificationAlias] = useState('');
@@ -1653,6 +1654,45 @@ const MailBox = () => {
                                                     {voiceGender === 'female' ? 'F' : 'M'}
                                                 </button>
 
+                                                {/* Tracker Shield Badge */}
+                                                {(selectedMessage?.blockedTrackers && selectedMessage.blockedTrackers.length > 0) ? (
+                                                    <div className={styles.expiryWrapper} style={{ marginLeft: '1rem' }}>
+                                                        <div
+                                                            className={styles.expiryBadge}
+                                                            onClick={() => setShowTrackerModal(!showTrackerModal)}
+                                                            title="View Blocked Trackers"
+                                                            style={{
+                                                                padding: '0.375rem 0.6rem',
+                                                                color: '#22c55e',
+                                                                backgroundColor: '#f0fdf4',
+                                                                borderColor: '#bbf7d0',
+                                                                border: '1px solid currentColor',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            <ShieldCheck size={16} />
+                                                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{selectedMessage.blockedTrackers.length} Blocked</span>
+                                                        </div>
+
+                                                        {showTrackerModal && (
+                                                            <div className={styles.timeDropdown} style={{ minWidth: '220px', right: 0, padding: '1rem' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
+                                                                    <ShieldCheck size={18} className="text-green-500" />
+                                                                    <strong style={{ color: '#111827', fontSize: '0.9rem' }}>Tracker Intercepts</strong>
+                                                                </div>
+                                                                <ul style={{ margin: 0, padding: '0 0 0 1rem', fontSize: '0.85rem', color: '#4b5563' }}>
+                                                                    {selectedMessage.blockedTrackers.map((tracker, idx) => (
+                                                                        <li key={idx} style={{ marginBottom: '4px' }}>{tracker}</li>
+                                                                    ))}
+                                                                </ul>
+                                                                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                                                                    Invisible tracking pixels and beacons neutralized to protect your privacy.
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : <></>}
+
                                                 <button
                                                     className={styles.iconBtn}
                                                     onClick={isPlayingAudio ? stopReadAloud : handleReadAloud}
@@ -1668,7 +1708,7 @@ const MailBox = () => {
                                         {selectedMessage.isThreat && (
                                             <div className={styles.threatBanner}>
                                                 <AlertTriangle size={20} />
-                                                <span><strong>Warning:</strong> This email seems suspicious. Do not click links or reply.</span>
+                                                <span><strong>Warning:</strong> {selectedMessage.threatReason || "This email seems suspicious. Do not click links or reply."}</span>
                                             </div>
                                         )}
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveEmail, getReplyRoute } from '@/lib/github-db';
 import { analyzeEmail } from '@/lib/ai';
+import { analyzeThreatsAndCleanHTML } from '@/lib/security';
 
 async function getGmailAccessToken() {
     const { GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
@@ -117,6 +118,10 @@ export async function GET(req: NextRequest) {
 
             // Run AI Analysis
             const analysis = await analyzeEmail(subject, textContent);
+            const security = analyzeThreatsAndCleanHTML(from, subject, htmlContent);
+
+            const finalIsThreat = analysis.isThreat || security.isThreat;
+            const finalThreatReason = security.threatReason || analysis.threatReason;
 
             // Save to DB under the specific alias address
             const savedEmail = await saveEmail({
@@ -124,10 +129,12 @@ export async function GET(req: NextRequest) {
                 to: [toAddress],
                 subject: subject,
                 text: textContent,
-                html: htmlContent,
+                html: security.cleanHtml,
                 messageId: messageId,
                 category: analysis.category,
-                isThreat: analysis.isThreat,
+                isThreat: finalIsThreat,
+                threatReason: finalThreatReason,
+                blockedTrackers: security.blockedTrackers,
                 summary: analysis.summary
             });
 
@@ -145,6 +152,10 @@ export async function GET(req: NextRequest) {
                         to: savedEmail.to,
                         subject: savedEmail.subject,
                         text: savedEmail.text,
+                        html: savedEmail.html,
+                        isThreat: savedEmail.isThreat,
+                        threatReason: savedEmail.threatReason,
+                        blockedTrackers: savedEmail.blockedTrackers,
                         ownerSessionId: undefined // Broadcast to everyone listening to `toAddress`
                     })
                 });

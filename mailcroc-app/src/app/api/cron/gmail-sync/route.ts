@@ -156,7 +156,7 @@ export async function GET() {
                 threatReason: finalThreatReason,
                 blockedTrackers: security.blockedTrackers,
                 summary: analysis.summary,
-                ownerSessionId: ownerSessionId
+                ownerSessionId: ownerSessionId || undefined
             });
 
             console.log(`[Gmail Sync] Saved email from ${from} → ${toAddress} (session: ${ownerSessionId || 'none'})`);

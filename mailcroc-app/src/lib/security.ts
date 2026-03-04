@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { scanUrl, type VTScanResult } from '@/lib/virustotal';
 
 const TRACKER_DOMAINS: Record<string, string> = {
     'google-analytics.com': 'Google Analytics',
@@ -39,16 +40,19 @@ export interface SecurityAnalysisResult {
     isThreat: boolean;
     threatReason?: string;
     blockedTrackers: string[];
+    vtUrlResults?: Record<string, VTScanResult>;
 }
 
 /**
  * Scans email HTML for embedded pixel trackers, known tracking endpoints,
- * and high-severity phishing / spoofing attempts before they hit the user's browser.
+ * phishing / spoofing attempts, and uses VirusTotal to check
+ * suspicious links for known malware/phishing.
  */
-export function analyzeThreatsAndCleanHTML(from: string, subject: string, html: string): SecurityAnalysisResult {
+export async function analyzeThreatsAndCleanHTML(from: string, subject: string, html: string): Promise<SecurityAnalysisResult> {
     let isThreat = false;
     let threatReason = '';
     const blockedTrackers = new Set<string>();
+    const suspiciousUrls: string[] = [];
 
     if (!html) {
         return { cleanHtml: '', isThreat, threatReason, blockedTrackers: [] };
@@ -67,27 +71,29 @@ export function analyzeThreatsAndCleanHTML(from: string, subject: string, html: 
 
             if (!href.startsWith('http')) return;
 
+            // Collect external URLs for VT scanning (skip whitelisted / tracker domains)
+            try {
+                const hrefHost = new URL(href).hostname.replace(/^www\./, '');
+                const isTracker = Object.keys(TRACKER_DOMAINS).some(d => hrefHost.includes(d));
+                const isSSO = SSO_WHITELIST.some(d => hrefHost.includes(d));
+                if (!isTracker && !isSSO && !hrefHost.endsWith('.google.com') && !hrefHost.endsWith('.googleapis.com')) {
+                    suspiciousUrls.push(href);
+                }
+            } catch { /* skip malformed */ }
+
             // If the text looks like a url (contains a dot and no spaces)
             if (text.includes('.') && !text.includes(' ') && text.length > 5) {
                 try {
                     const hrefHost = new URL(href).hostname.replace(/^www\./, '');
-                    // Be generous: text might be 'example.com' without protocol
                     const textHostProtocol = text.startsWith('http') ? text : `http://${text}`;
                     const textHost = new URL(textHostProtocol).hostname.replace(/^www\./, '');
 
-                    // If the visual text URL goes to a fundamentally different root domain than the href URL
-                    // Example: visible text = "paypal.com" but href = "evil-phish.net"
                     if (textHost && hrefHost && hrefHost !== textHost) {
-                        // Ensure it's not simply a subdomain redirect of the same root
                         const rootHref = hrefHost.split('.').slice(-2).join('.');
                         const rootText = textHost.split('.').slice(-2).join('.');
 
                         if (rootHref !== rootText) {
-                            // Verify it's not a known, safe SSO redirect before flagging
                             const isSSO = SSO_WHITELIST.some(domain => hrefHost.includes(domain));
-
-                            // Also ignore common tracking link decorators if they are just analytics 
-                            // (Tracker Blocker handles them natively)
                             const isGenericTracker = hrefHost.startsWith('click.') || hrefHost.startsWith('link.') || hrefHost.startsWith('t.');
 
                             if (!isSSO && !isGenericTracker) {
@@ -144,12 +150,10 @@ export function analyzeThreatsAndCleanHTML(from: string, subject: string, html: 
             const lowerFrom = from.toLowerCase();
             const lowerSub = (subject || '').toLowerCase();
 
-            // Extract the domain of the sender
             const match = lowerFrom.match(/@(.+?)(>|$)/);
             const domain = match ? match[1].trim() : '';
 
             if (FREEMAIL_DOMAINS.includes(domain)) {
-                // If a freemail account claims to be a sensitive brand
                 for (const brand of SENSITIVE_BRANDS) {
                     if ((lowerFrom.includes(brand) && !lowerFrom.includes(`@${brand}`)) || lowerSub.includes(brand)) {
                         isThreat = true;
@@ -160,16 +164,41 @@ export function analyzeThreatsAndCleanHTML(from: string, subject: string, html: 
             }
         }
 
+        // ==========================================
+        // 4. VirusTotal URL Scanning (async, non-blocking)
+        // ==========================================
+        let vtUrlResults: Record<string, VTScanResult> | undefined;
+        if (suspiciousUrls.length > 0 && process.env.VIRUSTOTAL_API_KEY) {
+            try {
+                const { scanUrls } = await import('@/lib/virustotal');
+                vtUrlResults = await scanUrls(suspiciousUrls);
+
+                // Check VT results for malicious URLs
+                for (const [url, result] of Object.entries(vtUrlResults)) {
+                    if (result.verdict === 'malicious') {
+                        isThreat = true;
+                        threatReason = `VirusTotal: Link "${url}" detected as malicious by ${result.malicious} security vendors.`;
+                        break;
+                    } else if (result.verdict === 'suspicious' && !isThreat) {
+                        isThreat = true;
+                        threatReason = `VirusTotal: Link "${url}" flagged as suspicious by ${result.suspicious} vendors.`;
+                    }
+                }
+            } catch (vtErr) {
+                console.error('[VT] URL scan error in security analysis:', vtErr);
+            }
+        }
+
         return {
             cleanHtml: $.html(),
             isThreat,
             threatReason: isThreat ? threatReason : undefined,
-            blockedTrackers: Array.from(blockedTrackers)
+            blockedTrackers: Array.from(blockedTrackers),
+            vtUrlResults
         };
 
     } catch (err) {
         console.error("DOM Analysis Failed:", err);
-        // Fallback safely: return raw HTML but no trackers marked
         return { cleanHtml: html, isThreat, blockedTrackers: [] };
     }
 }

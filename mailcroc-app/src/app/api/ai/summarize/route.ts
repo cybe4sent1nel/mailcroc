@@ -1,5 +1,21 @@
 import { NextResponse } from 'next/server';
 
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const PRIMARY_MODEL = 'nvidia/nemotron-3-nano-30b-a3b:free';
+const FALLBACK_MODEL = 'openrouter/quasar-alpha';
+
+async function callOpenRouter(messages: { role: string; content: string }[], model: string) {
+    const res = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, messages }),
+    });
+    return await res.json();
+}
+
 export async function POST(req: Request) {
     if (!process.env.OPENROUTER_API_KEY) {
         return NextResponse.json({ error: 'AI features not configured' }, { status: 503 });
@@ -16,62 +32,63 @@ export async function POST(req: Request) {
             ).join('\n');
         }
 
-        const prompt = `You are an advanced email analysis assistant. Provide a detailed, well-structured summary of this email in **Markdown** format.
+        const systemPrompt = `You are MailCroc AI — a professional, meticulous email analysis assistant.
 
-**CRITICAL: Your output MUST be 100% grammatically correct with zero spelling errors. Double-check every word before outputting.**
+RULES YOU MUST FOLLOW:
+1. Your output MUST be perfectly written with ZERO spelling or grammar errors.
+2. Use well-structured Markdown with headers (##), bullet points, bold text, and emojis.
+3. Be thorough, detailed, and insightful — provide real analysis, not generic filler.
+4. Always include ALL required sections below — never skip any.
+5. If analysing attachments, describe their likely purpose based on filenames and types.
+6. Proofread your entire response before outputting it.`;
 
-**Your summary MUST include all of the following sections (use the exact headers):**
+        const userPrompt = `Analyse this email and provide a detailed, structured summary in Markdown.
+
+**Include ALL of these sections (use the exact headers):**
 
 ## 📋 Overview
-A 2-3 sentence high-level summary of what this email is about.
+A 2–3 sentence high-level summary describing what this email is about, who sent it, and its general purpose.
 
 ## 🔑 Key Points
 - List every important point, request, or piece of information as bullet points
-- Include names, dates, numbers, links, or deadlines mentioned
-- If there are action items, highlight them with **bold**
+- Include specific names, dates, numbers, links, or deadlines mentioned
+- Highlight action items with **bold**
 
 ## 👤 Sender Intent
-One sentence about what the sender wants from the recipient (e.g., "Requesting a meeting", "Sharing information", "Confirmation of signup").
+One clear sentence about what the sender wants (e.g., "Requesting approval", "Sharing a report", "Confirming a subscription").
 
 ## 📎 Attachments
-If attachments are present, describe what they likely contain based on their filenames and types. If no attachments, write "No attachments."
+If attachments are present, describe what each likely contains based on filename and type. If none, write "No attachments included."
 
 ## ⚡ Priority
-Rate as **High**, **Medium**, or **Low** with a brief reason.
+Rate as **High**, **Medium**, or **Low** — provide a brief reason.
 
 ---
 
 **Email Subject:** ${subject || '(No Subject)'}
 
-**Email Content:**
+**Email Body:**
 ${(text || '').slice(0, 6000)}${attachmentContext}`;
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                "model": "google/gemma-3-27b-it:free",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are MailCroc AI, a professional email analysis assistant. IMPORTANT RULES: (1) Your output MUST be 100% grammatically correct with ZERO spelling errors — proofread every word. (2) Always respond with well-structured Markdown using headers (##), bullet points, bold text, and emojis for visual clarity. (3) Be thorough, detailed, and insightful. (4) Never skip any section. (5) Do NOT produce any typos or misspellings under any circumstances."
-                    },
-                    { "role": "user", "content": prompt }
-                ]
-            })
-        });
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ];
 
-        const data = await response.json();
+        // Primary: nvidia/nemotron-3-nano-30b
+        let data = await callOpenRouter(messages, PRIMARY_MODEL);
+
+        // Fallback if primary fails
+        if (data.error || !data.choices?.[0]?.message?.content) {
+            console.warn('[Summarize] Primary model failed, trying fallback...', data.error);
+            data = await callOpenRouter(messages, FALLBACK_MODEL);
+        }
 
         if (data.error) {
-            console.error('OpenRouter Error:', data.error);
             throw new Error(data.error.message || 'OpenRouter API Error');
         }
 
-        const summary = data.choices?.[0]?.message?.content || "Could not generate summary.";
+        const summary = data.choices?.[0]?.message?.content || 'Could not generate summary.';
         return NextResponse.json({ summary });
     } catch (error: unknown) {
         console.error('Summarize API Error:', error);

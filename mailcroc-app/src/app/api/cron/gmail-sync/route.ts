@@ -168,7 +168,7 @@ export async function GET() {
 
             // Run AI Analysis (OpenRouter primary)
             const analysis = await analyzeEmail(subject, textContent);
-            const security = analyzeThreatsAndCleanHTML(from, subject, htmlContent);
+            const security = await analyzeThreatsAndCleanHTML(from, subject, htmlContent);
 
             const finalIsThreat = analysis.isThreat || security.isThreat;
             const finalThreatReason = security.threatReason || analysis.threatReason;

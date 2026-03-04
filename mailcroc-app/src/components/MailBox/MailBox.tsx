@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import styles from './MailBox.module.css';
-import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2, ShieldCheck } from 'lucide-react';
+import { Copy, RefreshCw, Mail, Shuffle, Star, Send, Forward, Clock, Plus, X, Reply, MoreVertical, Trash2, CheckCircle, FileText, Paperclip, Menu, Download, Inbox, Send as SendIcon, Trash, Archive, User, LayoutGrid, ChevronLeft, ChevronRight, AlertTriangle, ShieldAlert, Sparkles, Settings, Volume2, Square, Mic, QrCode, File, FileImage, FileAudio, FileVideo, Image, Briefcase, Scissors, AlignLeft, Wand2, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { type EmailMessage, type InboxTab, type Attachment } from '@/types/mail';
 import { io, Socket } from 'socket.io-client';
 import { generateEmailAddress, type GenerationConfig, WITTY_SUBJECTS } from '@/lib/domains';
@@ -177,6 +177,7 @@ const MailBox = () => {
     const [unlockedMessageId, setUnlockedMessageId] = useState<string | null>(null);
     const [unlockedText, setUnlockedText] = useState<string | null>(null);
     const [unlockedAttachments, setUnlockedAttachments] = useState<Attachment[]>([]);
+    const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
 
     // --- State: AI ---
     const [summary, setSummary] = useState<string | null>(null);
@@ -2032,36 +2033,113 @@ const MailBox = () => {
                                                 {/* Regular Attachments (Not Locked) */}
                                                 {selectedMessage.attachments && selectedMessage.attachments.length > 0 && unlockedMessageId !== selectedMessage._id && (
                                                     <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                             <Paperclip size={14} /> Attachments ({selectedMessage.attachments.length})
                                                         </h4>
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
-                                                            {selectedMessage.attachments.map((att, idx) => (
-                                                                <div
-                                                                    key={idx}
-                                                                    onClick={() => handleDownloadAttachment(att)}
-                                                                    style={{
-                                                                        display: 'flex', alignItems: 'center', gap: '10px',
-                                                                        padding: '0.75rem', background: '#f8fafc', borderRadius: '8px',
-                                                                        textDecoration: 'none', color: '#1e293b', border: '1px solid #e2e8f0',
-                                                                        transition: 'all 0.2s', fontSize: '0.85rem', cursor: 'pointer'
-                                                                    }}
-                                                                    onMouseOver={e => e.currentTarget.style.borderColor = '#cbd5e1'}
-                                                                    onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
-                                                                >
-                                                                    <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                                                        {getFileIcon(att.type)}
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                            {selectedMessage.attachments.map((att, idx) => {
+                                                                const sizeStr = att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`;
+                                                                const scan = att.scanResult;
+                                                                const scanColor = scan?.verdict === 'safe' ? '#16a34a' : scan?.verdict === 'malicious' ? '#dc2626' : scan?.verdict === 'suspicious' ? '#f59e0b' : '#94a3b8';
+                                                                const scanBg = scan?.verdict === 'safe' ? 'rgba(34,197,94,0.08)' : scan?.verdict === 'malicious' ? 'rgba(239,68,68,0.08)' : scan?.verdict === 'suspicious' ? 'rgba(245,158,11,0.08)' : 'rgba(148,163,184,0.08)';
+                                                                const scanLabel = scan?.verdict === 'safe' ? '✓ Safe' : scan?.verdict === 'malicious' ? '✗ Malicious' : scan?.verdict === 'suspicious' ? '⚠ Suspicious' : '• Not scanned';
+                                                                const isImage = att.type?.startsWith('image/');
+                                                                return (
+                                                                    <div
+                                                                        key={idx}
+                                                                        style={{
+                                                                            display: 'flex', alignItems: 'center', gap: '12px',
+                                                                            padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: '10px',
+                                                                            border: '1px solid #e2e8f0', transition: 'all 0.2s', position: 'relative',
+                                                                        }}
+                                                                        onMouseOver={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
+                                                                        onMouseOut={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+                                                                    >
+                                                                        {/* File Icon */}
+                                                                        <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', flexShrink: 0 }}>
+                                                                            {getFileIcon(att.type)}
+                                                                        </div>
+
+                                                                        {/* File Info */}
+                                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                                            <div style={{ fontWeight: 500, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1e293b' }}>
+                                                                                {att.name}
+                                                                            </div>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                                                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{sizeStr}</span>
+                                                                                <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>•</span>
+                                                                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{att.type?.split('/')[1]?.toUpperCase() || 'FILE'}</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* VT Scan Badge */}
+                                                                        <div style={{
+                                                                            display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0,
+                                                                        }}>
+                                                                            <span style={{
+                                                                                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                                                padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem',
+                                                                                fontWeight: 600, background: scanBg, color: scanColor,
+                                                                            }}>
+                                                                                {scanLabel}
+                                                                            </span>
+                                                                            <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>Scanned by MailCroc</span>
+                                                                        </div>
+
+                                                                        {/* Preview Button */}
+                                                                        {att.content && (
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); setPreviewAttachment(att); }}
+                                                                                style={{
+                                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                                    padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                                                                                    background: '#fff', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
+                                                                                }}
+                                                                                onMouseOver={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#93c5fd'; }}
+                                                                                onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                                                                                title={`Preview ${att.name}`}
+                                                                            >
+                                                                                <Eye size={16} style={{ color: '#3b82f6' }} />
+                                                                            </button>
+                                                                        )}
+
+                                                                        {/* Download Button */}
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(att); }}
+                                                                            style={{
+                                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                                padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                                                                                background: '#fff', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
+                                                                            }}
+                                                                            onMouseOver={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.borderColor = '#86efac'; }}
+                                                                            onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                                                                            title={`Download ${att.name}`}
+                                                                        >
+                                                                            <Download size={16} style={{ color: '#16a34a' }} />
+                                                                        </button>
+
+                                                                        {/* Image Hover Preview (for image attachments) */}
+                                                                        {isImage && att.content && (
+                                                                            <div className={styles.attachmentPreview} style={{
+                                                                                position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                                                                                marginBottom: '8px', padding: '4px', background: '#fff', borderRadius: '8px',
+                                                                                boxShadow: '0 4px 16px rgba(0,0,0,0.15)', display: 'none', zIndex: 100,
+                                                                                maxWidth: '280px', maxHeight: '200px', overflow: 'hidden',
+                                                                            }}>
+                                                                                <img
+                                                                                    src={att.content.startsWith('data:') ? att.content : `data:${att.type};base64,${att.content}`}
+                                                                                    alt={att.name}
+                                                                                    style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }}
+                                                                                />
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                    <div style={{ overflow: 'hidden' }}>
-                                                                        <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
-                                                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{(att.size / 1024).toFixed(1)} KB</div>
-                                                                    </div>
-                                                                    <Download size={14} className="ml-auto text-gray-400" />
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 )}
+
                                             </>
                                         )}
                                     </div>
@@ -2518,7 +2596,112 @@ const MailBox = () => {
                 message="With this enabled, closing your browser tab or refreshing the page will PERMANENTLY delete all received and sent emails for this session. This action cannot be undone."
                 confirmText="Enable Protection"
             />
+
+            {/* File Preview Modal */}
+            {previewAttachment && (
+                <div className={styles.modalOverlay} onClick={() => setPreviewAttachment(null)} style={{ zIndex: 3000 }}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: '#fff', borderRadius: '16px', width: '90%', maxWidth: '900px', maxHeight: '90vh',
+                        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'modalPop 0.3s cubic-bezier(0.16,1,0.3,1)',
+                    }}>
+                        {/* Preview Header */}
+                        <div style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                {getFileIcon(previewAttachment.type)}
+                                <div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{previewAttachment.name}</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                                        {previewAttachment.size >= 1048576 ? `${(previewAttachment.size / 1048576).toFixed(1)} MB` : `${(previewAttachment.size / 1024).toFixed(1)} KB`}
+                                        {' · '}{previewAttachment.type?.split('/')[1]?.toUpperCase() || 'FILE'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleDownloadAttachment(previewAttachment)} style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px',
+                                    background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px',
+                                    color: '#16a34a', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer',
+                                }}>
+                                    <Download size={14} /> Download
+                                </button>
+                                <button onClick={() => setPreviewAttachment(null)} style={{
+                                    display: 'flex', alignItems: 'center', padding: '6px 10px',
+                                    background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px',
+                                    cursor: 'pointer', color: '#64748b',
+                                }}>
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Preview Body */}
+                        <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', background: '#fafafa', minHeight: '300px' }}>
+                            {(() => {
+                                const type = previewAttachment.type || '';
+                                const dataUri = previewAttachment.content?.startsWith('data:')
+                                    ? previewAttachment.content
+                                    : `data:${type};base64,${previewAttachment.content?.includes(',') ? previewAttachment.content.split(',')[1] : previewAttachment.content}`;
+
+                                if (type.startsWith('image/')) {
+                                    return <img src={dataUri} alt={previewAttachment.name} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />;
+                                }
+                                if (type === 'application/pdf') {
+                                    return <iframe src={dataUri} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: '8px' }} title={previewAttachment.name} />;
+                                }
+                                if (type.startsWith('audio/')) {
+                                    return (
+                                        <div style={{ textAlign: 'center' }}>
+                                            <FileAudio size={48} style={{ color: '#8b5cf6', marginBottom: '1rem' }} />
+                                            <audio controls src={dataUri} style={{ width: '100%', maxWidth: '400px' }} />
+                                        </div>
+                                    );
+                                }
+                                if (type.startsWith('video/')) {
+                                    return <video controls src={dataUri} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }} />;
+                                }
+                                if (type.startsWith('text/') || type.includes('json') || type.includes('xml') || type.includes('javascript') || type.includes('css') || type.includes('html')) {
+                                    try {
+                                        const raw = previewAttachment.content?.includes(',') ? previewAttachment.content.split(',')[1] : previewAttachment.content;
+                                        const decoded = atob(raw || '');
+                                        return (
+                                            <pre style={{
+                                                width: '100%', maxHeight: '70vh', overflow: 'auto', padding: '1rem',
+                                                background: '#1e293b', color: '#e2e8f0', borderRadius: '10px',
+                                                fontSize: '0.82rem', lineHeight: 1.6, fontFamily: '"Fira Code", monospace',
+                                                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                            }}>
+                                                {decoded}
+                                            </pre>
+                                        );
+                                    } catch {
+                                        return <p style={{ color: '#94a3b8' }}>Unable to decode text content.</p>;
+                                    }
+                                }
+                                // Unsupported type
+                                return (
+                                    <div style={{ textAlign: 'center', color: '#64748b' }}>
+                                        <File size={56} style={{ color: '#cbd5e1', marginBottom: '1rem' }} />
+                                        <p style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.5rem' }}>Preview not available</p>
+                                        <p style={{ fontSize: '0.85rem' }}>This file type ({type || 'unknown'}) cannot be previewed inline.</p>
+                                        <button onClick={() => handleDownloadAttachment(previewAttachment)} style={{
+                                            marginTop: '1rem', padding: '8px 20px', background: '#1e293b', color: '#fff',
+                                            border: 'none', borderRadius: '10px', fontWeight: 600, cursor: 'pointer',
+                                        }}>
+                                            <Download size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Download Instead
+                                        </button>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+
     );
 };
 

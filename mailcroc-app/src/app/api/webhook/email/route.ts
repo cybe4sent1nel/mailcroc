@@ -137,7 +137,47 @@ export async function POST(req: NextRequest) {
 
         // Deep Security Scan & AI Analysis
         const analysis = await analyzeEmail(body.subject || '', body.text || '');
-        const security = analyzeThreatsAndCleanHTML(body.from || '', body.subject || '', body.html || '');
+        const security = await analyzeThreatsAndCleanHTML(body.from || '', body.subject || '', body.html || '');
+
+        // Scan incoming attachments via VirusTotal (non-blocking best-effort)
+        let attachmentScanResults: Record<string, { verdict: string; details: string }> = {};
+        const incomingAttachments = body.attachments || [];
+        if (incomingAttachments.length > 0 && process.env.VIRUSTOTAL_API_KEY) {
+            try {
+                const { scanFileHash } = await import('@/lib/virustotal');
+                const crypto = await import('crypto');
+                for (const att of incomingAttachments.slice(0, 3)) {
+                    if (att.content || att.data) {
+                        const raw = (att.content || att.data || '').includes(',')
+                            ? (att.content || att.data).split(',')[1]
+                            : (att.content || att.data);
+                        const buf = Buffer.from(raw, 'base64');
+                        const hash = crypto.createHash('sha256').update(buf).digest('hex');
+                        const result = await scanFileHash(hash);
+                        attachmentScanResults[att.name || 'unknown'] = {
+                            verdict: result.verdict,
+                            details: result.details || ''
+                        };
+
+                        // If VT flags the file, flag the email as a threat
+                        if (result.verdict === 'malicious') {
+                            analysis.isThreat = true;
+                            analysis.threatReason = `VirusTotal: Attachment "${att.name}" detected as malicious by ${result.malicious} security vendors.`;
+                        }
+                    }
+                }
+            } catch (vtErr) {
+                console.error('[VT] Attachment scan error:', vtErr);
+            }
+        }
+
+        // Enrich attachments with scan results
+        const enrichedAttachments = incomingAttachments.map((att: { name?: string; type?: string; size?: number; content?: string; data?: string }) => ({
+            name: att.name || 'attachment',
+            type: att.type || 'application/octet-stream',
+            size: att.size || 0,
+            scanResult: attachmentScanResults[att.name || 'unknown'] || { verdict: 'unknown', details: 'Not scanned' },
+        }));
 
         const finalIsThreat = analysis.isThreat || security.isThreat;
         const finalThreatReason = security.threatReason || analysis.threatReason;
@@ -154,11 +194,11 @@ export async function POST(req: NextRequest) {
             threatReason: finalThreatReason,
             blockedTrackers: security.blockedTrackers,
             summary: analysis.summary,
-            attachments: body.attachments || [],
+            attachments: enrichedAttachments,
             ownerSessionId: ownerSessionId
         });
 
-        console.log(`Webhook: saved email from ${body.from} to ${cleanedTo.join(', ')} (session: ${ownerSessionId || 'none'})`);
+        console.log(`Webhook: saved email from ${body.from} to ${cleanedTo.join(', ')} (session: ${ownerSessionId || 'none'})${Object.keys(attachmentScanResults).length > 0 ? ` [VT scanned ${Object.keys(attachmentScanResults).length} attachments]` : ''}`);
 
         // Notify Socket.IO server for REAL-TIME push via Socket.IO + SSE
         try {
@@ -180,6 +220,7 @@ export async function POST(req: NextRequest) {
                     threatReason: savedEmail.threatReason,
                     blockedTrackers: savedEmail.blockedTrackers,
                     summary: savedEmail.summary,
+                    attachments: savedEmail.attachments,
                     ownerSessionId: ownerSessionId
                 }),
             });
@@ -189,6 +230,7 @@ export async function POST(req: NextRequest) {
         } catch (err: unknown) {
             console.error('Notification error:', (err as Error).message);
         }
+
 
         return NextResponse.json({ success: true, id: savedEmail._id, to: cleanedTo }, {
             headers: { 'Access-Control-Allow-Origin': '*' }

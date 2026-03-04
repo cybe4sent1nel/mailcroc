@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-import { ShieldAlert, Unlock, ArrowLeft, Mail, Info, Download, FileText, Paperclip, CheckCircle, Image as ImageIcon, FileAudio, FileVideo, Archive, File as FileIcon } from 'lucide-react';
+import { ShieldAlert, Unlock, ArrowLeft, Mail, Info, Download, FileText, Paperclip, CheckCircle, Image as ImageIcon, FileAudio, FileVideo, Archive, File as FileIcon, Eye, EyeOff } from 'lucide-react';
 import { type Attachment } from '@/types/mail';
 import styles from './SecureView.module.css';
 import { useToast } from '@/components/Toast/ToastContext';
@@ -52,6 +52,7 @@ export default function SecureViewPage() {
     const [lockedContent, setLockedContent] = useState<string | null>(null);
     const [messageData, setMessageData] = useState<{ subject?: string, content: string, attachments: any[] } | null>(null);
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [status, setStatus] = useState<'loading' | 'error' | 'locked' | 'unlocked'>('loading');
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -272,15 +273,28 @@ export default function SecureViewPage() {
                         <form
                             className={styles.inputGroup}
                             onSubmit={(e) => { e.preventDefault(); handleUnlock(); }}
+                            style={{ position: 'relative' }}
                         >
                             <input
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 placeholder="Enter unlock code"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className={styles.input}
                                 autoComplete="current-password"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute', right: '140px', top: '50%', transform: 'translateY(-50%)',
+                                    background: 'none', border: 'none', cursor: 'pointer', padding: '6px',
+                                    color: '#94a3b8', transition: 'color 0.2s', display: 'flex', alignItems: 'center',
+                                }}
+                                title={showPassword ? 'Hide code' : 'Show code'}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                             <button type="submit" className={styles.unlockBtn}>
                                 <Unlock size={18} /> Unlock Message
                             </button>

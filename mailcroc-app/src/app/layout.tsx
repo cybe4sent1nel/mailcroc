@@ -30,6 +30,8 @@ export const metadata: Metadata = {
 
 import { ToastProvider } from "@/components/Toast/ToastContext"; // Import Provider
 
+import ConsoleGuard from "@/components/ConsoleGuard";
+
 // ... imports
 
 export default function RootLayout({
@@ -41,6 +43,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${outfit.variable}`}>
         <ToastProvider>
+          <ConsoleGuard />
           <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <Header />
             <main style={{ flex: 1 }}>
@@ -49,6 +52,7 @@ export default function RootLayout({
             <Footer />
           </div>
         </ToastProvider>
+
         <Script id="pwa-install-handler" strategy="beforeInteractive">
           {`
           window.deferredPrompt = null;

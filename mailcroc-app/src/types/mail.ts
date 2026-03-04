@@ -3,7 +3,12 @@ export interface Attachment {
     content: string; // Base64
     type: string;
     size: number;
+    scanResult?: {
+        verdict: 'safe' | 'suspicious' | 'malicious' | 'unknown';
+        details: string;
+    };
 }
+
 
 export interface EmailMessage {
     _id: string;

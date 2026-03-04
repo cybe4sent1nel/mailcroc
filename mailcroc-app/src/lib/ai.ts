@@ -5,39 +5,64 @@ export interface AIAnalysis {
     summary?: string;
 }
 
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const PRIMARY_MODEL = 'nvidia/nemotron-3-nano-30b-a3b:free';
+const FALLBACK_MODEL = 'openrouter/quasar-alpha';
+
+async function callOpenRouter(messages: { role: string; content: string }[], model: string, jsonMode = false) {
+    const body: Record<string, unknown> = { model, messages };
+    if (jsonMode) body.response_format = { type: 'json_object' };
+
+    const res = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+    return await res.json();
+}
+
 export async function analyzeEmail(subject: string, content: string): Promise<AIAnalysis> {
     if (!process.env.OPENROUTER_API_KEY) {
         return { category: 'primary', isThreat: false };
     }
 
     try {
-        const prompt = `Analyze this email. Return JSON only.
-        {
-          "category": "primary" | "social" | "updates" | "promotions" | "spam",
-          "isThreat": boolean, // true if it contains social engineering (Phishing, Digital Arrest scams, Urgent Payment Fraud, Account Suspensions, Blackmail).
-          "threatReason": "1 sentence explaining EXACTLY why it's a threat (or null if safe)",
-          "summary": "1 sentence summary"
+        const systemPrompt = `You are MailCroc Security AI — an expert email threat classifier. You analyse emails for phishing, scams, social engineering, and categorise them.
+
+RULES:
+1. Return ONLY valid JSON — no markdown, no explanation, no extra text.
+2. Be accurate: only flag genuine threats (phishing, digital arrest scams, payment fraud, account takeover, blackmail).
+3. Do NOT flag legitimate marketing, newsletters, or transactional emails as threats.
+4. Write the summary and threatReason with perfect grammar.`;
+
+        const userPrompt = `Analyse this email. Return ONLY this JSON object:
+{
+  "category": "primary" | "social" | "updates" | "promotions" | "spam",
+  "isThreat": boolean,
+  "threatReason": "one sentence explaining why it is a threat (or null if safe)",
+  "summary": "one sentence summary of the email"
+}
+
+Subject: ${subject}
+Content: ${content.slice(0, 1500)}`;
+
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ];
+
+        let data = await callOpenRouter(messages, PRIMARY_MODEL, true);
+
+        // Fallback
+        if (data.error || !data.choices?.[0]?.message?.content) {
+            console.warn('[AI] Primary model failed for analysis, trying fallback...', data.error);
+            data = await callOpenRouter(messages, FALLBACK_MODEL, true);
         }
-        
-        Subject: ${subject}
-        Content: ${content.slice(0, 1000)}`;
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                "model": "nvidia/nemotron-3-nano-30b-a3b:free",
-                "messages": [{ "role": "user", "content": prompt }],
-                "response_format": { type: "json_object" }
-            })
-        });
-
-        const data = await response.json();
         const contentJson = data.choices?.[0]?.message?.content;
-
         if (!contentJson) return { category: 'primary', isThreat: false };
 
         const result = JSON.parse(contentJson);
@@ -48,7 +73,7 @@ export async function analyzeEmail(subject: string, content: string): Promise<AI
             summary: result.summary
         };
     } catch (e) {
-        console.error("AI Analysis Failed", e);
+        console.error('AI Analysis Failed', e);
         return { category: 'primary', isThreat: false };
     }
 }

@@ -3375,3 +3375,16 @@
     z-index: 100;
     animation: slideDown 0.2s ease-out forwards;
 }
+
+/* ============================================ */
+/*  ATTACHMENT HOVER PREVIEW                    */
+/* ============================================ */
+.attachmentPreview {
+    display: none !important;
+    pointer-events: none;
+}
+
+/* Show preview on parent hover */
+div:hover>.attachmentPreview {
+    display: block !important;
+}

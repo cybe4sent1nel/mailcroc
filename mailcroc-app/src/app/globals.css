@@ -227,4 +227,34 @@ button {
     gap: 20px;
     text-align: center;
   }
+
+  .mc-footer {
+    padding: 40px 0 24px 0;
+  }
+
+  .mc-footer-container {
+    padding: 0 1rem;
+  }
+
+  .mc-footer-links-grid {
+    gap: 24px;
+    flex-direction: column;
+  }
+
+  .mc-footer-top {
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .mc-footer-brand {
+    max-width: 100%;
+  }
+
+  .mc-footer-logo {
+    font-size: 1.1rem;
+  }
+
+  .mc-footer-copy {
+    font-size: 0.75rem;
+  }
 }

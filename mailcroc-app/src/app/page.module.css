@@ -585,13 +585,18 @@
 /* ============================================ */
 @media (max-width: 768px) {
   .title {
-    font-size: 2.75rem;
-    letter-spacing: -1px;
+    font-size: 2.25rem;
+    letter-spacing: -0.5px;
   }
 
   .hero {
-    padding: 4rem 1.5rem 3rem;
+    padding: 3rem 1rem 2.5rem;
     min-height: auto;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    margin-bottom: 2rem;
   }
 
   .featureGrid {
@@ -601,12 +606,16 @@
   .statGrid {
     flex-direction: column;
     gap: 1.5rem;
-    padding: 2.5rem 1.5rem;
+    padding: 2rem 1.25rem;
   }
 
   .statDivider {
     width: 48px;
     height: 1px;
+  }
+
+  .statNumber {
+    font-size: 1.75rem;
   }
 
   .stepsGrid {
@@ -627,6 +636,7 @@
   .primaryBtn,
   .secondaryBtn {
     justify-content: center;
+    width: 100%;
   }
 
   .ctaActions {
@@ -634,10 +644,172 @@
     align-items: center;
   }
 
+  .ctaPrimary,
+  .ctaSecondary {
+    width: 100%;
+    max-width: 280px;
+    text-align: center;
+    justify-content: center;
+  }
+
   .sectionTitle {
-    font-size: 2rem;
+    font-size: 1.75rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 0.95rem;
+  }
+
+  /* Two-column grids stack */
+  .passwordExplainer {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .guideRow,
+  .guideRowInverse {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
+
+  .guideTitle {
+    font-size: 1.5rem;
+  }
+
+  .guideText {
+    font-size: 1rem;
+  }
+
+  .useCaseGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  /* CTA */
+  .ctaInner {
+    padding: 2.5rem 1.25rem;
+  }
+
+  .ctaInner h2 {
+    font-size: 1.5rem;
+  }
+
+  .ctaInner p {
+    font-size: 0.95rem;
+  }
+
+  /* Comparison */
+  .fullComparisonContainer {
+    height: auto;
+    min-height: 350px;
+    border-radius: 1rem;
+  }
+
+  .comparisonCard {
+    padding: 1.5rem;
+  }
+
+  .comparisonCard h3 {
+    font-size: 1.25rem;
+  }
+
+  /* Floating shapes: smaller */
+  .shape1 {
+    width: 100px;
+    height: 100px;
+  }
+
+  .shape2 {
+    width: 70px;
+    height: 70px;
+  }
+
+  .shape3 {
+    width: 50px;
+    height: 50px;
+  }
+
+  /* Features/Sections padding */
+  .features,
+  .howItWorks {
+    padding: 3rem 1rem;
+  }
+
+  .lockedMailSection {
+    padding: 3rem 1rem;
+    margin: 1.5rem auto;
+  }
+
+  .unifiedGuide {
+    padding: 3rem 1rem;
+    margin-top: 2rem;
+  }
+
+  .demoSection {
+    padding: 3rem 1rem;
+  }
+
+  .videoContainer {
+    border-width: 4px;
+    border-radius: 1rem;
   }
 }
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 1.75rem;
+    letter-spacing: -0.25px;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero {
+    padding: 2rem 0.75rem 2rem;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+  }
+
+  .useCaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .useCaseCard {
+    padding: 1rem;
+  }
+
+  .statGrid {
+    padding: 1.5rem 1rem;
+  }
+
+  .statNumber {
+    font-size: 1.5rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+
+  .featureCard {
+    padding: 1.25rem;
+  }
+
+  .step {
+    padding: 1rem 0.75rem;
+  }
+
+  .liveStats {
+    font-size: 0.75rem;
+  }
+
+  .explainerText h3 {
+    font-size: 1.25rem;
+  }
+}
+
 
 /* ============================================ */
 /*  IDENTITY FIRST PRIVACY (NEW)                */

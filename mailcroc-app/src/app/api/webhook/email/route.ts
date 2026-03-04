@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveEmail } from '@/lib/github-db';
+import { saveEmail, getReplyRoute } from '@/lib/github-db';
 import { analyzeEmail } from '@/lib/ai';
 
 /**
@@ -41,7 +41,17 @@ export async function POST(req: NextRequest) {
             return (match ? match[1] : str).trim().toLowerCase();
         };
         const rawTo = Array.isArray(body.to) ? body.to : [body.to];
-        const cleanedTo = rawTo.map(extractEmail).filter(Boolean);
+        let cleanedTo = rawTo.map(extractEmail).filter(Boolean);
+
+        // --- REPLY ROUTING INTERCEPTION ---
+        // If someone replied directly to a relay address, check if we mapped their incoming address (from)
+        // to a specific user's temp address based on previous outgoing emails.
+        const originalFrom = extractEmail(body.from || '');
+        const routeDest = await getReplyRoute(originalFrom);
+        if (routeDest) {
+            console.log(`[ROUTE MATCH] Intercepted reply from ${originalFrom}. Re-routing to ${routeDest}`);
+            cleanedTo = [routeDest];
+        }
 
         const savedEmail = await saveEmail({
             from: body.from || 'unknown',

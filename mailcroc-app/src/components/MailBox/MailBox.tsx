@@ -447,12 +447,24 @@ const MailBox = () => {
             return;
         }
 
-        const fullAddress = `${customInput}@${selectedDomain}`;
+        const fullAddress = `${customInput}@${selectedDomain}`.toLowerCase();
 
         // Availability Check (Mock + Reserved List)
-        const forbidden = ['admin', 'root', 'support', 'abuse', 'postmaster', 'hostmaster', 'webmaster'];
-        if (forbidden.includes(customInput.toLowerCase())) {
+        const forbiddenPrefixes = ['admin', 'root', 'support', 'abuse', 'postmaster', 'hostmaster', 'webmaster'];
+        if (forbiddenPrefixes.includes(customInput.toLowerCase())) {
             addToast(`'${customInput}' is reserved/unavailable.`, "error");
+            return;
+        }
+
+        const reservedAddresses = [
+            'relay@mailcroc.qzz.io',
+            'relay@mailpanda.qzz.io',
+            'wecare.woven@gmail.com',
+            'wecare.woven@googlemail.com'
+        ];
+
+        if (reservedAddresses.includes(fullAddress)) {
+            addToast("This address is already taken. Try again after some time.", "error");
             return;
         }
 

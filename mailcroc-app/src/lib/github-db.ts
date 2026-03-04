@@ -630,3 +630,66 @@ export async function getAddressOwner(address: string): Promise<{ sessionId: str
         return JSON.parse(content);
     } catch { return null; }
 }
+
+// ============================================
+//  Reply Routing Logic
+// ============================================
+
+/**
+ * Maps a target recipient's email address to the sender's temporary address.
+ * Allows incoming webhook replies to securely route back to the correct temp user.
+ */
+export async function saveReplyRoute(targetAddress: string, tempAddress: string): Promise<boolean> {
+    try {
+        const folder = encodeAddress(targetAddress);
+        const path = `routes/${folder}.json`;
+
+        const routeData = {
+            targetAddress: targetAddress.toLowerCase().trim(),
+            tempAddress: tempAddress.toLowerCase().trim(),
+            timestamp: new Date().toISOString()
+        };
+
+        const content = Buffer.from(JSON.stringify(routeData, null, 2)).toString('base64');
+
+        let sha: string | undefined;
+        try {
+            const res = await fetch(repoUrl(path), { headers: headers(), cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                sha = data.sha;
+            }
+        } catch { }
+
+        const res = await fetch(repoUrl(path), {
+            method: 'PUT',
+            headers: headers(),
+            body: JSON.stringify({
+                message: `🔀 Map route for ${targetAddress} -> ${tempAddress}`,
+                content,
+                sha
+            }),
+        });
+        return res.ok;
+    } catch (err) {
+        console.error("Failed to save reply route:", err);
+        return false;
+    }
+}
+
+/**
+ * Retrieves the temporary address mapped to a sender, if one exists.
+ */
+export async function getReplyRoute(senderAddress: string): Promise<string | null> {
+    try {
+        const folder = encodeAddress(senderAddress);
+        const path = `routes/${folder}.json`;
+        const res = await fetch(repoUrl(path), { headers: headers(), cache: 'no-store' });
+        if (!res.ok) return null;
+
+        const fileData = await res.json();
+        const content = Buffer.from(fileData.content, 'base64').toString('utf-8');
+        const parsed = JSON.parse(content);
+        return parsed.tempAddress || null;
+    } catch { return null; }
+}

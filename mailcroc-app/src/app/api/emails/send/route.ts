@@ -146,7 +146,8 @@ export async function POST(req: NextRequest) {
 
         const saveToDB = async () => {
             try {
-                await import('@/lib/github-db').then(m => m.saveEmail({
+                const db = await import('@/lib/github-db');
+                await db.saveEmail({
                     from,
                     to: [to],
                     subject: subject || '(No Subject)',
@@ -157,8 +158,10 @@ export async function POST(req: NextRequest) {
                     receivedAt: new Date(),
                     folder: 'sent',
                     pinned: false
-                }, from));
-            } catch (dbErr) { console.error("Failed to save sent email to DB", dbErr); }
+                }, from);
+                // Save reply route to intercept responses
+                await db.saveReplyRoute(to, from);
+            } catch (dbErr) { console.error("Failed to save sent email or route to DB", dbErr); }
         };
 
         const getErrStr = (err: any) => {

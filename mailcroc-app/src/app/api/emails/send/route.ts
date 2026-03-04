@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
 
         const mailOptions: any = {
             from: customFrom,
+            replyTo: from,
             to: to,
             subject: subject || '(No Subject)',
             attachments: body.isPasswordProtected ? [] : body.attachments?.map((att: any) => ({

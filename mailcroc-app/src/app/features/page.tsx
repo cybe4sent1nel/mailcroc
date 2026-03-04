@@ -12,7 +12,7 @@ export default function FeaturesPage() {
             <main className={styles.main}>
                 <section className={styles.hero}>
                     <h1>Powerful Features for <span className={styles.highlight}>Private</span> Communication</h1>
-                    <p>MailCroc isn't just a temp mail service. It's a complete privacy suite.</p>
+                    <p>MailCroc isn&apos;t just a temp mail service. It&apos;s a complete privacy suite.</p>
                 </section>
 
                 <section className={styles.grid}>

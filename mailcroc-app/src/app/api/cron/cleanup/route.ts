@@ -32,9 +32,9 @@ export async function GET(req: NextRequest) {
             repo,
             path: 'emails',
             recursive: true
-        }) as any;
+        }) as { data: { type: string; path: string; name: string; sha: string; url: string }[] };
 
-        const emailFiles = (contents as any[]).filter(f => f.type === 'file' && f.name.endsWith('.json'));
+        const emailFiles = (Array.isArray(contents) ? contents : []).filter(f => f.type === 'file' && f.name.endsWith('.json'));
 
         // Simple heuristic: Archive files older than 24 hours
         // We can't easily get 'created_at' from list, but we can assume if they exist and we are cleaning, 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
         // In a real high-volume scenario, you'd ZIP them.
         const manifest = {
             archivedAt: new Date().toISOString(),
-            emails: [] as any[]
+            emails: [] as unknown[]
         };
 
         for (const file of toArchive) {
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
                 owner,
                 repo,
                 path: file.path
-            }) as any;
+            }) as { data: { content: string, sha: string } };
 
             const content = Buffer.from(fileData.content, 'base64').toString();
             manifest.emails.push(JSON.parse(content));
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
             repo,
             release_id: release.data.id,
             name: `emails-archive-${Date.now()}.json`,
-            data: assetContent as any,
+            data: assetContent as unknown as string,
             headers: {
                 'content-type': 'application/json',
                 'content-length': assetContent.length
@@ -112,8 +112,8 @@ export async function GET(req: NextRequest) {
             release: release.data.html_url
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Archive Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
 }

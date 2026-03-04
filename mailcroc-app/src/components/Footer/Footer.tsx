@@ -13,7 +13,7 @@ const Footer = () => {
                             <span>MailCroc</span>
                         </div>
                         <p className="mc-footer-brand-p">
-                            The world's most advanced temporary email service. Private, secure, and lightning fast.
+                            The world&apos;s most advanced temporary email service. Private, secure, and lightning fast.
                         </p>
                     </div>
 

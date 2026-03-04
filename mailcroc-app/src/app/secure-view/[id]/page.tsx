@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
+
 import { ShieldAlert, Unlock, ArrowLeft, Mail, Info, Download, FileText, Paperclip, CheckCircle, Image as ImageIcon, FileAudio, FileVideo, Archive, File as FileIcon } from 'lucide-react';
 import { type Attachment } from '@/types/mail';
 import styles from './SecureView.module.css';
@@ -243,7 +245,7 @@ export default function SecureViewPage() {
                     <ShieldAlert size={48} className={styles.errorIcon} />
                     <h2>Access Denied</h2>
                     <p>This secure message may have expired or the link is invalid.</p>
-                    <a href="/" className={styles.backBtn}><ArrowLeft size={16} /> Back to MailCroc</a>
+                    <Link href="/" className={styles.backBtn}><ArrowLeft size={16} /> Back to MailCroc</Link>
                 </div>
             </div>
         );

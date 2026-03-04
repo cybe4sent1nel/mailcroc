@@ -22,8 +22,8 @@ export async function GET() {
                 });
                 await transporter.verify();
                 smtpLatency = `${Date.now() - start}ms`;
-            } catch (e: any) {
-                console.error("SMTP Check Failed:", e.message);
+            } catch (e: unknown) {
+                console.error("SMTP Check Failed:", (e as Error).message);
                 smtpStatus = 'degraded';
             }
         } else if (process.env.MAILSLURP_API_KEY) {

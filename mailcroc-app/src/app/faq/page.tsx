@@ -15,7 +15,7 @@ export default function FAQ() {
                 />
                 <h1 className={styles.title}>Knowledge Hub</h1>
                 <p className={styles.subtitle}>
-                    Everything you need to know about stealth sending, identity protection, and why the other guys are just "Hot Air".
+                    Everything you need to know about stealth sending, identity protection, and why the other guys are just &quot;Hot Air&quot;.
                 </p>
             </header>
 
@@ -28,11 +28,11 @@ export default function FAQ() {
                     <div className={styles.faqCard}>
                         <h3 className={styles.question}>Why does G*mail show my address in brackets?</h3>
                         <p className={styles.answer}>
-                            Because they want to make sure the recipient knows you're a "spoofing" risk. It's their way of keeping you in their walled garden.
-                            If you don't verify your alias carefully, they'll leak your primary identity every time.
+                            Because they want to make sure the recipient knows you&apos;re a &quot;spoofing&quot; risk. It&apos;s their way of keeping you in their walled garden.
+                            If you don&apos;t verify your alias carefully, they&apos;ll leak your primary identity every time.
                         </p>
                         <div className={styles.banterBox}>
-                            "Traditional providers love transparency... except when it comes to how they track you. We prefer total stealth."
+                            &quot;Traditional providers love transparency... except when it comes to how they track you. We prefer total stealth.&quot;
                             <Image
                                 src="/images/bad-guy-calling-svgrepo-com.svg"
                                 alt="Bad Guy"
@@ -44,10 +44,10 @@ export default function FAQ() {
                     </div>
 
                     <div className={styles.faqCard}>
-                        <h3 className={styles.question}>What is a "Master Relay" (V6)?</h3>
+                        <h3 className={styles.question}>What is a &quot;Master Relay&quot; (V6)?</h3>
                         <p className={styles.answer}>
-                            It's our proprietary invention. We use a verified "Bridge" address to carry your message.
-                            We use the <b>Golden Mask</b> trick to show your temp address as the sender's display name while the verified bridge handles the technical handshake.
+                            It&apos;s our proprietary invention. We use a verified &quot;Bridge&quot; address to carry your message.
+                            We use the <b>Golden Mask</b> trick to show your temp address as the sender&apos;s display name while the verified bridge handles the technical handshake.
                             No brackets. No disclosure. Just pure privacy.
                         </p>
                     </div>
@@ -59,7 +59,7 @@ export default function FAQ() {
                             Think of us as a professional courier service for your digital mail.
                         </p>
                         <div className={styles.banterBox} style={{ borderColor: '#ef4444' }}>
-                            "Some competitors are like a leaky hair dryer—lots of hot air, but they expose your identity to the wind."
+                            &quot;Some competitors are like a leaky hair dryer—lots of hot air, but they expose your identity to the wind.&quot;
                             <Image
                                 src="/images/woman-using-hair-dryer-svgrepo-com.svg"
                                 alt="Hot Air"
@@ -96,7 +96,7 @@ export default function FAQ() {
                         <div className={styles.stepNumber}>03</div>
                         <div className={styles.stepContent}>
                             <h3 className={styles.stepTitle}>Send Safely</h3>
-                            <p>Hit send. Our engine routes your mail through the bridge. Check your primary "Sent" folder—it's synced there too!</p>
+                            <p>Hit send. Our engine routes your mail through the bridge. Check your primary &quot;Sent&quot; folder—it&apos;s synced there too!</p>
                         </div>
                     </div>
                 </div>

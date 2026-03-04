@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Linkedin, Github, Globe, Users, Heart, Zap, ShieldCheck } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import styles from './page.module.css';
@@ -12,7 +11,7 @@ import styles from './page.module.css';
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
 const DeveloperAnimation = () => {
-    const [animData, setAnimData] = useState<any>(null);
+    const [animData, setAnimData] = useState<unknown>(null);
 
     useEffect(() => {
         fetch('/animations/developer-team.json')
@@ -26,7 +25,7 @@ const DeveloperAnimation = () => {
     return (
         <div className={styles.animationContainer}>
             <Lottie
-                animationData={animData}
+                animationData={animData as object}
                 loop={true}
                 autoplay={true}
                 className={styles.lottiePlayer}
@@ -60,10 +59,10 @@ export default function AboutPage() {
                             <h2 className={styles.sectionTitle}>Built for You</h2>
                         </div>
                         <p className={styles.text}>
-                            MailCroc was born out of a simple necessity: the modern digital world demands your email everywhere, but doesn't respect your privacy anywhere.
+                            MailCroc was born out of a simple necessity: the modern digital world demands your email everywhere, but doesn&apos;t respect your privacy anywhere.
                         </p>
                         <p className={styles.text}>
-                            We've engineered a premium disposable email service built on robust infrastructure that acts as a fortress against spammers, trackers, and malicious actors.
+                            We&apos;ve engineered a premium disposable email service built on robust infrastructure that acts as a fortress against spammers, trackers, and malicious actors.
                         </p>
                     </section>
 

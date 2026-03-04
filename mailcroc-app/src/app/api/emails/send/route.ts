@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { MailSlurp } from 'mailslurp-client';
-// @ts-ignore
 import MailComposer from 'nodemailer/lib/mail-composer';
 
 async function getGmailAccessToken() {
@@ -62,7 +61,6 @@ export async function POST(req: NextRequest) {
 
         // Multi-Stage Sending Fallback Logic
         const {
-            GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN,
             SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE
         } = process.env;
 
@@ -97,12 +95,12 @@ export async function POST(req: NextRequest) {
             finalBody = `You have received a secure, password-protected message via MailCroc.\n\nTo view this message, please click the link below and enter the shared password:\n\n${portalLink}\n\n---\nMailCroc - Secure Temporary Email`;
         }
 
-        const mailOptions: any = {
+        const mailOptions: nodemailer.SendMailOptions & { inReplyTo?: string } = {
             from: customFrom,
             replyTo: from,
             to: to,
             subject: subject || '(No Subject)',
-            attachments: body.isPasswordProtected ? [] : body.attachments?.map((att: any) => ({
+            attachments: body.isPasswordProtected ? [] : body.attachments?.map((att: { name: string, content: string, type: string }) => ({
                 filename: att.name,
                 content: att.content.split(',')[1],
                 encoding: 'base64',
@@ -126,7 +124,7 @@ export async function POST(req: NextRequest) {
                         </a>
                     </div>
                     <p style="font-size: 0.875rem; color: #94a3b8; text-align: center;">
-                        If the button above doesn't work, copy and paste this link into your browser:<br>
+                        If the button above doesn&apos;t work, copy and paste this link into your browser:<br>
                         <a href="${portalLink}" style="color: #3b82f6;">${portalLink}</a>
                     </p>
                     <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 30px 0;">
@@ -168,13 +166,13 @@ export async function POST(req: NextRequest) {
             } catch (dbErr) { console.error("Failed to save sent email or route to DB", dbErr); }
         };
 
-        const getErrStr = (err: any) => {
+        const getErrStr = (err: unknown) => {
             if (!err) return "Unknown Error";
             if (err instanceof Error) return `${err.name}: ${err.message}`;
             if (typeof err === 'object') {
                 const props = Object.getOwnPropertyNames(err);
-                const out: any = {};
-                props.forEach(p => out[p] = (err as any)[p]);
+                const out: Record<string, unknown> = {};
+                props.forEach(p => out[p] = (err as Record<string, unknown>)[p]);
                 return JSON.stringify(out);
             }
             return String(err);
@@ -208,7 +206,7 @@ export async function POST(req: NextRequest) {
                     const errData = await sendResponse.json();
                     console.error("[Send API] GMail REST API Failed:", JSON.stringify(errData));
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("[Send API] GMail REST API Exception:", getErrStr(err));
             }
         }
@@ -228,7 +226,7 @@ export async function POST(req: NextRequest) {
                 await saveToDB();
                 console.log("[Send API] Success via Basic SMTP!");
                 return NextResponse.json({ success: true, message: 'Email sent via Basic SMTP' });
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("[Send API] Basic SMTP Failed:", getErrStr(err));
             }
         }
@@ -241,14 +239,14 @@ export async function POST(req: NextRequest) {
                 await saveToDB();
                 console.log("[Send API] Success via MailSlurp!");
                 return NextResponse.json({ success: true, message: 'Email sent via MailSlurp Fallback' });
-            } catch (err: any) {
+            } catch (err: unknown) {
                 const msErrMsg = getErrStr(err);
                 console.error("[Send API] MailSlurp Failed:", msErrMsg);
                 throw new Error(`All sending methods failed. Last error (MailSlurp): ${msErrMsg}`);
             }
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error('Send email error:', e);
-        return NextResponse.json({ error: e.message || 'Failed to send' }, { status: 500 });
+        return NextResponse.json({ error: (e as Error).message || 'Failed to send' }, { status: 500 });
     }
 }

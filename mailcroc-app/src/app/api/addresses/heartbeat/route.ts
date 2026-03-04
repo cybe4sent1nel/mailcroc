@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
         const result = await claimAddress(address, sessionId);
 
         return NextResponse.json({ success: result.success });
-    } catch (err: any) {
+    } catch (err: unknown) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

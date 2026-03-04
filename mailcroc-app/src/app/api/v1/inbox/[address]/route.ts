@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ addr
             count: emails.length,
             data: emails
         });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 });
     }
 }
@@ -33,7 +33,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ a
     try {
         await deleteInbox(address);
         return NextResponse.json({ success: true, message: 'Inbox cleared' });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Failed to clear inbox' }, { status: 500 });
     }
 }

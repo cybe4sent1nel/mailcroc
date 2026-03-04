@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateApiKey, unauthorizedResponse, rateLimitResponse } from '@/lib/apiAuth';
+import { validateApiKey, unauthorizedResponse } from '@/lib/apiAuth';
 import { generateEmailAddress, GenerationConfig } from '@/lib/domains';
 
 // Switched to Node runtime for stability with background tasks
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
                 googlemail: mode === 'googlemail'
             };
         }
-    } catch (e) {
+    } catch {
         // ignore json parse error, use defaults
     }
 

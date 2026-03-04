@@ -121,7 +121,7 @@ export async function sendWithGmailApi(to: string, from: string, subject: string
 
     // Construct MIME message
     const boundary = "MC_BOUNDARY_" + Date.now();
-    let message = [
+    const message = [
         `From: ${from}`,
         `To: ${to}`,
         `Subject: ${subject}`,
@@ -193,7 +193,7 @@ export async function sendStealthWithMasterRelay(to: string, from: string, subje
 
     // MIME Construction with Display Name Masking
     const boundary = "MC_STEALTH_V6_" + Date.now();
-    let message = [
+    const message = [
         `From: "${from}" <${MASTER_RELAY}>`, // The "Golden Mask"
         `Reply-To: ${from}`, // Responses go back to the temp address
         `To: ${to}`,
@@ -257,7 +257,7 @@ export async function syncToGmailSentFolder(to: string, from: string, subject: s
 
         // Construct identical MIME message to the one sent
         const boundary = "MC_SYNC_BOUNDARY_" + Date.now();
-        let message = [
+        const message = [
             `From: ${from}`,
             `To: ${to}`,
             `Subject: ${subject}`,

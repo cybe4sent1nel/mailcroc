@@ -3,56 +3,217 @@
 > eslint
 
 
-C:\MAILCROC\mailcroc-app\src\app\api\emails\route.ts
-  17:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+C:\MAILCROC\mailcroc-app\scripts\cleanup-emails.mjs
+  68:26  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
 
-C:\MAILCROC\mailcroc-app\src\app\api\sms\route.ts
-  14:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+C:\MAILCROC\mailcroc-app\scripts\debug-nodemailer.mjs
+  5:7  warning  '__dirname' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\scripts\test-send.mjs
+  37:22  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\addresses\heartbeat\route.ts
+  16:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\emails\send\route.ts
+  103:27  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  197:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  234:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\MAILCROC\mailcroc-app\src\app\api\identities\route.ts
+  66:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\status\route.ts
+   59:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+   67:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+   78:18  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  105:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\v1\generate\route.ts
+  63:14  warning  'gErr' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\api\webhook\email\route.ts
+  106:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\MAILCROC\mailcroc-app\src\app\docs\page.tsx
+  6:10  warning  'Copy' is defined but never used      @typescript-eslint/no-unused-vars
+  6:16  warning  'Terminal' is defined but never used  @typescript-eslint/no-unused-vars
+  6:26  warning  'Code' is defined but never used      @typescript-eslint/no-unused-vars
+  6:32  warning  'Check' is defined but never used     @typescript-eslint/no-unused-vars
+
+C:\MAILCROC\mailcroc-app\src\app\faq\page.tsx
+   2:28   warning  'Shield' is defined but never used                               @typescript-eslint/no-unused-vars
+   2:36   warning  'Zap' is defined but never used                                  @typescript-eslint/no-unused-vars
+  47:67   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  47:80   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:31   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  49:79   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  49:86   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  50:104  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\MAILCROC\mailcroc-app\src\app\offline\page.tsx
+   3:8   warning  'Link' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  13:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
 C:\MAILCROC\mailcroc-app\src\app\page.tsx
-  15:45  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
-  49:51  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+   11:8   warning  'PixelBlast' is defined but never used                                                                                                                                                                                                                                                   @typescript-eslint/no-unused-vars
+   21:8   warning  'passwordAnim' is defined but never used                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  105:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\MAILCROC\mailcroc-app\src\app\secure-view\[id]\page.tsx
+    6:85   warning  'CheckCircle' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+   53:102  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   66:22   warning  'err' is defined but never used                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  138:40   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  201:55   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  226:18   warning  'err' is defined but never used                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+  257:17   warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\MAILCROC\mailcroc-app\src\app\secure-view\page.tsx
+  22:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\MAILCROC\mailcroc-app\src\app\sender-settings\page.tsx
+    3:20  warning  'useEffect' is defined but never used                            @typescript-eslint/no-unused-vars
+    4:58  warning  'Trash2' is defined but never used                               @typescript-eslint/no-unused-vars
+    4:66  warning  'Send' is defined but never used                                 @typescript-eslint/no-unused-vars
+    9:12  warning  'identity' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+    9:46  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+   66:18  warning  'err' is defined but never used                                  @typescript-eslint/no-unused-vars
+   99:18  warning  'err' is defined but never used                                  @typescript-eslint/no-unused-vars
+  148:37  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  148:49  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\MAILCROC\mailcroc-app\src\app\status\page.tsx
+    8:49  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   39:50  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+   40:12  warning  'loading' is assigned a value but never used                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  107:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\MAILCROC\mailcroc-app\src\components\Buttons\DownloadButton.tsx
+   6:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  15:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\MAILCROC\mailcroc-app\src\components\Editor\RichTextMailEditor.tsx
+    3:41  warning  'useMemo' is defined but never used       @typescript-eslint/no-unused-vars
+   37:13  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  456:41  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  529:46  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  529:83  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  544:46  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\MAILCROC\mailcroc-app\src\components\FallingText\FallingText.tsx
+  196:36  warning  The ref value 'canvasContainerRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'canvasContainerRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+C:\MAILCROC\mailcroc-app\src\components\Footer\Footer.tsx
+   3:10  warning  'Mail' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+   3:16  warning  'Twitter' is defined but never used                                                                                                                                                                                                                                                      @typescript-eslint/no-unused-vars
+   3:25  warning  'Github' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   3:33  warning  'Shield' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  12:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\MAILCROC\mailcroc-app\src\components\LogoLoop\LogoLoop.tsx
+  24:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\MAILCROC\mailcroc-app\src\components\LottiePlayer.tsx
+  10:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\MAILCROC\mailcroc-app\src\components\MailBox\ComposeModal.tsx
+   80:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
 C:\MAILCROC\mailcroc-app\src\components\MailBox\MailBox.tsx
-  47:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+     6:86   warning  'MoreVertical' is defined but never used                                                                                                                                 @typescript-eslint/no-unused-vars
+     6:108  warning  'CheckCircle' is defined but never used                                                                                                                                  @typescript-eslint/no-unused-vars
+     6:205  warning  'LayoutGrid' is defined but never used                                                                                                                                   @typescript-eslint/no-unused-vars
+     6:217  warning  'ChevronLeft' is defined but never used                                                                                                                                  @typescript-eslint/no-unused-vars
+     6:309  warning  'Mic' is defined but never used                                                                                                                                          @typescript-eslint/no-unused-vars
+     6:328  warning  'FileImage' is defined but never used                                                                                                                                    @typescript-eslint/no-unused-vars
+     6:368  warning  'Briefcase' is defined but never used                                                                                                                                    @typescript-eslint/no-unused-vars
+     6:379  warning  'Scissors' is defined but never used                                                                                                                                     @typescript-eslint/no-unused-vars
+     6:389  warning  'AlignLeft' is defined but never used                                                                                                                                    @typescript-eslint/no-unused-vars
+     6:400  warning  'Wand2' is defined but never used                                                                                                                                        @typescript-eslint/no-unused-vars
+     9:37   warning  'GenerationConfig' is defined but never used                                                                                                                             @typescript-eslint/no-unused-vars
+    60:14   warning  'e' is defined but never used                                                                                                                                            @typescript-eslint/no-unused-vars
+    86:7    warning  'socket' is assigned a value but never used                                                                                                                              @typescript-eslint/no-unused-vars
+    94:12   warning  'inboxTabs' is assigned a value but never used                                                                                                                           @typescript-eslint/no-unused-vars
+    94:23   warning  'setInboxTabs' is assigned a value but never used                                                                                                                        @typescript-eslint/no-unused-vars
+    95:12   warning  'activeTabIndex' is assigned a value but never used                                                                                                                      @typescript-eslint/no-unused-vars
+    95:28   warning  'setActiveTabIndex' is assigned a value but never used                                                                                                                   @typescript-eslint/no-unused-vars
+   149:12   warning  'copied' is assigned a value but never used                                                                                                                              @typescript-eslint/no-unused-vars
+   152:12   warning  'emailToDelete' is assigned a value but never used                                                                                                                       @typescript-eslint/no-unused-vars
+   152:27   warning  'setEmailToDelete' is assigned a value but never used                                                                                                                    @typescript-eslint/no-unused-vars
+   162:12   warning  'uploadProgress' is assigned a value but never used                                                                                                                      @typescript-eslint/no-unused-vars
+   163:12   warning  'isInlineReplying' is assigned a value but never used                                                                                                                    @typescript-eslint/no-unused-vars
+   177:12   warning  'aiDraftPrompt' is assigned a value but never used                                                                                                                       @typescript-eslint/no-unused-vars
+   177:27   warning  'setAiDraftPrompt' is assigned a value but never used                                                                                                                    @typescript-eslint/no-unused-vars
+   178:12   warning  'isAiDrafting' is assigned a value but never used                                                                                                                        @typescript-eslint/no-unused-vars
+   178:26   warning  'setIsAiDrafting' is assigned a value but never used                                                                                                                     @typescript-eslint/no-unused-vars
+   180:12   warning  'exportFormat' is assigned a value but never used                                                                                                                        @typescript-eslint/no-unused-vars
+   180:26   warning  'setExportFormat' is assigned a value but never used                                                                                                                     @typescript-eslint/no-unused-vars
+   181:12   warning  'showAiDraftInput' is assigned a value but never used                                                                                                                    @typescript-eslint/no-unused-vars
+   181:30   warning  'setShowAiDraftInput' is assigned a value but never used                                                                                                                 @typescript-eslint/no-unused-vars
+   260:11   warning  'fileInputRef' is assigned a value but never used                                                                                                                        @typescript-eslint/no-unused-vars
+   315:8    warning  React Hook useEffect has a missing dependency: 'remainingSeconds'. Either include it or remove the dependency array                                                      react-hooks/exhaustive-deps
+   439:8    warning  React Hook useCallback has missing dependencies: 'addToast', 'claimIdentity', and 'currentConfig?.address'. Either include them or remove the dependency array           react-hooks/exhaustive-deps
+   542:8    warning  React Hook useEffect has missing dependencies: 'claimIdentity', 'generateNewIdentity', 'router', and 'searchParams'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+   613:8    warning  React Hook useCallback has a missing dependency: 'sessionId'. Either include it or remove the dependency array                                                           react-hooks/exhaustive-deps
+   777:47   warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                              jsx-a11y/alt-text
+   952:121  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+  1025:121  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+  1092:18   warning  'err' is defined but never used                                                                                                                                          @typescript-eslint/no-unused-vars
+  1120:121  error    Unexpected any. Specify a different type                                                                                                                                 @typescript-eslint/no-explicit-any
+  1129:18   warning  'err' is defined but never used                                                                                                                                          @typescript-eslint/no-unused-vars
+  2316:59   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                          react/no-unescaped-entities
+  2316:72   error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                                                                          react/no-unescaped-entities
 
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+C:\MAILCROC\mailcroc-app\src\components\Modal\InstallModal.tsx
+  30:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+C:\MAILCROC\mailcroc-app\src\components\Testimonials\Testimonials.tsx
+  127:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  286:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-C:\MAILCROC\mailcroc-app\src\components\MailBox\MailBox.tsx:47:13
-  45 |         const stored = localStorage.getItem('mailcroc_email');
-  46 |         if (stored) {
-> 47 |             setEmailAddress(stored);
-     |             ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  48 |         } else {
-  49 |             generateNewEmail();
-  50 |         }                                        react-hooks/set-state-in-effect
-  55:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+C:\MAILCROC\mailcroc-app\src\components\ui\compare.tsx
+   34:24  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  133:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  156:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
 
-Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
-* Update external systems with the latest state from React.
-* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+C:\MAILCROC\mailcroc-app\src\components\ui\sparkles.tsx
+   2:24  warning  'useMemo' is defined but never used       @typescript-eslint/no-unused-vars
+  83:49  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+C:\MAILCROC\mailcroc-app\src\lib\export-utils.ts
+  1:29  warning  'Attachment' is defined but never used  @typescript-eslint/no-unused-vars
 
-C:\MAILCROC\mailcroc-app\src\components\MailBox\MailBox.tsx:55:9
-  53 |     useEffect(() => {
-  54 |         if (!emailAddress) return;
-> 55 |         fetchMessages();
-     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
-  56 |         const interval = setInterval(fetchMessages, 5000);
-  57 |         return () => clearInterval(interval);
-  58 |     }, [emailAddress, fetchMessages]);  react-hooks/set-state-in-effect
+C:\MAILCROC\mailcroc-app\src\lib\github-db.ts
+  147:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-C:\MAILCROC\mailcroc-app\src\components\PhoneBox\PhoneBox.tsx
-   4:10  warning  'Smartphone' is defined but never used             @typescript-eslint/no-unused-vars
-  23:11  warning  'fetchNumbers' is assigned a value but never used  @typescript-eslint/no-unused-vars
+C:\MAILCROC\mailcroc-app\src\lib\gmail.ts
+   34:48   error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  119:117  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  183:127  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  254:122  error    Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  289:15   warning  'rawMessage' is assigned a value but never used  @typescript-eslint/no-unused-vars
 
-C:\MAILCROC\mailcroc-app\src\lib\db.ts
-  13:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+C:\MAILCROC\mailcroc-app\src\types\mail.ts
+  31:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
 
-Γ£û 9 problems (5 errors, 4 warnings)
+C:\MAILCROC\mailcroc-app\verify-ai-node.js
+  1:15  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\MAILCROC\mailcroc-app\verify-speech.js
+   1:12  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   2:14  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+   3:15  error    A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  19:10  warning  'err' is defined but never used          @typescript-eslint/no-unused-vars
+  55:37  warning  'reject' is defined but never used       @typescript-eslint/no-unused-vars
+
+Γ£û 142 problems (54 errors, 88 warnings)
 

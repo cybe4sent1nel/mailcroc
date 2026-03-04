@@ -38,8 +38,8 @@ export async function POST(req: Request) {
 
         const summary = data.choices?.[0]?.message?.content || "Could not generate summary.";
         return NextResponse.json({ summary });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Summarize API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
 }

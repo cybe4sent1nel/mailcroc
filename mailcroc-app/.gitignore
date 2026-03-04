@@ -41,3 +41,31 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 test_*.js
+
+# Stale logs and temp files
+*.log
+lint-*.json
+lint_*.txt
+lint-*.txt
+lint_output.txt
+remaining_errors.txt
+errors.json
+build.log
+build_final.log
+build_fix.log
+server.log
+server_log.txt
+tsc.log
+tsc_scroll.log
+next.log
+
+# Temp scripts
+fix_mailbox.py
+get_errors.py
+parse_errors.py
+
+# Test audio files
+test-voice*.mp3
+
+# Verification scripts (generated)
+verify-*.js

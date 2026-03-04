@@ -32,7 +32,7 @@ interface ComposeModalProps {
     saveDraft: () => void;
     sendStatus: string | null;
     addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
-    handleAiWrite: (topic: string, refinement?: string) => Promise<void>;
+    handleAiWrite: (topic: string, refinement?: 'polish' | 'formalize' | 'elaborate' | 'shorten') => Promise<void>;
     isAiWriting: boolean;
     getFileIcon: (type: string) => React.ReactNode;
     polishText: (text: string) => Promise<string>;
@@ -77,7 +77,8 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleVoiceInput = () => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const win = window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any };
+        const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             addToast("Voice input not supported in this browser", "error");
             return;
@@ -98,12 +99,12 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
         recognition.onstart = () => setIsListening(true);
 
         recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
+            const transcript = (event as any).results[0][0].transcript;
             setAiWriteTopic(prev => prev + (prev ? ' ' : '') + transcript);
         };
 
         recognition.onerror = (event: any) => {
-            console.error("Speech recognition error", event.error);
+            console.error("Speech recognition error", (event as any).error);
             setIsListening(false);
         };
 
@@ -119,7 +120,7 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
     if (!show) return null;
 
     const onAiWriteClick = async (refinement?: string) => {
-        await handleAiWrite(aiWriteTopic, refinement);
+        await handleAiWrite(aiWriteTopic, refinement as 'polish' | 'formalize' | 'elaborate' | 'shorten');
         if (!refinement) setShowAiWritePopover(false);
     };
 

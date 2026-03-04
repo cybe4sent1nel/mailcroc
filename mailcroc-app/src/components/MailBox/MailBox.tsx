@@ -83,7 +83,14 @@ import newMsgAnim from '../../../public/animations/Mailbox.json';
 
 
 
-let socket: Socket | null = null;
+const socket: Socket | null = null;
+
+// --- Puter AI Type ---
+interface PuterResponse {
+    message?: {
+        content: string;
+    };
+}
 
 const MailBox = () => {
     const searchParams = useSearchParams();
@@ -187,6 +194,8 @@ const MailBox = () => {
     const [verificationAlias, setVerificationAlias] = useState('');
     const [isInstantClean, setIsInstantClean] = useState(false);
     const [showInstantCleanConfirm, setShowInstantCleanConfirm] = useState(false);
+    const [blockedHistory, setBlockedHistory] = useState<{ type: 'tracker' | 'fraud'; detail: string; timestamp: string; }[]>([]);
+    const [showSecurityReport, setShowSecurityReport] = useState(false);
 
     // --- State: Dragging ---
     const [composePos, setComposePos] = useState({ x: 100, y: 100 });
@@ -257,7 +266,7 @@ const MailBox = () => {
     // --- Refs ---
     const fileInputRef = useRef<HTMLInputElement>(null);
     const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const deferredPrompt = useRef<any>(null);
+    const deferredPrompt = useRef<unknown>(null);
 
     // --- State: Timer & Expiry ---
     const [expiryMinutes, setExpiryMinutes] = useState<number | null>(10);
@@ -368,30 +377,31 @@ const MailBox = () => {
     // --- PWA Install Listener ---
     useEffect(() => {
         // Check global first
-        if ((window as any).deferredPrompt) {
-            deferredPrompt.current = (window as any).deferredPrompt;
+        const win = window as unknown as { deferredPrompt?: unknown };
+        if (win.deferredPrompt) {
+            deferredPrompt.current = win.deferredPrompt;
         }
 
-        const handler = (e: any) => {
+        const handler = (e: Event) => {
             e.preventDefault();
             deferredPrompt.current = e;
-            (window as any).deferredPrompt = e; // Share globally
+            (window as unknown as { deferredPrompt?: unknown }).deferredPrompt = e; // Share globally
         };
-        window.addEventListener('beforeinstallprompt', handler);
-        return () => window.removeEventListener('beforeinstallprompt', handler);
+        window.addEventListener('beforeinstallprompt', handler as EventListener);
+        return () => window.removeEventListener('beforeinstallprompt', handler as EventListener);
     }, []);
 
     const handleDownloadApp = async () => {
-        const promptEvent = deferredPrompt.current || (window as any).deferredPrompt;
+        const promptEvent = (deferredPrompt.current || (window as unknown as { deferredPrompt?: unknown }).deferredPrompt) as { prompt: () => void, userChoice: Promise<{ outcome: string }> } | null;
         if (promptEvent) {
             promptEvent.prompt();
             const { outcome } = await promptEvent.userChoice;
             if (outcome === 'accepted') {
                 deferredPrompt.current = null;
-                (window as any).deferredPrompt = null;
+                (window as unknown as { deferredPrompt?: unknown }).deferredPrompt = null;
             }
         } else {
-            addToast("To install: settings > Add to Home Screen (Mobile) or Install in address bar (Desktop)", "info");
+            addToast("To install: settings &gt; Add to Home Screen (Mobile) or Install in address bar (Desktop)", "info");
         }
     };
 
@@ -399,7 +409,7 @@ const MailBox = () => {
     const generateNewIdentity = useCallback(async () => {
         if (expiryTimerRef.current) clearInterval(expiryTimerRef.current);
         const address = generateEmailAddress(toggles);
-        const config = { mode: 'standard' as any, address }; // mode is now additive
+        const config = { mode: 'standard' as const, address }; // mode is now additive
 
         // Claim it
         const sid = localStorage.getItem('mailcroc_session_id') || sessionId;
@@ -471,7 +481,7 @@ const MailBox = () => {
             return;
         }
 
-        const config = { mode: 'custom' as any, address: fullAddress, fullAddress: fullAddress };
+        const config = { mode: 'custom' as const, address: fullAddress, fullAddress: fullAddress };
 
         // Claim the address
         claimIdentity(fullAddress, sessionId).then(success => {
@@ -569,6 +579,20 @@ const MailBox = () => {
             if (res.ok) {
                 const data = await res.json();
 
+                // Track security history across all messages
+                const history: { type: 'tracker' | 'fraud'; detail: string; timestamp: string; }[] = [];
+                data.forEach((msg: EmailMessage) => {
+                    if (msg.blockedTrackers) {
+                        msg.blockedTrackers.forEach((t: string) => {
+                            history.push({ type: 'tracker', detail: t, timestamp: msg.receivedAt });
+                        });
+                    }
+                    if (msg.isThreat) {
+                        history.push({ type: 'fraud', detail: msg.threatReason || 'Suspicious sender/content', timestamp: msg.receivedAt });
+                    }
+                });
+                setBlockedHistory(history);
+
                 // AI ANALYSIS (Backend + Local Fallback)
                 const enhancedData = data.map((msg: EmailMessage) => {
                     // Prefer backend data
@@ -577,7 +601,7 @@ const MailBox = () => {
                     }
 
                     // Fallback for legacy emails without AI metadata
-                    let category: any = 'primary';
+                    let category: string = 'primary';
                     let isThreat = false;
                     const lowerSub = msg.subject.toLowerCase();
                     const lowerFrom = msg.from.toLowerCase();
@@ -597,6 +621,34 @@ const MailBox = () => {
 
     useEffect(() => { if (emailAddress) fetchMessages(); }, [emailAddress, fetchMessages]);
 
+    // --- Aggressive Gmail Polling for Near-Real-Time Delivery ---
+    // Gmail doesn't support direct push to our server, so we poll every 10 seconds
+    // when the user has a Gmail/Googlemail alias active. This triggers the gmail-sync
+    // cron which fetches unread emails, saves them with session ownership, and pushes
+    // via Socket.IO for instant UI updates.
+    useEffect(() => {
+        const isGmailAlias = emailAddress &&
+            (emailAddress.includes('@gmail.com') || emailAddress.includes('@googlemail.com'));
+        if (!isGmailAlias || !sessionId) return;
+
+        console.log('📡 Starting aggressive Gmail polling (every 10s) for:', emailAddress);
+
+        const pollGmail = async () => {
+            try {
+                await fetch('/api/cron/gmail-sync');
+                // After sync, refresh messages to pick up any new ones
+                fetchMessages();
+            } catch (e) {
+                console.warn('Gmail poll failed:', e);
+            }
+        };
+
+        const interval = setInterval(pollGmail, 10000); // 10 seconds
+        pollGmail(); // Initial poll immediately
+
+        return () => clearInterval(interval);
+    }, [emailAddress, sessionId, fetchMessages]);
+
     const triggerArrivalFeedback = useCallback(() => {
         console.log("🎊 Triggering Arrival Feedback (Animation + Sound)");
         setShowReceivedAnim(true);
@@ -605,7 +657,7 @@ const MailBox = () => {
         try { new Audio('/mixkit-correct-answer-tone-2870.wav').play().catch(() => { }); } catch { }
     }, []);
 
-    const handleIncomingMessage = useCallback((newMsg: any) => {
+    const handleIncomingMessage = useCallback((newMsg: EmailMessage) => {
         console.log("✨ New Email Signal Received!", newMsg._id);
 
         if (newMsg.ownerSessionId && newMsg.ownerSessionId !== sessionId) {
@@ -613,7 +665,7 @@ const MailBox = () => {
             return;
         }
 
-        setMessages(prev => {
+        setMessages((prev: EmailMessage[]) => {
             if (prev.some(m => m._id === newMsg._id)) return prev;
 
             triggerArrivalFeedback();
@@ -632,7 +684,23 @@ const MailBox = () => {
                 }
             }
 
-            return [newMsg, ...prev];
+            // Update blocked history for new message
+            if (newMsg.blockedTrackers || newMsg.isThreat) {
+                setBlockedHistory(prev => {
+                    const next = [...prev];
+                    if (newMsg.blockedTrackers) {
+                        newMsg.blockedTrackers.forEach((t: string) => {
+                            next.push({ type: 'tracker', detail: t, timestamp: newMsg.receivedAt });
+                        });
+                    }
+                    if (newMsg.isThreat) {
+                        next.push({ type: 'fraud', detail: newMsg.threatReason || 'Suspicious sender/content', timestamp: newMsg.receivedAt });
+                    }
+                    return next;
+                });
+            }
+
+            return [newMsg, ...prev] as EmailMessage[];
         });
     }, [sessionId, triggerArrivalFeedback]);
 
@@ -789,7 +857,7 @@ const MailBox = () => {
                 setShowSentSuccess(true);
                 try { new Audio('/mixkit-long-pop-2358.wav').play().catch(() => { }); } catch { }
 
-                setMessages(prev => [{
+                setMessages((prev: EmailMessage[]): EmailMessage[] => [{
                     _id: `sent-temp-${Date.now()}`,
                     from: senderAddress || emailAddress,
                     to: composeData.to,
@@ -800,7 +868,7 @@ const MailBox = () => {
                     folder: 'sent',
                     pinned: false,
                     read: true
-                } as any, ...prev]);
+                } as EmailMessage, ...prev]);
 
                 setTimeout(() => {
                     setSendStatus(null);
@@ -813,9 +881,10 @@ const MailBox = () => {
                 setSendStatus('Retry');
                 addToast("Failed to send: Server Error", "error");
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             setSendStatus('Retry');
-            addToast(`Send failed: ${err.message || 'Unknown error'}`, "error");
+            const error = err as Error;
+            addToast(`Send failed: ${error.message || 'Unknown error'}`, "error");
         }
     };
 
@@ -879,7 +948,7 @@ const MailBox = () => {
             } else if ((action as string) === 'summarize_selected') {
                 if (!selectedMessage) return;
                 const charCount = selectedMessage.text?.length || 0;
-                let instructions = charCount > 1500
+                const instructions = charCount > 1500
                     ? "This is a long email. Provide a comprehensive summary with structured bullet points capturing all key details, actions, and dates."
                     : "This is a short email. Provide a very concise 1-2 sentence summary.";
                 prompt = `${instructions}\n\nFrom: ${selectedMessage.from}\nSubject: ${selectedMessage.subject}\nContent: ${selectedMessage.text}`;
@@ -915,9 +984,10 @@ const MailBox = () => {
             }
 
             // Fallback: Puter.js
-            if (!text && (window as any).puter) {
+            const win = window as unknown as { puter?: { ai: { chat: (p: string, options: { model: string }) => Promise<unknown> } } };
+            if (!text && win.puter) {
                 try {
-                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    const resp = await win.puter.ai.chat(prompt, { model: 'kimi' });
                     text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
                 } catch (e) {
                     console.warn("Puter AI failed...", e);
@@ -925,7 +995,7 @@ const MailBox = () => {
             }
 
             if (!text) throw new Error("AI failed to generate response");
-            const cleanedText = cleanAiResponse(text);
+            const cleanedText = cleanAiResponse(typeof text === 'string' ? text : (text as PuterResponse)?.message?.content || "");
 
             if (action === 'draft') {
                 const plainTextDraft = stripMarkdown(cleanedText);
@@ -946,9 +1016,10 @@ const MailBox = () => {
                 addToast("Analysis complete", "success");
             }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("AI Action Error:", err);
-            const msg = err?.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
+            const error = err as Error;
+            const msg = error?.message || (typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err));
             addToast(`AI Error: ${msg === '{}' ? 'Network or API Error' : msg}`, "error");
         } finally {
             setIsSummarizing(false);
@@ -986,9 +1057,10 @@ const MailBox = () => {
             } catch (err) { console.warn("Backend Write failed", err); }
 
             // Fallback to Puter
-            if (!text && (window as any).puter) {
+            const win = window as unknown as { puter?: { ai: { chat: (p: string, options: { model: string }) => Promise<unknown> } } };
+            if (!text && win.puter) {
                 try {
-                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    const resp = (await win.puter.ai.chat(prompt, { model: 'kimi' })) as PuterResponse | string;
                     text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
                 } catch (e) { console.warn("Puter AI Write failed", e); }
             }
@@ -1080,9 +1152,10 @@ const MailBox = () => {
             } catch (err) { console.warn("Backend Polish failed", err); }
 
             // Fallback to Puter
-            if (!result && (window as any).puter) {
+            const win = window as unknown as { puter?: { ai: { chat: (p: string, options: { model: string }) => Promise<unknown> } } };
+            if (!result && win.puter) {
                 try {
-                    const resp = await (window as any).puter.ai.chat(prompt, { model: 'kimi' });
+                    const resp = (await win.puter.ai.chat(prompt, { model: 'kimi' })) as PuterResponse | string;
                     result = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
                 } catch (e) { console.warn("Puter Polish failed", e); }
             }
@@ -1168,9 +1241,10 @@ const MailBox = () => {
                 throw new Error(errorData.error || "TTS API failed");
             }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("TTS Error:", err);
-            addToast(`Speech failed: ${err.message}`, "error");
+            const error = err as Error;
+            addToast(`Speech failed: ${error.message}`, "error");
             setIsPlayingAudio(false);
         }
     };
@@ -1239,7 +1313,7 @@ const MailBox = () => {
             read: true
         };
 
-        setMessages(prev => [draftMsg as any, ...prev]);
+        setMessages((prev: EmailMessage[]) => [draftMsg as EmailMessage, ...prev]);
         setShowDockedCompose(false);
         setComposeData({ to: '', subject: '', body: '' });
 
@@ -1437,6 +1511,16 @@ const MailBox = () => {
                                     className={isConnected ? styles.statusDot : styles.statusDotDisconnected}
                                     title={isConnected ? "Real-time updates active 🟢" : "Real-time updates disconnected 🔴"}
                                 />
+                                {blockedHistory.length > 0 && (
+                                    <div
+                                        className={styles.globalThreatBadge}
+                                        onClick={() => setShowSecurityReport(true)}
+                                        title="View Session Security Report"
+                                    >
+                                        <ShieldAlert size={16} />
+                                        <span>{blockedHistory.length} Threats Blocked</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className={styles.headerControls}>
@@ -1692,7 +1776,7 @@ const MailBox = () => {
                                                     style={{ color: isPlayingAudio ? '#ef4444' : '#64748b' }}>
                                                     {isPlayingAudio ? <Square size={18} fill="currentColor" /> : <Volume2 size={18} />}
                                                 </button>
-                                                <button onClick={(e) => selectedMessage && handleDeleteMessage(e as any, selectedMessage)} className={styles.iconBtn} title="Delete"><Trash2 size={18} /></button>
+                                                <button onClick={(e) => selectedMessage && handleDeleteMessage(e as unknown as React.MouseEvent, selectedMessage)} className={styles.iconBtn} title="Delete"><Trash2 size={18} /></button>
                                             </div>
                                         </div>
 
@@ -1859,6 +1943,40 @@ const MailBox = () => {
                                                         )}
                                                     </div>
                                                 )}
+
+                                                {/* Regular Attachments (Not Locked) */}
+                                                {selectedMessage.attachments && selectedMessage.attachments.length > 0 && unlockedMessageId !== selectedMessage._id && (
+                                                    <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <Paperclip size={14} /> Attachments ({selectedMessage.attachments.length})
+                                                        </h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
+                                                            {selectedMessage.attachments.map((att, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    onClick={() => handleDownloadAttachment(att)}
+                                                                    style={{
+                                                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                                                        padding: '0.75rem', background: '#f8fafc', borderRadius: '8px',
+                                                                        textDecoration: 'none', color: '#1e293b', border: '1px solid #e2e8f0',
+                                                                        transition: 'all 0.2s', fontSize: '0.85rem', cursor: 'pointer'
+                                                                    }}
+                                                                    onMouseOver={e => e.currentTarget.style.borderColor = '#cbd5e1'}
+                                                                    onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                                                                >
+                                                                    <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                                                        {getFileIcon(att.type)}
+                                                                    </div>
+                                                                    <div style={{ overflow: 'hidden' }}>
+                                                                        <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{(att.size / 1024).toFixed(1)} KB</div>
+                                                                    </div>
+                                                                    <Download size={14} className="ml-auto text-gray-400" />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </>
                                         )}
                                     </div>
@@ -1943,19 +2061,19 @@ const MailBox = () => {
                                                                     try {
                                                                         const base64Image = await toBase64(file);
                                                                         // Log puter availability
-                                                                        console.log('Puter check:', (window as any).puter);
+                                                                        console.log('Puter check:', (window as unknown as { puter?: unknown }).puter);
 
-                                                                        const resp = await (window as any).puter.ai.chat("Describe this image in detail.", {
+                                                                        const resp = await (window as unknown as { puter: any }).puter.ai.chat("Describe this image in detail.", {
                                                                             model: 'gpt-4o',
                                                                             images: [base64Image]
                                                                         });
-                                                                        const text = resp?.message?.content || JSON.stringify(resp);
+                                                                        const text = (resp as PuterResponse)?.message?.content || JSON.stringify(resp);
                                                                         setSummary(text);
                                                                         setShowSummaryModal(true);
                                                                         addToast("Image analyzed!", "success");
-                                                                    } catch (err: any) {
+                                                                    } catch (err: unknown) {
                                                                         console.error("Vision Error Object:", err);
-                                                                        addToast(`Vision Error: ${err?.message || 'Unknown error'}`, "error");
+                                                                        addToast(`Vision Error: ${(err as Error)?.message || 'Unknown error'}`, "error");
                                                                     } finally {
                                                                         setIsSummarizing(false);
                                                                         // Reset input
@@ -2021,14 +2139,14 @@ const MailBox = () => {
                 saveDraft={saveDraft}
                 sendStatus={sendStatus}
                 addToast={addToast}
-                handleAiWrite={handleAiWrite as any}
+                handleAiWrite={handleAiWrite as (topic: string, refinement?: "polish" | "formalize" | "elaborate" | "shorten") => Promise<void>}
                 polishText={polishText}
                 isAiWriting={isSummarizing}
                 getFileIcon={getFileIcon}
                 senderAddress={senderAddress}
                 setSenderAddress={setSenderAddress}
                 availableAddresses={[emailAddress, ...externalIdentities].filter(addr =>
-                    addr && (addr.endsWith('mailcroc.qzz.io') || addr.endsWith('mailpanda.qzz.io'))
+                    addr && (addr.includes('@'))
                 )}
                 isSubjectHidden={isSubjectHidden}
                 setIsSubjectHidden={(val) => {
@@ -2133,6 +2251,42 @@ const MailBox = () => {
                 </div>
             )}
 
+            {/* Session Security Report Modal */}
+            {showSecurityReport && (
+                <div className={styles.modalOverlay} onClick={() => setShowSecurityReport(false)}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                        <div className={styles.modalHeader}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ShieldCheck size={20} className="text-green-500" /> Session Security Report
+                            </h3>
+                            <button onClick={() => setShowSecurityReport(false)}><X size={20} /></button>
+                        </div>
+                        <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '1rem 0' }}>
+                            {blockedHistory.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#64748b' }}>No threats detected in this session. You are safe! ✨</p>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {blockedHistory.map((item, idx) => (
+                                        <div key={idx} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', borderLeft: `4px solid ${item.type === 'tracker' ? '#3b82f6' : '#ef4444'}` }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>{item.type === 'tracker' ? 'Tracker Blocked' : 'Fraud Indicator'}</strong>
+                                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{new Date(item.timestamp).toLocaleTimeString()}</span>
+                                            </div>
+                                            <p style={{ fontSize: '0.85rem', color: '#4b5563', margin: 0 }}>{item.detail}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7' }}>
+                            <p style={{ fontSize: '0.8rem', color: '#166534', margin: 0, fontStyle: 'italic' }}>
+                                MailCroc actively neutralizes invisible tracking pixels and analyzes incoming mail for spoofing attempts in real-time.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* AI Summary Modal */}
             {showSummaryModal && summary && (
                 <div className={styles.summaryModalOverlay} onClick={() => setShowSummaryModal(false)}>
@@ -2194,7 +2348,7 @@ const MailBox = () => {
                             <Copy size={18} /> Copy Code & Close
                         </button>
                         <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '1rem' }}>
-                            Enter this code in your Gmail "Send Mail As" settings to finish the stealth setup.
+                            Enter this code in your Gmail &quot;Send Mail As&quot; settings to finish the stealth setup.
                         </p>
                     </div>
                 </div>

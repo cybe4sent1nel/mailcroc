@@ -15,7 +15,7 @@ export default function NotFound() {
                 </div>
                 <h1 className={styles.title}>Lost in the Mail?</h1>
                 <p className={styles.description}>
-                    Looks like this page took a wrong turn at the server. We've dispatched a search party (of crocs).
+                    Looks like this page took a wrong turn at the server. We&apos;ve dispatched a search party (of crocs).
                 </p>
                 <Link href="/" className={styles.homeBtn}>
                     <Home size={18} />

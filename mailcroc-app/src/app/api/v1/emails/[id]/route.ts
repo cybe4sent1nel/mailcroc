@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             success: true,
             data: result.email
         });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: 'Failed to fetch email' }, { status: 500 });
     }
 }

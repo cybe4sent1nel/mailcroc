@@ -153,7 +153,7 @@ export default function Home() {
               <LottiePlayer animationData={instDelAnim} />
             </div>
             <h3 className={styles.featureTitle}>Instant Delivery</h3>
-            <p className={styles.featureText}>Emails land in your inbox faster than you can say "privacy." Powered by real-time Socket.IO technology.</p>
+            <p className={styles.featureText}>Emails land in your inbox faster than you can say &quot;privacy.&quot; Powered by real-time Socket.IO technology.</p>
           </div>
           <div className={`${styles.featureCard} ${styles.cardLavender}`}>
             <div className={styles.featureIconPurple}>
@@ -174,14 +174,14 @@ export default function Home() {
               <LottiePlayer animationData={zeroLogsAnim} />
             </div>
             <h3 className={styles.featureTitle}>Strict Zero-Log Policy</h3>
-            <p className={styles.featureText}>What happens in MailCroc, stays in MailCroc. We don't store identities, and we certainly don't sell them.</p>
+            <p className={styles.featureText}>What happens in MailCroc, stays in MailCroc. We don&apos;t store identities, and we certainly don&apos;t sell them.</p>
           </div>
           <div className={`${styles.featureCard} ${styles.cardGreen}`}>
             <div className={styles.featureIcon}>
               <LottiePlayer animationData={cusExpAnim} />
             </div>
             <h3 className={styles.featureTitle}>Self-Destruct Timer</h3>
-            <p className={styles.featureText}>From 10 minutes to "keep forever," you control the lifespan of your inbox. Decisiveness is a virtue.</p>
+            <p className={styles.featureText}>From 10 minutes to &quot;keep forever,&quot; you control the lifespan of your inbox. Decisiveness is a virtue.</p>
           </div>
           <div className={`${styles.featureCard} ${styles.cardLavender}`}>
             <div className={styles.featureIconPurple}>
@@ -335,7 +335,7 @@ export default function Home() {
       {/* Industry Secrets / Banter section */}
       <section className={styles.features}>
         <ScrollFloat as="h2" containerClassName={styles.sectionTitle}>The Industry Status Quo</ScrollFloat>
-        <p className={styles.sectionSubtitle}>They call it "free," but you're paying with your metadata.</p>
+        <p className={styles.sectionSubtitle}>They call it &quot;free,&quot; but you&apos;re paying with your metadata.</p>
 
         <div className={styles.featureGrid}>
           <div className={styles.featureCard}>
@@ -345,13 +345,13 @@ export default function Home() {
           </div>
           <div className={styles.featureCard}>
             <Image src="/images/woman-using-hair-dryer-svgrepo-com.svg" alt="Hot Air" width={80} height={80} />
-            <h3 className={styles.featureTitle}>The "Marketing" Trap</h3>
+            <h3 className={styles.featureTitle}>The &quot;Marketing&quot; Trap</h3>
             <p className={styles.featureText}>They promise privacy while profiling your inbox for ad-targeting. Our V6 Golden Mask makes that impossible.</p>
           </div>
           <div className={styles.featureCard}>
             <Image src="/images/virus-infected-computer-svgrepo-com.svg" alt="Weak Relay" width={80} height={80} />
             <h3 className={styles.featureTitle}>The Alias Myth</h3>
-            <p className={styles.featureText}>Aliases usually reveal your primary account in the "Sent-By" field. Our Master-Relay is the only true fix.</p>
+            <p className={styles.featureText}>Aliases usually reveal your primary account in the &quot;Sent-By&quot; field. Our Master-Relay is the only true fix.</p>
           </div>
         </div>
       </section>

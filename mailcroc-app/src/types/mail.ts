@@ -24,6 +24,7 @@ export interface EmailMessage {
     summary?: string;
     speechAudio?: string;
     attachments?: Attachment[];
+    ownerSessionId?: string | null;
 }
 
 export interface InboxTab {

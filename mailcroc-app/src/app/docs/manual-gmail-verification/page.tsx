@@ -23,7 +23,7 @@ export default function ManualVerificationGuide() {
                 <h2>Why This Works</h2>
                 <p>
                     When you verify a MailCroc address in your Gmail settings, Gmail allows you to send emails
-                    from that address <strong>without showing "on behalf of" or brackets</strong>. This is 100%
+                    from that address <strong>without showing &quot;on behalf of&quot; or brackets</strong>. This is 100%
                     legitimate and supported by Gmail.
                 </p>
                 <div className={styles.benefits}>
@@ -33,7 +33,7 @@ export default function ManualVerificationGuide() {
                     </div>
                     <div className={styles.benefit}>
                         <CheckCircle size={20} color="#10b981" />
-                        <span><strong>Clean</strong> - No "on behalf of" or brackets</span>
+                        <span><strong>Clean</strong> - No &quot;on behalf of&quot; or brackets</span>
                     </div>
                     <div className={styles.benefit}>
                         <CheckCircle size={20} color="#10b981" />
@@ -53,9 +53,9 @@ export default function ManualVerificationGuide() {
                     <div className={styles.stepNumber}>1</div>
                     <div className={styles.stepContent}>
                         <h3>Open Gmail Settings</h3>
-                        <p>Go to Gmail → Click the gear icon ⚙️ → "See all settings"</p>
-                        <p>Click the <strong>"Accounts and Import"</strong> tab</p>
-                        <p>Find the <strong>"Send mail as"</strong> section</p>
+                        <p>Go to Gmail → Click the gear icon ⚙️ → &quot;See all settings&quot;</p>
+                        <p>Click the <strong>&quot;Accounts and Import&quot;</strong> tab</p>
+                        <p>Find the <strong>&quot;Send mail as&quot;</strong> section</p>
                     </div>
                 </div>
 
@@ -63,14 +63,14 @@ export default function ManualVerificationGuide() {
                     <div className={styles.stepNumber}>2</div>
                     <div className={styles.stepContent}>
                         <h3>Add Your MailCroc Address</h3>
-                        <p>Click <strong>"Add another email address"</strong></p>
+                        <p>Click <strong>&quot;Add another email address&quot;</strong></p>
                         <p>Enter your MailCroc address (e.g., <code>random-123@mailcroc.qzz.io</code>)</p>
-                        <p>Enter a name (e.g., "My Private Email")</p>
+                        <p>Enter a name (e.g., &quot;My Private Email&quot;)</p>
                         <div className={styles.important}>
                             <AlertCircle size={18} color="#f59e0b" />
-                            <strong>Important:</strong> Uncheck "Treat as an alias"
+                            <strong>Important:</strong> Uncheck &quot;Treat as an alias&quot;
                         </div>
-                        <p>Click <strong>"Next Step"</strong></p>
+                        <p>Click <strong>&quot;Next Step&quot;</strong></p>
                     </div>
                 </div>
 
@@ -88,7 +88,7 @@ export default function ManualVerificationGuide() {
                     <div className={styles.stepContent}>
                         <h3>Verify in MailCroc</h3>
                         <p>Go to your <Link href="/mail" className={styles.inlineLink}>MailCroc inbox</Link></p>
-                        <p>Find the email from <strong>"Gmail Team"</strong></p>
+                        <p>Find the email from <strong>&quot;Gmail Team&quot;</strong></p>
                         <p>Click the verification link in the email</p>
                         <p><em>OR</em> copy the verification code and paste it in Gmail</p>
                     </div>
@@ -109,7 +109,7 @@ export default function ManualVerificationGuide() {
                 <h2>Troubleshooting</h2>
 
                 <div className={styles.faq}>
-                    <h4>Q: I didn't receive the verification email</h4>
+                    <h4>Q: I didn&apos;t receive the verification email</h4>
                     <p>Check your MailCroc inbox after 2-3 minutes. If still not there, try adding the address again in Gmail settings.</p>
                 </div>
 
@@ -147,6 +147,6 @@ export default function ManualVerificationGuide() {
                     </a>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

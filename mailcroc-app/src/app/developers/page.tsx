@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './styles.module.css';
-import { Copy, Terminal, Code, Check, Key, Plus, Trash2, Eye, EyeOff, Shield } from 'lucide-react';
+import { Copy, Plus, Trash2 } from 'lucide-react';
 
 interface ApiKey {
     id: string;
@@ -36,13 +36,7 @@ export default function DevelopersPage() {
     }, []);
 
     // Fetch Keys
-    useEffect(() => {
-        if (devId && activeTab === 'keys') {
-            fetchKeys();
-        }
-    }, [devId, activeTab]);
-
-    const fetchKeys = async () => {
+    const fetchKeys = React.useCallback(async () => {
         if (!devId) return;
         setLoadingKeys(true);
         try {
@@ -56,7 +50,13 @@ export default function DevelopersPage() {
         } finally {
             setLoadingKeys(false);
         }
-    };
+    }, [devId]);
+
+    useEffect(() => {
+        if (devId && activeTab === 'keys') {
+            fetchKeys();
+        }
+    }, [devId, activeTab, fetchKeys]);
 
     const createKey = async () => {
         if (!devId || !newKeyName.trim()) return;
@@ -112,7 +112,7 @@ export default function DevelopersPage() {
                         {createdKey && (
                             <div className={styles.secretModal}>
                                 <h3>API Key Created</h3>
-                                <p>Save this key now. You won't be able to see it again.</p>
+                                <p>Save this key now. You won&apos;t be able to see it again.</p>
                                 <div className={styles.codeBlock} style={{ display: 'flex', alignItems: 'center', gap: '1rem', border: '2px solid var(--color-bg-lime)' }}>
                                     <code>{createdKey.secret}</code>
                                     <button onClick={() => navigator.clipboard.writeText(createdKey.secret)}><Copy size={16} /></button>

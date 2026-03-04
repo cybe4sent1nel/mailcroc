@@ -1,46 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './DownloadButton.module.css';
 import InstallModal from '../Modal/InstallModal';
 
 const DownloadButton = () => {
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const promptRef = useRef<any>(null);
     const [showInstallModal, setShowInstallModal] = useState(false);
 
     useEffect(() => {
         // Check if event was already captured globally
-        if ((window as any).deferredPrompt) {
-            setDeferredPrompt((window as any).deferredPrompt);
+        const win = window as unknown as { deferredPrompt?: any };
+        if (win.deferredPrompt) {
+            promptRef.current = win.deferredPrompt;
         }
 
         const handler = (e: any) => {
             e.preventDefault();
             // Store globally so other components or remounts can access it
-            (window as any).deferredPrompt = e;
-            setDeferredPrompt(e);
+            (window as unknown as { deferredPrompt?: any }).deferredPrompt = e;
+            promptRef.current = e;
             console.log("PWA Install Prompt captured");
         };
 
-        window.addEventListener('beforeinstallprompt', handler);
+        window.addEventListener('beforeinstallprompt', handler as EventListener);
 
         return () => {
-            window.removeEventListener('beforeinstallprompt', handler);
+            window.removeEventListener('beforeinstallprompt', handler as EventListener);
         };
     }, []);
 
     const handleInstallClick = async () => {
-        if (!deferredPrompt) {
+        if (!promptRef.current) {
             // If prompt is not available, we could still show the modal or a toast
             // But usually this means it's already installed or not supported
             return;
         }
 
-        deferredPrompt.prompt();
+        const promptEvent = promptRef.current as { prompt: () => void, userChoice: Promise<{ outcome: string }> };
+        promptEvent.prompt();
 
-        const { outcome } = await deferredPrompt.userChoice;
+        const { outcome } = await promptEvent.userChoice;
         console.log(`User response to the install prompt: ${outcome}`);
 
-        setDeferredPrompt(null);
-        (window as any).deferredPrompt = null;
+        promptRef.current = null;
+        (window as unknown as { deferredPrompt?: any }).deferredPrompt = null;
     };
 
     return (

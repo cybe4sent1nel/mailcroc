@@ -6,7 +6,7 @@ import styles from './sender-settings.module.css';
 
 export default function SenderSettings() {
     const [fromAddress, setFromAddress] = useState('');
-    const [identity, setIdentity] = useState<any>(null);
+    const [identity, setIdentity] = useState<unknown>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
 
@@ -145,7 +145,7 @@ export default function SenderSettings() {
                     </div>
                     <p className={styles.cardDescription}>
                         The default for all @mailcroc and @mailpanda domains.
-                        Uses our <b>"Golden Mask"</b> technology to hide your primary Gmail address.
+                        Uses our <b>&quot;Golden Mask&quot;</b> technology to hide your primary Gmail address.
                     </p>
                     <div className={styles.statusIndicator}>
                         <CheckCircle size={16} color="#10b981" />

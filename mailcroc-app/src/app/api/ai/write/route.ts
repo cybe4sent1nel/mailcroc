@@ -41,7 +41,7 @@ export async function POST(req: Request) {
             content: data.choices[0].message.content,
             subject: `Regarding: ${topic.slice(0, 30)}...` // Simple subject generation
         });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
 }

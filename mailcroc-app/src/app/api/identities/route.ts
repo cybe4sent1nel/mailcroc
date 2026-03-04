@@ -42,10 +42,10 @@ export async function POST(req: NextRequest) {
                 });
 
                 return NextResponse.json({ success: true, message: 'Gmail alias created and verified!' });
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('[Gmail Ghosting] Error:', err);
                 return NextResponse.json({
-                    error: err.message || 'Failed to create Gmail alias'
+                    error: (err as Error).message || 'Failed to create Gmail alias'
                 }, { status: 500 });
             }
         }

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { saveEmail, getReplyRoute } from '@/lib/github-db';
+import { NextResponse } from 'next/server';
+import { saveEmail, getReplyRoute, getAddressOwner } from '@/lib/github-db';
 import { analyzeEmail } from '@/lib/ai';
 import { analyzeThreatsAndCleanHTML } from '@/lib/security';
 
@@ -8,7 +8,6 @@ async function getGmailAccessToken() {
     if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) return null;
 
     try {
-        console.log("Attempting to refresh Gmail token...");
         const response = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -20,8 +19,6 @@ async function getGmailAccessToken() {
             })
         });
         const data = await response.json();
-        console.log("Token Response Status:", response.status);
-        console.log("Token Response Data:", data);
         return response.ok ? data.access_token : null;
     } catch (err) {
         console.error('Failed to refresh GMail token:', err);
@@ -29,8 +26,8 @@ async function getGmailAccessToken() {
     }
 }
 
-function getHeader(headers: any[], name: string) {
-    const header = headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase());
+function getHeader(headers: { name: string, value: string }[], name: string) {
+    const header = headers.find((h) => h.name.toLowerCase() === name.toLowerCase());
     return header ? header.value : '';
 }
 
@@ -39,7 +36,7 @@ function decodeBase64URL(str: string) {
     return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
 }
 
-function getBodyData(payload: any): { text: string; html: string } {
+function getBodyData(payload: { body?: { data?: string }, mimeType?: string, parts?: unknown[] }): { text: string; html: string } {
     let text = '';
     let html = '';
 
@@ -50,12 +47,13 @@ function getBodyData(payload: any): { text: string; html: string } {
 
     if (payload.parts) {
         for (const part of payload.parts) {
-            if (part.mimeType === 'text/plain' && part.body && part.body.data) {
-                text = decodeBase64URL(part.body.data);
-            } else if (part.mimeType === 'text/html' && part.body && part.body.data) {
-                html = decodeBase64URL(part.body.data);
-            } else if (part.parts) {
-                const sub = getBodyData(part);
+            const p = part as { body?: { data?: string }, mimeType?: string, parts?: unknown[] };
+            if (p.mimeType === 'text/plain' && p.body && p.body.data) {
+                text = decodeBase64URL(p.body.data);
+            } else if (p.mimeType === 'text/html' && p.body && p.body.data) {
+                html = decodeBase64URL(p.body.data);
+            } else if (p.parts) {
+                const sub = getBodyData(p);
                 if (sub.text && !text) text = sub.text;
                 if (sub.html && !html) html = sub.html;
             }
@@ -71,20 +69,28 @@ function extractEmailStr(str: string) {
 }
 
 /**
- * GET /api/cron/gmail-sync
- * Polls the authorized Gmail Inbox for UNREAD emails sent to `wecare.woven+*@gmail.com`
- * Downloads them into the MailCroc ecosystem, notifies the UI, and marks them READ in Gmail.
+ * Normalize email: lowercase, trim, and map @googlemail.com → @gmail.com
  */
-export async function GET(req: NextRequest) {
+function normalizeEmail(email: string): string {
+    return email.toLowerCase().trim().replace(/@googlemail\.com$/, '@gmail.com');
+}
+
+/**
+ * GET /api/cron/gmail-sync
+ * Polls the authorized Gmail Inbox for UNREAD emails sent to `wecare.woven+*@gmail.com` or `@googlemail.com`.
+ * Downloads them into the MailCroc ecosystem with proper session isolation.
+ */
+export async function GET() {
     try {
         const accessToken = await getGmailAccessToken();
         if (!accessToken) {
             return NextResponse.json({ error: 'Failed to authenticate with Gmail API' }, { status: 500 });
         }
 
-        // Search for unread emails sent to the base address (which inherently includes all +aliases in Gmail)
-        const query = 'is:unread to:wecare.woven@gmail.com';
-        const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}`, {
+        // Search for ALL unread emails — Gmail automatically delivers +alias emails to the base inbox.
+        // We catch them all here and route them to the correct alias folder in our system.
+        const query = 'is:unread';
+        const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`, {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         const listData = await listRes.json();
@@ -98,35 +104,46 @@ export async function GET(req: NextRequest) {
             });
             const msgData = await msgRes.json();
 
-            const headers = msgData.payload.headers;
-            const rawFrom = getHeader(headers, 'From');
-            const rawTo = getHeader(headers, 'To');
-            const subject = getHeader(headers, 'Subject') || '(No Subject)';
-            const messageId = getHeader(headers, 'Message-ID') || msg.id;
+            const hdrs = msgData.payload.headers;
+            const rawFrom = getHeader(hdrs, 'From');
+            const rawTo = getHeader(hdrs, 'To');
+            const rawDeliveredTo = getHeader(hdrs, 'Delivered-To');
+            const rawXOrigTo = getHeader(hdrs, 'X-Original-To');
+            const subject = getHeader(hdrs, 'Subject') || '(No Subject)';
+            const messageId = getHeader(hdrs, 'Message-ID') || msg.id;
 
-            // Clean the addresses
-            const from = extractEmailStr(rawFrom);
-            let toAddress = extractEmailStr(rawTo);
+            // Clean & normalize the addresses
+            const from = normalizeEmail(extractEmailStr(rawFrom));
 
-            // Double check reply routes just in case they sent to the base address
+            // Determine the actual alias recipient.
+            // Priority: X-Original-To > Delivered-To > To header
+            // This ensures we capture the actual +alias address, not just the base address after forwarding.
+            let toAddress = normalizeEmail(extractEmailStr(rawXOrigTo || rawDeliveredTo || rawTo));
+
+            // Check reply routes — if the sender was previously sent a mail from a temp address, reroute
             const routeDest = await getReplyRoute(from);
             if (routeDest) {
-                console.log(`[Gmail Sync] Intercepted routed mapped reply from ${from}. Re-routing to ${routeDest}`);
-                toAddress = routeDest;
+                console.log(`[Gmail Sync] Reply route matched: ${from} → ${routeDest}`);
+                toAddress = normalizeEmail(routeDest);
             }
 
             const bodyParts = getBodyData(msgData.payload);
             const textContent = bodyParts.text || '';
             const htmlContent = bodyParts.html || textContent;
 
-            // Run AI Analysis
+            // Run AI Analysis (OpenRouter primary)
             const analysis = await analyzeEmail(subject, textContent);
             const security = analyzeThreatsAndCleanHTML(from, subject, htmlContent);
 
             const finalIsThreat = analysis.isThreat || security.isThreat;
             const finalThreatReason = security.threatReason || analysis.threatReason;
 
-            // Save to DB under the specific alias address
+            // --- SESSION ISOLATION ---
+            // Look up who owns this alias address to attach the correct ownerSessionId
+            const addressOwner = await getAddressOwner(toAddress);
+            const ownerSessionId = addressOwner?.sessionId || null;
+
+            // Save to DB under the specific alias address with session ownership
             const savedEmail = await saveEmail({
                 from: rawFrom || 'unknown',
                 to: [toAddress],
@@ -138,12 +155,13 @@ export async function GET(req: NextRequest) {
                 isThreat: finalIsThreat,
                 threatReason: finalThreatReason,
                 blockedTrackers: security.blockedTrackers,
-                summary: analysis.summary
+                summary: analysis.summary,
+                ownerSessionId: ownerSessionId
             });
 
-            console.log(`[Gmail Sync] Pulled and saved email from ${from} to ${toAddress}`);
+            console.log(`[Gmail Sync] Saved email from ${from} → ${toAddress} (session: ${ownerSessionId || 'none'})`);
 
-            // Notify Socket.IO Server instantly
+            // Notify Socket.IO Server for real-time push with ownerSessionId
             try {
                 const socketServerUrl = process.env.SOCKET_SERVER_URL || process.env.NEXT_PUBLIC_SOCKET_URL || 'http://127.0.0.1:3001';
                 await fetch(`${socketServerUrl}/notify`, {
@@ -156,10 +174,12 @@ export async function GET(req: NextRequest) {
                         subject: savedEmail.subject,
                         text: savedEmail.text,
                         html: savedEmail.html,
+                        receivedAt: savedEmail.receivedAt,
                         isThreat: savedEmail.isThreat,
                         threatReason: savedEmail.threatReason,
                         blockedTrackers: savedEmail.blockedTrackers,
-                        ownerSessionId: undefined // Broadcast to everyone listening to `toAddress`
+                        summary: savedEmail.summary,
+                        ownerSessionId: ownerSessionId  // Session-targeted notification
                     })
                 });
             } catch (notifyErr) {

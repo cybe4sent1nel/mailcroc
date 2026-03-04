@@ -1,0 +1,1 @@
+d0ed5d6 Implement SSE for resilient real-time email updates, stabilize socket rooms, and unify arrival notifications with high-priority audio/visual feedback

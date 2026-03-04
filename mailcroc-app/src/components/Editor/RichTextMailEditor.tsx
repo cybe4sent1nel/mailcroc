@@ -33,24 +33,24 @@ interface RichTextMailEditorProps {
     setActiveTab: (tab: 'design' | 'preview' | 'source') => void;
 }
 
-const MenuBar = ({ editor, onMicClick, isListening }: {
-    editor: any,
+const MenuBar = ({ editor: editorProp, onMicClick, isListening }: {
+    editor: unknown,
     onMicClick?: () => void,
     isListening?: boolean
 }) => {
-    if (!editor) return null;
-
+    const editor = editorProp as any;
     const [showLinkInput, setShowLinkInput] = React.useState(false);
     const [linkUrl, setLinkUrl] = React.useState('');
 
     const setLink = useCallback(() => {
+        if (!editor) return;
         const previousUrl = editor.getAttributes('link').href;
         setLinkUrl(previousUrl || '');
         setShowLinkInput(true);
     }, [editor]);
 
     const applyLink = useCallback(() => {
-        if (linkUrl === null) return;
+        if (!editor || linkUrl === null) return;
         if (linkUrl === '') {
             editor.chain().focus().extendMarkRange('link').unsetLink().run();
         } else {
@@ -63,6 +63,8 @@ const MenuBar = ({ editor, onMicClick, isListening }: {
         setShowLinkInput(false);
         setLinkUrl('');
     }, []);
+
+    if (!editor) return null;
 
     const iconProps = {
         size: 16,
@@ -317,7 +319,7 @@ const formatCode = (code: string) => {
     if (isReact) {
         let indent = 0;
         return code.split('\n').map(line => {
-            let trimmed = line.trim();
+            const trimmed = line.trim();
             if (!trimmed) return '';
 
             // Decrease indent for closing braces/brackets before the line is printed
@@ -343,7 +345,7 @@ const formatCode = (code: string) => {
     // Pure HTML formatter
     let indent = 0;
     return code.split('\n').map(line => {
-        let trimmed = line.trim();
+        const trimmed = line.trim();
         if (!trimmed) return '';
         if (trimmed.startsWith('</')) indent = Math.max(0, indent - 1);
 
@@ -373,7 +375,7 @@ const ReactPreview: React.FC<{ code: string }> = ({ code }) => {
             const exportMatch = code.match(/export\s+default\s+(\w+)/);
 
             // Strip imports and exports more robustly (handles multi-line)
-            let cleanCode = code
+            const cleanCode = code
                 .replace(/import\s+[\s\S]*?from\s+['"].*?['"];?/g, '') // Multi-line imports
                 .replace(/import\s+['"].*?['"];?/g, '')                // Side-effect imports
                 .replace(/export\s+default\s+\w+;?/g, '')
@@ -452,7 +454,7 @@ const ReactPreview: React.FC<{ code: string }> = ({ code }) => {
 
 const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChange, onAiPolish, activeTab, setActiveTab }) => {
     const [isListening, setIsListening] = React.useState(false);
-    const recognitionRef = React.useRef<any>(null);
+    const recognitionRef = React.useRef<unknown>(null);
     const silenceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
     const transcriptRef = React.useRef("");
 
@@ -487,7 +489,7 @@ const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChan
 
     React.useEffect(() => {
         return () => {
-            if (recognitionRef.current) recognitionRef.current.stop();
+            if (recognitionRef.current) (recognitionRef.current as any).stop();
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         };
     }, []);
@@ -525,9 +527,10 @@ const RichTextMailEditor: React.FC<RichTextMailEditorProps> = ({ content, onChan
     });
 
     const startDictation = useCallback(() => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const win = window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any };
+        const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
         if (!SpeechRecognition) { alert("Voice input not supported"); return; }
-        if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
+        if (isListening) { (recognitionRef.current as any)?.stop(); setIsListening(false); return; }
 
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;

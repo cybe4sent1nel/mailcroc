@@ -12,11 +12,13 @@ const Header = () => {
     const [isPlaying, setIsPlaying] = useState(false);
 
     useEffect(() => {
-        // Trigger on mount
+        // Trigger on mount after layout
         if (videoRef.current) {
-            setIsPlaying(true);
             videoRef.current.currentTime = 0;
-            videoRef.current.play().catch(() => setIsPlaying(false));
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+            }
         }
     }, []);
 

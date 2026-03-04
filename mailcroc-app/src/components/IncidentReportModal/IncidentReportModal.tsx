@@ -64,7 +64,7 @@ export default function IncidentReportModal({ isOpen, onClose }: IncidentReportM
                 <div className={styles.header}>
                     <AlertCircle size={28} className={styles.headerIcon} />
                     <h2>Report System Incident</h2>
-                    <p>Help us improve by reporting any issues you've encountered</p>
+                    <p>Help us improve by reporting any issues you&apos;re encountered</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className={styles.form}>

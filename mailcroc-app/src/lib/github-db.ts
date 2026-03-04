@@ -641,14 +641,20 @@ export async function getAddressOwner(address: string): Promise<{ sessionId: str
  * Maps a target recipient's email address to the sender's temporary address.
  * Allows incoming webhook replies to securely route back to the correct temp user.
  */
+function normalizeEmail(email: string): string {
+    return email.toLowerCase().trim().replace(/@googlemail\.com$/, '@gmail.com');
+}
+
 export async function saveReplyRoute(targetAddress: string, tempAddress: string): Promise<boolean> {
     try {
-        const folder = encodeAddress(targetAddress);
+        const normalizedTarget = normalizeEmail(targetAddress);
+        const normalizedTemp = normalizeEmail(tempAddress);
+        const folder = encodeAddress(normalizedTarget);
         const path = `routes/${folder}.json`;
 
         const routeData = {
-            targetAddress: targetAddress.toLowerCase().trim(),
-            tempAddress: tempAddress.toLowerCase().trim(),
+            targetAddress: normalizedTarget,
+            tempAddress: normalizedTemp,
             timestamp: new Date().toISOString()
         };
 
@@ -684,7 +690,8 @@ export async function saveReplyRoute(targetAddress: string, tempAddress: string)
  */
 export async function getReplyRoute(senderAddress: string): Promise<string | null> {
     try {
-        const folder = encodeAddress(senderAddress);
+        const normalizedSender = normalizeEmail(senderAddress);
+        const folder = encodeAddress(normalizedSender);
         const path = `routes/${folder}.json`;
         const res = await fetch(repoUrl(path), { headers: headers(), cache: 'no-store' });
         if (!res.ok) return null;

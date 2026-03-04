@@ -20,7 +20,7 @@ export default function Offline() {
                 </div>
                 <h1 className={styles.title}>Signal Lost</h1>
                 <p className={styles.description}>
-                    We've lost contact with the server. Waiting for a signal (or just your Wi-Fi).
+                    We&apos;ve lost contact with the server. Waiting for a signal (or just your Wi-Fi).
                 </p>
                 <button onClick={() => window.location.reload()} className={styles.retryBtn}>
                     <RefreshCw size={20} />

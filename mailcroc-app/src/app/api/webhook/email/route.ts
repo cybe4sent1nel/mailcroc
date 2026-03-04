@@ -103,8 +103,8 @@ export async function POST(req: NextRequest) {
             if (!notifyRes.ok) {
                 console.error(`Socket server notification failed with status: ${notifyRes.status}`);
             }
-        } catch (err: any) {
-            console.error('Notification error:', err.message);
+        } catch (err: unknown) {
+            console.error('Notification error:', (err as Error).message);
         }
 
         return NextResponse.json({ success: true, id: savedEmail._id }, {

@@ -79,8 +79,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to authenticate with Gmail API' }, { status: 500 });
         }
 
-        // Search for unread emails sent to plus-address aliases
-        const query = 'is:unread to:wecare.woven+*@gmail.com';
+        // Search for unread emails sent to the base address (which inherently includes all +aliases in Gmail)
+        const query = 'is:unread to:wecare.woven@gmail.com';
         const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}`, {
             headers: { Authorization: `Bearer ${accessToken}` }
         });

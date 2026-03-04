@@ -1541,16 +1541,41 @@ const MailBox = () => {
                                     className={isConnected ? styles.statusDot : styles.statusDotDisconnected}
                                     title={isConnected ? "Real-time updates active 🟢" : "Real-time updates disconnected 🔴"}
                                 />
-                                {blockedHistory.length > 0 && (
-                                    <div
-                                        className={styles.globalThreatBadge}
-                                        onClick={() => setShowSecurityReport(true)}
-                                        title="View Session Security Report"
-                                    >
-                                        <ShieldAlert size={16} />
-                                        <span>{blockedHistory.length} Threats Blocked</span>
-                                    </div>
-                                )}
+                                {/* Permanent Security Badge — always visible */}
+                                <div
+                                    className={styles.globalThreatBadge}
+                                    onClick={() => setShowSecurityReport(true)}
+                                    title="View Session Security Report"
+                                    style={{
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '4px 10px',
+                                        borderRadius: '20px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        background: blockedHistory.length > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)',
+                                        color: blockedHistory.length > 0 ? '#dc2626' : '#16a34a',
+                                        border: `1px solid ${blockedHistory.length > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)'}`,
+                                        transition: 'all 0.2s',
+                                    }}
+                                >
+                                    {blockedHistory.length > 0 ? (
+                                        <>
+                                            <ShieldAlert size={14} />
+                                            <span>{blockedHistory.filter(h => h.type === 'fraud').length} Threats</span>
+                                            <span style={{ color: '#94a3b8' }}>|</span>
+                                            <ShieldCheck size={14} style={{ color: '#16a34a' }} />
+                                            <span style={{ color: '#16a34a' }}>{blockedHistory.filter(h => h.type === 'tracker').length} Trackers</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ShieldCheck size={14} />
+                                            <span>Protected</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                             <div className={styles.headerControls}>
@@ -2314,33 +2339,71 @@ const MailBox = () => {
             {/* Session Security Report Modal */}
             {showSecurityReport && (
                 <div className={styles.modalOverlay} onClick={() => setShowSecurityReport(false)}>
-                    <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '560px' }}>
                         <div className={styles.modalHeader}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <ShieldCheck size={20} className="text-green-500" /> Session Security Report
+                                <ShieldCheck size={20} className="text-green-500" /> Security Dashboard
                             </h3>
                             <button onClick={() => setShowSecurityReport(false)}><X size={20} /></button>
                         </div>
-                        <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '1rem 0' }}>
+
+                        {/* Summary Stats Cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', padding: '0.75rem 0' }}>
+                            <div style={{ background: 'rgba(239,68,68,0.06)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center', border: '1px solid rgba(239,68,68,0.15)' }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#dc2626' }}>
+                                    {blockedHistory.filter(h => h.type === 'fraud').length}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Threats Detected
+                                </div>
+                            </div>
+                            <div style={{ background: 'rgba(59,130,246,0.06)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center', border: '1px solid rgba(59,130,246,0.15)' }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2563eb' }}>
+                                    {blockedHistory.filter(h => h.type === 'tracker').length}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Trackers Neutralized
+                                </div>
+                            </div>
+                            <div style={{ background: 'rgba(34,197,94,0.06)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center', border: '1px solid rgba(34,197,94,0.15)' }}>
+                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a' }}>
+                                    {blockedHistory.length}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Total Events
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Event History */}
+                        <div style={{ maxHeight: '320px', overflowY: 'auto', padding: '0.5rem 0' }}>
+                            <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Event History</h4>
                             {blockedHistory.length === 0 ? (
-                                <p style={{ textAlign: 'center', color: '#64748b' }}>No threats detected in this session. You are safe! ✨</p>
+                                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                                    <ShieldCheck size={40} style={{ color: '#16a34a', margin: '0 auto 0.75rem' }} />
+                                    <p style={{ color: '#16a34a', fontWeight: 600, margin: '0 0 0.25rem' }}>All Clear</p>
+                                    <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0 }}>No threats or trackers detected in this session.</p>
+                                </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                     {blockedHistory.map((item, idx) => (
-                                        <div key={idx} style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', borderLeft: `4px solid ${item.type === 'tracker' ? '#3b82f6' : '#ef4444'}` }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                <strong style={{ fontSize: '0.85rem', color: '#1e293b' }}>{item.type === 'tracker' ? 'Tracker Blocked' : 'Fraud Indicator'}</strong>
-                                                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{new Date(item.timestamp).toLocaleTimeString()}</span>
+                                        <div key={idx} style={{ padding: '0.625rem 0.75rem', background: '#f8fafc', borderRadius: '8px', borderLeft: `3px solid ${item.type === 'tracker' ? '#3b82f6' : '#ef4444'}` }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                                                <strong style={{ fontSize: '0.8rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    {item.type === 'tracker' ? <><ShieldCheck size={12} style={{ color: '#3b82f6' }} /> Tracker Blocked</> : <><ShieldAlert size={12} style={{ color: '#ef4444' }} /> Fraud Detected</>}
+                                                </strong>
+                                                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{new Date(item.timestamp).toLocaleTimeString()}</span>
                                             </div>
-                                            <p style={{ fontSize: '0.85rem', color: '#4b5563', margin: 0 }}>{item.detail}</p>
+                                            <p style={{ fontSize: '0.8rem', color: '#4b5563', margin: 0 }}>{item.detail}</p>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
-                        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7' }}>
-                            <p style={{ fontSize: '0.8rem', color: '#166534', margin: 0, fontStyle: 'italic' }}>
-                                MailCroc actively neutralizes invisible tracking pixels and analyzes incoming mail for spoofing attempts in real-time.
+
+                        <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7' }}>
+                            <p style={{ fontSize: '0.75rem', color: '#166534', margin: 0, fontStyle: 'italic' }}>
+                                MailCroc actively neutralizes invisible tracking pixels and analyzes incoming mail for phishing, spoofing, and scam attempts in real-time.
                             </p>
                         </div>
                     </div>

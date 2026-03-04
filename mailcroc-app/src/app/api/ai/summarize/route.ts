@@ -18,6 +18,8 @@ export async function POST(req: Request) {
 
         const prompt = `You are an advanced email analysis assistant. Provide a detailed, well-structured summary of this email in **Markdown** format.
 
+**CRITICAL: Your output MUST be 100% grammatically correct with zero spelling errors. Double-check every word before outputting.**
+
 **Your summary MUST include all of the following sections (use the exact headers):**
 
 ## 📋 Overview
@@ -51,11 +53,11 @@ ${(text || '').slice(0, 6000)}${attachmentContext}`;
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+                "model": "google/gemma-3-27b-it:free",
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are MailCroc AI, a professional email analysis assistant. Always respond with well-structured Markdown using headers (##), bullet points, bold text, and emojis for visual clarity. Be thorough but concise. Never skip any section."
+                        "content": "You are MailCroc AI, a professional email analysis assistant. IMPORTANT RULES: (1) Your output MUST be 100% grammatically correct with ZERO spelling errors — proofread every word. (2) Always respond with well-structured Markdown using headers (##), bullet points, bold text, and emojis for visual clarity. (3) Be thorough, detailed, and insightful. (4) Never skip any section. (5) Do NOT produce any typos or misspellings under any circumstances."
                     },
                     { "role": "user", "content": prompt }
                 ]

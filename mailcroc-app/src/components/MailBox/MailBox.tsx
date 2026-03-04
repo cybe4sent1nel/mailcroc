@@ -21,6 +21,7 @@ import Switch from '@/components/Switch/Switch';
 
 // --- Dynamic Loaders (Client-Side Only) ---
 const ComposeModal = dynamic(() => import('./ComposeModal'), { ssr: false });
+const DocViewer = dynamic(() => import('@cyntler/react-doc-viewer'), { ssr: false });
 
 // --- Encryption Helpers ---
 const xorCipher = (text: string, key: string) => {
@@ -178,6 +179,15 @@ const MailBox = () => {
     const [unlockedText, setUnlockedText] = useState<string | null>(null);
     const [unlockedAttachments, setUnlockedAttachments] = useState<Attachment[]>([]);
     const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+    const [docRenderers, setDocRenderers] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (previewAttachment) {
+            import("@cyntler/react-doc-viewer").then(mod => {
+                setDocRenderers(mod.DocViewerRenderers);
+            });
+        }
+    }, [previewAttachment]);
 
     // --- State: AI ---
     const [summary, setSummary] = useState<string | null>(null);
@@ -811,13 +821,32 @@ const MailBox = () => {
         }
     };
 
-    const getFileIcon = (type: string) => {
-        if (type.startsWith('image/')) return <Image size={14} className="text-blue-500" />;
-        if (type.startsWith('audio/')) return <FileAudio size={14} className="text-purple-500" />;
-        if (type.startsWith('video/')) return <FileVideo size={14} className="text-orange-500" />;
-        if (type === 'application/pdf') return <FileText size={14} className="text-red-500" />;
-        if (type.includes('zip') || type.includes('archive')) return <Archive size={14} className="text-yellow-600" />;
-        return <File size={14} className="text-gray-500" />;
+    const getFileIcon = (type: string, filename?: string) => {
+        const lowerType = (type || '').toLowerCase();
+        const ext = (filename || '').split('.').pop()?.toLowerCase() || '';
+
+        if (lowerType.startsWith('image/')) return <Image size={14} className="text-blue-500" />;
+        if (lowerType.startsWith('audio/')) return <FileAudio size={14} className="text-purple-500" />;
+        if (lowerType.startsWith('video/')) return <FileVideo size={14} className="text-orange-500" />;
+        if (lowerType === 'application/pdf') return <FileText size={14} className="text-red-500" />;
+
+        // Documents
+        if (lowerType.includes('word') || lowerType.includes('msword') || ext === 'doc' || ext === 'docx')
+            return <FileText size={14} className="text-blue-600" />;
+        if (lowerType.includes('excel') || lowerType.includes('spreadsheet') || ext === 'xls' || ext === 'xlsx' || ext === 'csv')
+            return <FileText size={14} className="text-green-600" />;
+        if (lowerType.includes('powerpoint') || lowerType.includes('presentation') || ext === 'ppt' || ext === 'pptx')
+            return <FileText size={14} className="text-orange-600" />;
+
+        // Archives
+        if (lowerType.includes('zip') || lowerType.includes('rar') || lowerType.includes('archive') || lowerType.includes('tar') || lowerType.includes('7z') || ext === 'zip' || ext === 'rar' || ext === '7z')
+            return <Archive size={14} className="text-yellow-600" />;
+
+        // Code/Text
+        if (lowerType.startsWith('text/') || lowerType.includes('json') || lowerType.includes('xml') || ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'json', 'md', 'txt'].includes(ext))
+            return <AlignLeft size={14} className="text-gray-600" />;
+
+        return <File size={14} className="text-gray-400" />;
     };
 
     const handleSend = async () => {
@@ -2133,7 +2162,7 @@ const MailBox = () => {
                                                                                             onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
                                                                                         >
                                                                                             <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                                                                                {getFileIcon(att.type)}
+                                                                                                {getFileIcon(att.type, att.name)}
                                                                                             </div>
                                                                                             <div style={{ overflow: 'hidden' }}>
                                                                                                 <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
@@ -2184,7 +2213,7 @@ const MailBox = () => {
                                                                             >
                                                                                 {/* File Icon */}
                                                                                 <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', flexShrink: 0 }}>
-                                                                                    {getFileIcon(att.type)}
+                                                                                    {getFileIcon(att.type, att.name)}
                                                                                 </div>
 
                                                                                 {/* File Info */}
@@ -2415,6 +2444,19 @@ const MailBox = () => {
                         addToast("Maximum 5 attachments allowed", "error");
                         return;
                     }
+
+                    // Total size limit: 10MB
+                    const MAX_SIZE = 10 * 1024 * 1024;
+                    const totalSize = [
+                        ...attachments,
+                        ...incomingItems
+                    ].reduce((acc, f) => acc + ('size' in f ? f.size : 0), 0);
+
+                    if (totalSize > MAX_SIZE) {
+                        addToast("Total attachments size exceeds 10MB limit", "error");
+                        return;
+                    }
+
                     incomingItems.forEach(file => {
                         const reader = new FileReader();
                         reader.onload = (e) => {
@@ -2675,7 +2717,7 @@ const MailBox = () => {
                             padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {getFileIcon(previewAttachment.type)}
+                                {getFileIcon(previewAttachment.type, previewAttachment.name)}
                                 <div>
                                     <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>{previewAttachment.name}</div>
                                     <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
@@ -2702,41 +2744,78 @@ const MailBox = () => {
                             </div>
                         </div>
 
-                        {/* Preview Body */}
                         <div style={{ flex: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', background: '#fafafa', minHeight: '300px' }}>
                             {(() => {
                                 const type = previewAttachment.type || '';
-                                const dataUri = previewAttachment.content?.startsWith('data:')
-                                    ? previewAttachment.content
-                                    : `data:${type};base64,${previewAttachment.content?.includes(',') ? previewAttachment.content.split(',')[1] : previewAttachment.content}`;
+                                // Clean the base64 content: remove whitespace, fix URL-safe chars, handle possible data: prefix
+                                const raw = previewAttachment.content?.startsWith('data:')
+                                    ? previewAttachment.content.split(',')[1]
+                                    : previewAttachment.content?.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/') || '';
+
+                                const dataUri = `data:${type};base64,${raw}`;
 
                                 if (type.startsWith('image/')) {
-                                    return <img src={dataUri} alt={previewAttachment.name} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />;
+                                    return <img src={dataUri} alt={previewAttachment.name} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />;
                                 }
+
                                 if (type === 'application/pdf') {
                                     return <iframe src={dataUri} style={{ width: '100%', height: '70vh', border: 'none', borderRadius: '8px' }} title={previewAttachment.name} />;
                                 }
+
                                 if (type.startsWith('audio/')) {
                                     return (
-                                        <div style={{ textAlign: 'center' }}>
-                                            <FileAudio size={48} style={{ color: '#8b5cf6', marginBottom: '1rem' }} />
-                                            <audio controls src={dataUri} style={{ width: '100%', maxWidth: '400px' }} />
+                                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                            <FileAudio size={64} style={{ color: '#8b5cf6', marginBottom: '1.5rem' }} />
+                                            <audio controls src={dataUri} style={{ width: '100%', maxWidth: '400px' }} autoPlay />
+                                            <p style={{ marginTop: '1rem', color: '#64748b', fontSize: '0.9rem' }}>{previewAttachment.name}</p>
                                         </div>
                                     );
                                 }
+
                                 if (type.startsWith('video/')) {
                                     return <video controls src={dataUri} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }} />;
                                 }
+
+                                const docExtensions = ['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'txt', 'csv'];
+                                const ext = previewAttachment.name.split('.').pop()?.toLowerCase() || '';
+
+                                if (docExtensions.includes(ext) || type.includes('officedocument') || type.includes('msword') || type.includes('excel') || type.includes('powerpoint')) {
+                                    return (
+                                        <div style={{ width: '100%', height: '70vh', borderRadius: '8px', overflow: 'hidden' }}>
+                                            <DocViewer
+                                                documents={[{ uri: dataUri, fileName: previewAttachment.name }]}
+                                                config={{ header: { disableHeader: true } }}
+                                                pluginRenderers={docRenderers}
+                                                theme={{
+                                                    primary: "#1e293b",
+                                                    secondary: "#f8fafc",
+                                                    tertiary: "#f1f5f9",
+                                                    textPrimary: "#1e293b",
+                                                    textSecondary: "#64748b",
+                                                    textTertiary: "#94a3b8",
+                                                    disableThemeScrollbar: true,
+                                                }}
+                                            />
+                                        </div>
+                                    );
+                                }
+
                                 if (type.startsWith('text/') || type.includes('json') || type.includes('xml') || type.includes('javascript') || type.includes('css') || type.includes('html')) {
                                     try {
-                                        const raw = previewAttachment.content?.includes(',') ? previewAttachment.content.split(',')[1] : previewAttachment.content;
-                                        const decoded = atob(raw || '');
+                                        // Better base64 to UTF-8 decoding
+                                        const binaryString = atob(raw);
+                                        const bytes = new Uint8Array(binaryString.length);
+                                        for (let i = 0; i < binaryString.length; i++) {
+                                            bytes[i] = binaryString.charCodeAt(i);
+                                        }
+                                        const decoded = new TextDecoder().decode(bytes);
+
                                         return (
                                             <pre style={{
-                                                width: '100%', maxHeight: '70vh', overflow: 'auto', padding: '1rem',
+                                                width: '100%', maxHeight: '70vh', overflow: 'auto', padding: '1.5rem',
                                                 background: '#1e293b', color: '#e2e8f0', borderRadius: '10px',
-                                                fontSize: '0.82rem', lineHeight: 1.6, fontFamily: '"Fira Code", monospace',
-                                                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                                fontSize: '0.85rem', lineHeight: 1.6, fontFamily: '"Fira Code", "Courier New", monospace',
+                                                whiteSpace: 'pre-wrap', wordBreak: 'break-word', border: '1px solid #334155'
                                             }}>
                                                 {decoded}
                                             </pre>
@@ -2745,17 +2824,26 @@ const MailBox = () => {
                                         return <p style={{ color: '#94a3b8' }}>Unable to decode text content.</p>;
                                     }
                                 }
-                                // Unsupported type
+
+                                // Default Fallback
                                 return (
-                                    <div style={{ textAlign: 'center', color: '#64748b' }}>
-                                        <File size={56} style={{ color: '#cbd5e1', marginBottom: '1rem' }} />
-                                        <p style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.5rem' }}>Preview not available</p>
-                                        <p style={{ fontSize: '0.85rem' }}>This file type ({type || 'unknown'}) cannot be previewed inline.</p>
-                                        <button onClick={() => handleDownloadAttachment(previewAttachment)} style={{
-                                            marginTop: '1rem', padding: '8px 20px', background: '#1e293b', color: '#fff',
-                                            border: 'none', borderRadius: '10px', fontWeight: 600, cursor: 'pointer',
-                                        }}>
-                                            <Download size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Download Instead
+                                    <div style={{ textAlign: 'center', color: '#64748b', padding: '4rem 2rem' }}>
+                                        <File size={72} style={{ color: '#cbd5e1', marginBottom: '1.5rem' }} />
+                                        <h4 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '0.5rem', color: '#1e293b' }}>Interactive Preview Unavailable</h4>
+                                        <p style={{ fontSize: '0.9rem', maxWidth: '300px', margin: '0 auto 1.5rem' }}>
+                                            The file <strong>{previewAttachment.name}</strong> ({type || 'unknown'}) cannot be previewed in this viewer.
+                                        </p>
+                                        <button
+                                            onClick={() => handleDownloadAttachment(previewAttachment)}
+                                            style={{
+                                                padding: '12px 24px', background: '#10b981', color: '#fff',
+                                                border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer',
+                                                boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4)', transition: 'all 0.2s'
+                                            }}
+                                            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                            onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                                        >
+                                            <Download size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Download File
                                         </button>
                                     </div>
                                 );

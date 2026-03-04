@@ -34,7 +34,7 @@ interface ComposeModalProps {
     addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
     handleAiWrite: (topic: string, refinement?: 'polish' | 'formalize' | 'elaborate' | 'shorten') => Promise<void>;
     isAiWriting: boolean;
-    getFileIcon: (type: string) => React.ReactNode;
+    getFileIcon: (type: string, filename?: string) => React.ReactNode;
     polishText: (text: string) => Promise<string>;
     senderAddress: string;
     setSenderAddress: (val: string) => void;
@@ -177,7 +177,7 @@ const ComposeModal: React.FC<ComposeModalProps> = ({
                     <div className={styles.attachmentList}>
                         {attachments.map((file, idx) => (
                             <div key={idx} className={styles.attachmentChip}>
-                                <span className={styles.fileIconWrapper}>{getFileIcon(file.type)}</span>
+                                <span className={styles.fileIconWrapper}>{getFileIcon(file.type, file.name)}</span>
                                 <span className={styles.attachmentName} title={file.name}>{file.name}</span>
                                 <button className={styles.removeAttachBtn} onClick={() => removeAttachment(idx)}><X size={14} /></button>
                             </div>

@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
             threatReason: finalThreatReason,
             blockedTrackers: security.blockedTrackers,
             summary: analysis.summary,
+            attachments: body.attachments || [],
             ownerSessionId: ownerSessionId
         });
 

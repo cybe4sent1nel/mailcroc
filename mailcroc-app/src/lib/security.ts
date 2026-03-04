@@ -29,6 +29,11 @@ const SENSITIVE_BRANDS = [
     'netflix', 'billing', 'invoice', 'payment', 'cashapp', 'venmo', 'security', 'alert'
 ];
 
+const SSO_WHITELIST = [
+    'accounts.google.com', 'github.com', 'microsoftonline.com', 'apple.com',
+    'auth0.com', 'okta.com', 'login.microsoftonline.com', 'sso.'
+];
+
 export interface SecurityAnalysisResult {
     cleanHtml: string;
     isThreat: boolean;
@@ -78,8 +83,17 @@ export function analyzeThreatsAndCleanHTML(from: string, subject: string, html: 
                         const rootText = textHost.split('.').slice(-2).join('.');
 
                         if (rootHref !== rootText) {
-                            isThreat = true;
-                            threatReason = `High-Risk Phishing: Contains a spoofed link masquerading as '${text}' but secretly redirecting to '${hrefHost}'.`;
+                            // Verify it's not a known, safe SSO redirect before flagging
+                            const isSSO = SSO_WHITELIST.some(domain => hrefHost.includes(domain));
+
+                            // Also ignore common tracking link decorators if they are just analytics 
+                            // (Tracker Blocker handles them natively)
+                            const isGenericTracker = hrefHost.startsWith('click.') || hrefHost.startsWith('link.') || hrefHost.startsWith('t.');
+
+                            if (!isSSO && !isGenericTracker) {
+                                isThreat = true;
+                                threatReason = `High-Risk Phishing: Contains a spoofed link masquerading as '${text}' but secretly redirecting to '${hrefHost}'.`;
+                            }
                         }
                     }
                 } catch {

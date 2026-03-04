@@ -8,6 +8,7 @@ async function getGmailAccessToken() {
     if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) return null;
 
     try {
+        console.log("Attempting to refresh Gmail token...");
         const response = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -19,6 +20,8 @@ async function getGmailAccessToken() {
             })
         });
         const data = await response.json();
+        console.log("Token Response Status:", response.status);
+        console.log("Token Response Data:", data);
         return response.ok ? data.access_token : null;
     } catch (err) {
         console.error('Failed to refresh GMail token:', err);

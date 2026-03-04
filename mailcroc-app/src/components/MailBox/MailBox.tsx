@@ -968,19 +968,46 @@ const MailBox = () => {
 
             // Primary: Backend AI (OpenRouter)
             try {
-                const res = await fetch('/api/ai/write', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        topic: prompt,
-                        tone: 'Professional',
-                        action: (action === 'summarize' || action === 'summarize_selected') ? 'summarize' : 'write'
-                    })
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    text = data.content;
+                if (action === 'summarize_selected' && selectedMessage) {
+                    // Use dedicated summarize endpoint with structured prompt + attachment context
+                    const res = await fetch('/api/ai/summarize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text: selectedMessage.text,
+                            subject: selectedMessage.subject,
+                            attachments: selectedMessage.attachments || []
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        text = data.summary;
+                    }
+                } else if (action === 'summarize') {
+                    // Bulk summarize all emails using the summarize endpoint
+                    const bulkText = messages.slice(0, 10).map(m =>
+                        `From: ${m.from}\nSubject: ${m.subject}\nContent: ${m.text?.slice(0, 300)}...`
+                    ).join('\n\n---\n\n');
+                    const res = await fetch('/api/ai/summarize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: bulkText, subject: 'Inbox Summary (multiple emails)' })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        text = data.summary;
+                    }
+                } else {
+                    // Drafts, receipts → use /api/ai/write
+                    const res = await fetch('/api/ai/write', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ topic: prompt, tone: 'Professional', action: 'write' })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        text = data.content;
+                    }
                 }
             } catch (err) {
                 console.warn("Backend AI failed, trying Puter fallback...", err);
@@ -1701,6 +1728,36 @@ const MailBox = () => {
                                                 <span className={styles.msgSubject}>{msg.subject}</span>
                                             </div>
                                             <div className={styles.msgSnippet}>{msg.text?.slice(0, 50)}...</div>
+                                            {/* Security & Attachment Badges */}
+                                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                                {msg.isThreat && (
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                        padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
+                                                        background: 'rgba(239,68,68,0.12)', color: '#dc2626', fontWeight: 600
+                                                    }}>
+                                                        <ShieldAlert size={10} /> Threat
+                                                    </span>
+                                                )}
+                                                {msg.blockedTrackers && msg.blockedTrackers.length > 0 && (
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                        padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
+                                                        background: 'rgba(34,197,94,0.12)', color: '#16a34a', fontWeight: 600
+                                                    }}>
+                                                        <ShieldCheck size={10} /> {msg.blockedTrackers.length} Blocked
+                                                    </span>
+                                                )}
+                                                {msg.attachments && msg.attachments.length > 0 && (
+                                                    <span style={{
+                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                        padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
+                                                        background: 'rgba(99,102,241,0.12)', color: '#4f46e5', fontWeight: 600
+                                                    }}>
+                                                        <Paperclip size={10} /> {msg.attachments.length}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 ))

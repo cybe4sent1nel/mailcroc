@@ -69,3 +69,4 @@ test-voice*.mp3
 
 # Verification scripts (generated)
 verify-*.js
+scripts/debug-gmail.mjs

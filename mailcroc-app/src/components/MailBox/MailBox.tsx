@@ -621,32 +621,18 @@ const MailBox = () => {
 
     useEffect(() => { if (emailAddress) fetchMessages(); }, [emailAddress, fetchMessages]);
 
-    // --- Aggressive Gmail Polling for Near-Real-Time Delivery ---
-    // Gmail doesn't support direct push to our server, so we poll every 10 seconds
-    // when the user has a Gmail/Googlemail alias active. This triggers the gmail-sync
-    // cron which fetches unread emails, saves them with session ownership, and pushes
-    // via Socket.IO for instant UI updates.
+    // --- Gmail Sync on Initial Load (Fallback) ---
+    // Real-time delivery flows through: Gmail → Cloudflare Forward → Webhook → Socket.IO/SSE → Client
+    // This single on-mount sync is a safety net to catch any emails that arrived while offline.
     useEffect(() => {
         const isGmailAlias = emailAddress &&
             (emailAddress.includes('@gmail.com') || emailAddress.includes('@googlemail.com'));
         if (!isGmailAlias || !sessionId) return;
 
-        console.log('📡 Starting aggressive Gmail polling (every 10s) for:', emailAddress);
-
-        const pollGmail = async () => {
-            try {
-                await fetch('/api/cron/gmail-sync');
-                // After sync, refresh messages to pick up any new ones
-                fetchMessages();
-            } catch (e) {
-                console.warn('Gmail poll failed:', e);
-            }
-        };
-
-        const interval = setInterval(pollGmail, 10000); // 10 seconds
-        pollGmail(); // Initial poll immediately
-
-        return () => clearInterval(interval);
+        // Single sync on mount, not a polling interval
+        fetch('/api/cron/gmail-sync')
+            .then(() => fetchMessages())
+            .catch(e => console.warn('Gmail initial sync failed:', e));
     }, [emailAddress, sessionId, fetchMessages]);
 
     const triggerArrivalFeedback = useCallback(() => {

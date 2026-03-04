@@ -987,7 +987,7 @@ const MailBox = () => {
             const win = window as unknown as { puter?: { ai: { chat: (p: string, options: { model: string }) => Promise<unknown> } } };
             if (!text && win.puter) {
                 try {
-                    const resp = await win.puter.ai.chat(prompt, { model: 'kimi' });
+                    const resp = (await win.puter.ai.chat(prompt, { model: 'kimi' })) as PuterResponse | string;
                     text = typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
                 } catch (e) {
                     console.warn("Puter AI failed...", e);

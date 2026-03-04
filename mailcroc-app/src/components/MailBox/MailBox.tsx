@@ -1656,26 +1656,18 @@ const MailBox = () => {
 
                                                 {/* Tracker Shield Badge */}
                                                 {(selectedMessage?.blockedTrackers && selectedMessage.blockedTrackers.length > 0) ? (
-                                                    <div className={styles.expiryWrapper} style={{ marginLeft: '1rem' }}>
+                                                    <div className={styles.trackerWrapper}>
                                                         <div
-                                                            className={styles.expiryBadge}
+                                                            className={styles.trackerBadge}
                                                             onClick={() => setShowTrackerModal(!showTrackerModal)}
                                                             title="View Blocked Trackers"
-                                                            style={{
-                                                                padding: '0.375rem 0.6rem',
-                                                                color: '#22c55e',
-                                                                backgroundColor: '#f0fdf4',
-                                                                borderColor: '#bbf7d0',
-                                                                border: '1px solid currentColor',
-                                                                cursor: 'pointer'
-                                                            }}
                                                         >
                                                             <ShieldCheck size={16} />
-                                                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{selectedMessage.blockedTrackers.length} Blocked</span>
+                                                            <span>{selectedMessage.blockedTrackers.length} Blocked</span>
                                                         </div>
 
                                                         {showTrackerModal && (
-                                                            <div className={styles.timeDropdown} style={{ minWidth: '220px', right: 0, padding: '1rem' }}>
+                                                            <div className={styles.trackerDropdown}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
                                                                     <ShieldCheck size={18} className="text-green-500" />
                                                                     <strong style={{ color: '#111827', fontSize: '0.9rem' }}>Tracker Intercepts</strong>
@@ -1708,7 +1700,7 @@ const MailBox = () => {
                                         {selectedMessage.isThreat && (
                                             <div className={styles.threatBanner}>
                                                 <AlertTriangle size={20} />
-                                                <span><strong>Warning:</strong> {selectedMessage.threatReason || "This email seems suspicious. Do not click links or reply."}</span>
+                                                <span><strong>Security Warning:</strong> {selectedMessage.threatReason || "This email has been flagged as suspicious by heuristics. Proceed with caution."}</span>
                                             </div>
                                         )}
 

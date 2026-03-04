@@ -270,6 +270,7 @@ export async function GET() {
                         threatReason: savedEmail.threatReason,
                         blockedTrackers: savedEmail.blockedTrackers,
                         summary: savedEmail.summary,
+                        attachments: savedEmail.attachments,
                         ownerSessionId: ownerSessionId
                     })
                 });

@@ -137,7 +137,7 @@ const MailBox = () => {
         }
     };
 
-    const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam'>('inbox');
+    const [activeFolder, setActiveFolder] = useState<'inbox' | 'sent' | 'trash' | 'drafts' | 'spam' | 'security_report'>('inbox');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true); // Default collapsed
     const [showIdentitySettings, setShowIdentitySettings] = useState(false);
@@ -196,7 +196,6 @@ const MailBox = () => {
     const [isInstantClean, setIsInstantClean] = useState(false);
     const [showInstantCleanConfirm, setShowInstantCleanConfirm] = useState(false);
     const [blockedHistory, setBlockedHistory] = useState<{ type: 'tracker' | 'fraud'; detail: string; timestamp: string; }[]>([]);
-    const [showSecurityReport, setShowSecurityReport] = useState(false);
 
     // --- State: Dragging ---
     const [composePos, setComposePos] = useState({ x: 100, y: 100 });
@@ -1379,9 +1378,12 @@ const MailBox = () => {
         setMobileMenuOpen(false);
     };
 
-    // Filtered Messages
     const filteredMessages = messages.filter(msg => {
         const targetFolder = activeFolder || 'inbox';
+
+        if (targetFolder === 'security_report') {
+            return false;
+        }
 
         if (targetFolder === 'inbox') {
             return (!msg.folder || msg.folder === 'inbox') && msg.from !== emailAddress;
@@ -1391,6 +1393,21 @@ const MailBox = () => {
         }
         return msg.folder === targetFolder;
     });
+
+    const handleClearSecurityHistory = async () => {
+        try {
+            await fetch('/api/emails', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'x-api-key': 'public_beta_key_v1' },
+                body: JSON.stringify({ action: 'clear-security', address: emailAddress })
+            });
+            setBlockedHistory([]);
+            setMessages(prev => prev.map(m => ({ ...m, isThreat: false, blockedTrackers: [], threatReason: undefined })));
+            addToast("Security history cleared", "success");
+        } catch {
+            addToast("Failed to clear security history", "error");
+        }
+    };
 
     const getInitials = (s: string) => {
         const str = s ? s.replace(/<[^>]+>/g, '').trim() : '';
@@ -1440,6 +1457,10 @@ const MailBox = () => {
                         </div>
                         <div className={`${styles.navItem} ${activeFolder === 'trash' ? styles.navItemActive : ''}`} onClick={() => setActiveFolder('trash')} title="Trash">
                             <div className={styles.navItemIcon}><Trash size={18} /> {!isSidebarCollapsed && 'Trash'}</div>
+                        </div>
+                        <div className={`${styles.navItem} ${activeFolder === 'security_report' ? styles.navItemActive : ''}`} onClick={() => setActiveFolder('security_report')} title="Security Report">
+                            <div className={styles.navItemIcon}><ShieldCheck size={18} /> {!isSidebarCollapsed && 'Security Repo'}</div>
+                            {!isSidebarCollapsed && blockedHistory.length > 0 && <span className={styles.badge} style={{ background: '#ef4444' }}>{blockedHistory.length}</span>}
                         </div>
                     </div>
 
@@ -1552,7 +1573,7 @@ const MailBox = () => {
                                 {/* Permanent Security Badge — always visible */}
                                 <div
                                     className={styles.globalThreatBadge}
-                                    onClick={() => setShowSecurityReport(true)}
+                                    onClick={() => setActiveFolder('security_report')}
                                     title="View Session Security Report"
                                     style={{
                                         cursor: 'pointer',
@@ -1733,555 +1754,646 @@ const MailBox = () => {
                     </div>
 
                     <div className={styles.contentArea}>
-                        {/* MESSAGE LIST */}
-                        <div className={`${styles.messageList} ${selectedMessage ? styles.hiddenMobile : ''}`}>
-                            {filteredMessages.length === 0 || isRefreshing ? (
-                                <div className={styles.emptyState}>
-                                    <LottiePlayer
-                                        animationData={isRefreshing ? mailRefreshAnim : (activeFolder === 'sent' ? mailSentAnim : noMsgAnim)}
-                                        style={{ width: isRefreshing ? 180 : 150, height: isRefreshing ? 180 : 150 }}
-                                    />
-                                    <p className="text-gray-500 font-medium">{isRefreshing ? 'Checking for new messages...' : (activeFolder === 'sent' ? 'No sent messages' : 'Inbox is empty')}</p>
-                                </div>
-                            ) : (
-                                filteredMessages.map(msg => (
-                                    <div key={msg._id} className={`${styles.messageItem} ${selectedMessage?._id === msg._id ? styles.active : ''} ${!msg.read ? styles.unread : ''}`} onClick={() => setSelectedMessage(msg)}>
-                                        <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
-                                            <img
-                                                src={`https://unavatar.io/${extractEmailAddress(msg.from)}?fallback=false`}
-                                                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
-                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                alt={getInitials(msg.from)}
-                                            />
-                                            <div className={styles.avatar} style={{ backgroundColor: getAvatarColor(msg.from), position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, margin: 0 }}>
-                                                {getInitials(msg.from)}
+                        {activeFolder === 'security_report' ? (
+                            <div style={{ flex: 1, padding: '2rem', background: '#fff', overflowY: 'auto' }}>
+                                <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                                        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <ShieldCheck size={32} className="text-green-500" />
+                                            Security Dashboard
+                                        </h2>
+                                        {blockedHistory.length > 0 && (
+                                            <button
+                                                onClick={handleClearSecurityHistory}
+                                                style={{ padding: '8px 16px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '8px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+                                                onMouseOver={e => e.currentTarget.style.background = '#fee2e2'}
+                                                onMouseOut={e => e.currentTarget.style.background = '#fef2f2'}
+                                            >
+                                                <Trash2 size={16} /> Clear History
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Summary Stats Cards */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
+                                        <div style={{ background: 'rgba(239,68,68,0.04)', borderRadius: '16px', padding: '1.5rem', border: '1px solid rgba(239,68,68,0.1)' }}>
+                                            <div style={{ fontSize: '3rem', fontWeight: 900, color: '#dc2626', lineHeight: 1 }}>
+                                                {blockedHistory.filter(h => h.type === 'fraud').length}
+                                            </div>
+                                            <div style={{ fontSize: '0.9rem', color: '#7f1d1d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginTop: '8px' }}>
+                                                Threats Detected
                                             </div>
                                         </div>
-                                        <div className={styles.msgContent}>
-                                            <div className={styles.msgHeaderRow}>
-                                                <span className={styles.msgSender}>{activeFolder === 'sent' ? `To: ${msg.to}` : msg.from}</span>
-                                                <div className={styles.hoverActions}>
-                                                    <button onClick={(e) => handlePinMessage(e, msg)} className={`${styles.iconBtnSmall} ${msg.pinned ? 'text-yellow-500' : 'text-gray-400'}`} title={msg.pinned ? "Unpin" : "Pin"}><Star size={14} fill={msg.pinned ? "currentColor" : "none"} /></button>
-                                                    <button onClick={(e) => handleDeleteMessage(e, msg)} className={styles.iconBtnSmall} title="Delete"><Trash2 size={14} /></button>
-                                                </div>
-                                                <span className={styles.msgDate}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                        <div style={{ background: 'rgba(59,130,246,0.04)', borderRadius: '16px', padding: '1.5rem', border: '1px solid rgba(59,130,246,0.1)' }}>
+                                            <div style={{ fontSize: '3rem', fontWeight: 900, color: '#2563eb', lineHeight: 1 }}>
+                                                {blockedHistory.filter(h => h.type === 'tracker').length}
                                             </div>
-                                            <div className={styles.msgSubjectRow}>
-                                                {msg.isThreat && <ShieldAlert size={14} className="text-red-500 mr-1" />}
-                                                <span className={styles.msgSubject}>{msg.subject}</span>
+                                            <div style={{ fontSize: '0.9rem', color: '#1e3a8a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginTop: '8px' }}>
+                                                Trackers Neutralized
                                             </div>
-                                            <div className={styles.msgSnippet}>{msg.text?.slice(0, 50)}...</div>
-                                            {/* Security & Attachment Badges */}
-                                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
-                                                {msg.isThreat && (
-                                                    <span style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                                        padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
-                                                        background: 'rgba(239,68,68,0.12)', color: '#dc2626', fontWeight: 600
-                                                    }}>
-                                                        <ShieldAlert size={10} /> Threat
-                                                    </span>
-                                                )}
-                                                {msg.blockedTrackers && msg.blockedTrackers.length > 0 && (
-                                                    <span style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                                        padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
-                                                        background: 'rgba(34,197,94,0.12)', color: '#16a34a', fontWeight: 600
-                                                    }}>
-                                                        <ShieldCheck size={10} /> {msg.blockedTrackers.length} Blocked
-                                                    </span>
-                                                )}
-                                                {msg.attachments && msg.attachments.length > 0 && (
-                                                    <span style={{
-                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                                        padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
-                                                        background: 'rgba(99,102,241,0.12)', color: '#4f46e5', fontWeight: 600
-                                                    }}>
-                                                        <Paperclip size={10} /> {msg.attachments.length}
-                                                    </span>
-                                                )}
+                                        </div>
+                                        <div style={{ background: 'rgba(34,197,94,0.04)', borderRadius: '16px', padding: '1.5rem', border: '1px solid rgba(34,197,94,0.1)' }}>
+                                            <div style={{ fontSize: '3rem', fontWeight: 900, color: '#16a34a', lineHeight: 1 }}>
+                                                {blockedHistory.length}
+                                            </div>
+                                            <div style={{ fontSize: '0.9rem', color: '#14532d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginTop: '8px' }}>
+                                                Total Events
                                             </div>
                                         </div>
                                     </div>
-                                ))
-                            )}
-                        </div>
 
-                        {/* MESSAGE DETAIL */}
-                        <div className={`${styles.messageDetail} ${!selectedMessage ? styles.hiddenMobile : ''}`}>
-                            {selectedMessage ? (
-                                <>
-                                    <div className={styles.emailHeader}>
-                                        <div className={styles.headerTop}>
-                                            <button className={styles.backBtn} onClick={() => setSelectedMessage(null)}>← Back</button>
-                                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                                <button className={styles.iconBtn} onClick={handleExportPDF} title="Download as PDF">
-                                                    <FileText size={18} className="text-red-500" />
-                                                </button>
+                                    {/* Event History */}
+                                    <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#334155' }}>Event History</h3>
+                                        </div>
 
-                                                {activeFolder !== 'sent' && (
-                                                    <button
-                                                        className={styles.aiBtnSmall}
-                                                        onClick={() => handleAiAction('summarize_selected')}
-                                                        title="Summarize with AI"
-                                                    >
-                                                        <AILogo size={14} color="black" /> Summarize
-                                                    </button>
-                                                )}
-
-                                                <button onClick={handleForward} className={styles.iconBtn} title="Forward"><Forward size={18} /></button>
-
-                                                {/* Voice Gender Toggle */}
-                                                <button
-                                                    className={styles.iconBtn}
-                                                    onClick={() => setVoiceGender(prev => prev === 'female' ? 'male' : 'female')}
-                                                    title={`Voice: ${voiceGender === 'female' ? 'Hope (Female)' : 'Mark (Male)'}`}
-                                                    style={{ fontSize: '0.8rem', fontWeight: 'bold', width: '2rem' }}
-                                                >
-                                                    {voiceGender === 'female' ? 'F' : 'M'}
-                                                </button>
-
-                                                {/* Tracker Shield Badge */}
-                                                {(selectedMessage?.blockedTrackers && selectedMessage.blockedTrackers.length > 0) ? (
-                                                    <div className={styles.trackerWrapper}>
-                                                        <div
-                                                            className={styles.trackerBadge}
-                                                            onClick={() => setShowTrackerModal(!showTrackerModal)}
-                                                            title="View Blocked Trackers"
-                                                        >
-                                                            <ShieldCheck size={16} />
-                                                            <span>{selectedMessage.blockedTrackers.length} Blocked</span>
-                                                        </div>
-
-                                                        {showTrackerModal && (
-                                                            <div className={styles.trackerDropdown}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
-                                                                    <ShieldCheck size={18} className="text-green-500" />
-                                                                    <strong style={{ color: '#111827', fontSize: '0.9rem' }}>Tracker Intercepts</strong>
-                                                                </div>
-                                                                <ul style={{ margin: 0, padding: '0 0 0 1rem', fontSize: '0.85rem', color: '#4b5563' }}>
-                                                                    {selectedMessage.blockedTrackers.map((tracker, idx) => (
-                                                                        <li key={idx} style={{ marginBottom: '4px' }}>{tracker}</li>
-                                                                    ))}
-                                                                </ul>
-                                                                <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>
-                                                                    Invisible tracking pixels and beacons neutralized to protect your privacy.
-                                                                </div>
+                                        <div style={{ padding: '1.5rem' }}>
+                                            {blockedHistory.length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '4rem 0' }}>
+                                                    <ShieldCheck size={64} style={{ color: '#16a34a', margin: '0 auto 1.5rem', opacity: 0.5 }} />
+                                                    <h3 style={{ color: '#0f172a', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.5rem' }}>All Clear</h3>
+                                                    <p style={{ color: '#64748b', fontSize: '1rem', margin: 0 }}>No threats or trackers detected in this session.</p>
+                                                </div>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                    {blockedHistory.map((item, idx) => (
+                                                        <div key={idx} style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', borderLeft: `4px solid ${item.type === 'tracker' ? '#3b82f6' : '#ef4444'}`, borderTop: '1px solid #f1f5f9', borderRight: '1px solid #f1f5f9', borderBottom: '1px solid #f1f5f9' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                                <strong style={{ fontSize: '1rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                    {item.type === 'tracker' ? <><ShieldCheck size={18} style={{ color: '#3b82f6' }} /> Tracker Blocked</> : <><ShieldAlert size={18} style={{ color: '#ef4444' }} /> Fraud Detected</>}
+                                                                </strong>
+                                                                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>{new Date(item.timestamp).toLocaleString()}</span>
                                                             </div>
+                                                            <p style={{ fontSize: '0.95rem', color: '#334155', margin: 0, lineHeight: 1.5 }}>{item.detail}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginTop: '2rem', padding: '1.25rem', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                                        <ShieldCheck size={24} className="text-green-600" style={{ flexShrink: 0 }} />
+                                        <p style={{ fontSize: '0.95rem', color: '#166534', margin: 0, lineHeight: 1.5 }}>
+                                            MailCroc actively neutralizes invisible tracking pixels and analyzes incoming mail for phishing, spoofing, and scam attempts in real-time, keeping your temporary inbox secure.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* MESSAGE LIST */}
+                                <div className={`${styles.messageList} ${selectedMessage ? styles.hiddenMobile : ''}`}>
+                                    {filteredMessages.length === 0 || isRefreshing ? (
+                                        <div className={styles.emptyState}>
+                                            <LottiePlayer
+                                                animationData={isRefreshing ? mailRefreshAnim : (activeFolder === 'sent' ? mailSentAnim : noMsgAnim)}
+                                                style={{ width: isRefreshing ? 180 : 150, height: isRefreshing ? 180 : 150 }}
+                                            />
+                                            <p className="text-gray-500 font-medium">{isRefreshing ? 'Checking for new messages...' : (activeFolder === 'sent' ? 'No sent messages' : 'Inbox is empty')}</p>
+                                        </div>
+                                    ) : (
+                                        filteredMessages.map(msg => (
+                                            <div key={msg._id} className={`${styles.messageItem} ${selectedMessage?._id === msg._id ? styles.active : ''} ${!msg.read ? styles.unread : ''}`} onClick={() => setSelectedMessage(msg)}>
+                                                <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+                                                    <img
+                                                        src={`https://unavatar.io/${extractEmailAddress(msg.from)}?fallback=false`}
+                                                        style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
+                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                        alt={getInitials(msg.from)}
+                                                    />
+                                                    <div className={styles.avatar} style={{ backgroundColor: getAvatarColor(msg.from), position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, margin: 0 }}>
+                                                        {getInitials(msg.from)}
+                                                    </div>
+                                                </div>
+                                                <div className={styles.msgContent}>
+                                                    <div className={styles.msgHeaderRow}>
+                                                        <span className={styles.msgSender}>{activeFolder === 'sent' ? `To: ${msg.to}` : msg.from}</span>
+                                                        <div className={styles.hoverActions}>
+                                                            <button onClick={(e) => handlePinMessage(e, msg)} className={`${styles.iconBtnSmall} ${msg.pinned ? 'text-yellow-500' : 'text-gray-400'}`} title={msg.pinned ? "Unpin" : "Pin"}><Star size={14} fill={msg.pinned ? "currentColor" : "none"} /></button>
+                                                            <button onClick={(e) => handleDeleteMessage(e, msg)} className={styles.iconBtnSmall} title="Delete"><Trash2 size={14} /></button>
+                                                        </div>
+                                                        <span className={styles.msgDate}>{new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                                    </div>
+                                                    <div className={styles.msgSubjectRow}>
+                                                        {msg.isThreat && <ShieldAlert size={14} className="text-red-500 mr-1" />}
+                                                        <span className={styles.msgSubject}>{msg.subject}</span>
+                                                    </div>
+                                                    <div className={styles.msgSnippet}>{msg.text?.slice(0, 50)}...</div>
+                                                    {/* Security & Attachment Badges */}
+                                                    <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                                        {msg.isThreat && (
+                                                            <span style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                                padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
+                                                                background: 'rgba(239,68,68,0.12)', color: '#dc2626', fontWeight: 600
+                                                            }}>
+                                                                <ShieldAlert size={10} /> Threat
+                                                            </span>
+                                                        )}
+                                                        {msg.blockedTrackers && msg.blockedTrackers.length > 0 && (
+                                                            <span style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                                padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
+                                                                background: 'rgba(34,197,94,0.12)', color: '#16a34a', fontWeight: 600
+                                                            }}>
+                                                                <ShieldCheck size={10} /> {msg.blockedTrackers.length} Blocked
+                                                            </span>
+                                                        )}
+                                                        {msg.attachments && msg.attachments.length > 0 && (
+                                                            <span style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                                padding: '1px 6px', borderRadius: '10px', fontSize: '0.65rem',
+                                                                background: 'rgba(99,102,241,0.12)', color: '#4f46e5', fontWeight: 600
+                                                            }}>
+                                                                <Paperclip size={10} /> {msg.attachments.length}
+                                                            </span>
                                                         )}
                                                     </div>
-                                                ) : <></>}
-
-                                                <button
-                                                    className={styles.iconBtn}
-                                                    onClick={isPlayingAudio ? stopReadAloud : handleReadAloud}
-                                                    title={isPlayingAudio ? "Stop Reading" : "Read Aloud"}
-                                                    style={{ color: isPlayingAudio ? '#ef4444' : '#64748b' }}>
-                                                    {isPlayingAudio ? <Square size={18} fill="currentColor" /> : <Volume2 size={18} />}
-                                                </button>
-                                                <button onClick={(e) => selectedMessage && handleDeleteMessage(e as unknown as React.MouseEvent, selectedMessage)} className={styles.iconBtn} title="Delete"><Trash2 size={18} /></button>
-                                            </div>
-                                        </div>
-
-                                        {/* THREAT WARNING */}
-                                        {selectedMessage.isThreat && (
-                                            <div className={styles.threatBanner}>
-                                                <AlertTriangle size={20} />
-                                                <span><strong>Security Warning:</strong> {selectedMessage.threatReason || "This email has been flagged as suspicious by heuristics. Proceed with caution."}</span>
-                                            </div>
-                                        )}
-
-                                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '1rem 0' }}>{selectedMessage.subject}</h2>
-                                        <div className={styles.meta}>
-                                            <span>From: <strong>{selectedMessage.from}</strong></span>
-                                            <span>{new Date(selectedMessage.receivedAt).toLocaleString([], { hour12: true })}</span>
-                                        </div>
-
-                                        {/* IN-MAIL AI SUMMARY */}
-                                        {selectedMessage.summary && selectedMessage && (activeFolder !== 'sent') && (
-                                            <div className={styles.inMailSummary}>
-                                                <div className={styles.summaryHeader}>
-                                                    <div className={styles.summaryTitle}>
-                                                        <AILogo size={14} color="#84cc16" />
-                                                        <span>AI Summary</span>
-                                                    </div>
-                                                    <button onClick={() => {
-                                                        if (selectedMessage) {
-                                                            setSelectedMessage({ ...selectedMessage, summary: undefined });
-                                                        }
-                                                    }} className={styles.closeSummary}>×</button>
-                                                </div>
-                                                <div className={styles.summaryContent}>
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                                                        {selectedMessage.summary || ''}
-                                                    </ReactMarkdown>
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
+                                        ))
+                                    )}
+                                </div>
 
-                                    <div id="email-content-export" className={styles.emailBody}>
-                                        {selectedMessage.text?.startsWith('MC-LOCKED:') && unlockedMessageId !== selectedMessage._id ? (
-                                            <div className={styles.lockedMessageOverlay}>
-                                                <div className={styles.lockIconBox}>
-                                                    <ShieldAlert size={48} className="text-red-500 mb-4" />
-                                                    <h3>This Email is Password Protected</h3>
-                                                    <p>The sender has secured this message. Please enter the shared code to unlock.</p>
-                                                    <div className={styles.unlockInputGroup}>
-                                                        <input
-                                                            type="password"
-                                                            placeholder="Enter shared code"
-                                                            value={unlockInput}
-                                                            onChange={(e) => setUnlockInput(e.target.value)}
-                                                            className={styles.unlockInput}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
-                                                                    if (decrypted) {
-                                                                        try {
-                                                                            const parsed = JSON.parse(decrypted);
-                                                                            if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
-                                                                                setUnlockedText(parsed.content || '');
-                                                                                setUnlockedAttachments(parsed.attachments || []);
-                                                                            } else {
-                                                                                // Legacy format (just string)
-                                                                                setUnlockedText(decrypted);
-                                                                                setUnlockedAttachments([]);
-                                                                            }
-                                                                        } catch {
-                                                                            // Not JSON, assume legacy string
-                                                                            setUnlockedText(decrypted);
-                                                                            setUnlockedAttachments([]);
-                                                                        }
-                                                                        setUnlockedMessageId(selectedMessage._id);
-                                                                        addToast("Email unlocked!", "success");
-                                                                    } else {
-                                                                        addToast("Invalid code", "error");
-                                                                    }
-                                                                }
-                                                            }}
-                                                        />
-                                                        <button
-                                                            className={styles.unlockBtn}
-                                                            onClick={() => {
-                                                                const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
-                                                                if (decrypted) {
-                                                                    try {
-                                                                        const parsed = JSON.parse(decrypted);
-                                                                        if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
-                                                                            setUnlockedText(parsed.content || '');
-                                                                            setUnlockedAttachments(parsed.attachments || []);
-                                                                        } else {
-                                                                            setUnlockedText(decrypted);
-                                                                            setUnlockedAttachments([]);
-                                                                        }
-                                                                    } catch {
-                                                                        setUnlockedText(decrypted);
-                                                                        setUnlockedAttachments([]);
-                                                                    }
-                                                                    setUnlockedMessageId(selectedMessage._id);
-                                                                    addToast("Email unlocked!", "success");
-                                                                } else {
-                                                                    addToast("Invalid code", "error");
-                                                                }
-                                                            }}
-                                                        >
-                                                            Unlock
+                                {/* MESSAGE DETAIL */}
+                                <div className={`${styles.messageDetail} ${!selectedMessage ? styles.hiddenMobile : ''}`}>
+                                    {selectedMessage ? (
+                                        <>
+                                            <div className={styles.emailHeader}>
+                                                <div className={styles.headerTop}>
+                                                    <button className={styles.backBtn} onClick={() => setSelectedMessage(null)}>← Back</button>
+                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                        <button className={styles.iconBtn} onClick={handleExportPDF} title="Download as PDF">
+                                                            <FileText size={18} className="text-red-500" />
                                                         </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {selectedMessage.html && unlockedMessageId !== selectedMessage._id ? (
-                                                    <div dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html) }} />
-                                                ) : (
-                                                    <div className={styles.markdownBody}>
-                                                        {unlockedMessageId === selectedMessage._id ? (
-                                                            <div>
-                                                                {/* Render Unlocked Content (HTML support) */}
-                                                                <div dangerouslySetInnerHTML={{ __html: processHtml(unlockedText || '') }} />
 
-                                                                {/* Render Unlocked Attachments */}
-                                                                {unlockedAttachments.length > 0 && (
-                                                                    <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                            <Paperclip size={14} /> Attachments ({unlockedAttachments.length})
-                                                                        </h4>
-                                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
-                                                                            {unlockedAttachments.map((att, idx) => (
-                                                                                <div
-                                                                                    key={idx}
-                                                                                    onClick={() => handleDownloadAttachment(att)}
-                                                                                    style={{
-                                                                                        display: 'flex', alignItems: 'center', gap: '10px',
-                                                                                        padding: '0.75rem', background: '#f8fafc', borderRadius: '8px',
-                                                                                        textDecoration: 'none', color: '#1e293b', border: '1px solid #e2e8f0',
-                                                                                        transition: 'all 0.2s', fontSize: '0.85rem', cursor: 'pointer'
-                                                                                    }}
-                                                                                    onMouseOver={e => e.currentTarget.style.borderColor = '#cbd5e1'}
-                                                                                    onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
-                                                                                >
-                                                                                    <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                                                                        {getFileIcon(att.type)}
-                                                                                    </div>
-                                                                                    <div style={{ overflow: 'hidden' }}>
-                                                                                        <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
-                                                                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{(att.size / 1024).toFixed(1)} KB</div>
-                                                                                    </div>
-                                                                                    <Download size={14} className="ml-auto text-gray-400" />
-                                                                                </div>
+                                                        {activeFolder !== 'sent' && (
+                                                            <button
+                                                                className={styles.aiBtnSmall}
+                                                                onClick={() => handleAiAction('summarize_selected')}
+                                                                title="Summarize with AI"
+                                                            >
+                                                                <AILogo size={14} color="black" /> Summarize
+                                                            </button>
+                                                        )}
+
+                                                        <button onClick={handleForward} className={styles.iconBtn} title="Forward"><Forward size={18} /></button>
+
+                                                        {/* Voice Gender Toggle */}
+                                                        <button
+                                                            className={styles.iconBtn}
+                                                            onClick={() => setVoiceGender(prev => prev === 'female' ? 'male' : 'female')}
+                                                            title={`Voice: ${voiceGender === 'female' ? 'Hope (Female)' : 'Mark (Male)'}`}
+                                                            style={{ fontSize: '0.8rem', fontWeight: 'bold', width: '2rem' }}
+                                                        >
+                                                            {voiceGender === 'female' ? 'F' : 'M'}
+                                                        </button>
+
+                                                        {/* Tracker Shield Badge */}
+                                                        {(selectedMessage?.blockedTrackers && selectedMessage.blockedTrackers.length > 0) ? (
+                                                            <div className={styles.trackerWrapper}>
+                                                                <div
+                                                                    className={styles.trackerBadge}
+                                                                    onClick={() => setShowTrackerModal(!showTrackerModal)}
+                                                                    title="View Blocked Trackers"
+                                                                >
+                                                                    <ShieldCheck size={16} />
+                                                                    <span>{selectedMessage.blockedTrackers.length} Blocked</span>
+                                                                </div>
+
+                                                                {showTrackerModal && (
+                                                                    <div className={styles.trackerDropdown}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.75rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
+                                                                            <ShieldCheck size={18} className="text-green-500" />
+                                                                            <strong style={{ color: '#111827', fontSize: '0.9rem' }}>Tracker Intercepts</strong>
+                                                                        </div>
+                                                                        <ul style={{ margin: 0, padding: '0 0 0 1rem', fontSize: '0.85rem', color: '#4b5563' }}>
+                                                                            {selectedMessage.blockedTrackers.map((tracker, idx) => (
+                                                                                <li key={idx} style={{ marginBottom: '4px' }}>{tracker}</li>
                                                                             ))}
+                                                                        </ul>
+                                                                        <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                                                                            Invisible tracking pixels and beacons neutralized to protect your privacy.
                                                                         </div>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        ) : (
-                                                            <ReactMarkdown
-                                                                remarkPlugins={[remarkGfm]}
-                                                                rehypePlugins={[rehypeSanitize]}
-                                                            >
-                                                                {selectedMessage.text}
-                                                            </ReactMarkdown>
-                                                        )}
+                                                        ) : <></>}
+
+                                                        <button
+                                                            className={styles.iconBtn}
+                                                            onClick={isPlayingAudio ? stopReadAloud : handleReadAloud}
+                                                            title={isPlayingAudio ? "Stop Reading" : "Read Aloud"}
+                                                            style={{ color: isPlayingAudio ? '#ef4444' : '#64748b' }}>
+                                                            {isPlayingAudio ? <Square size={18} fill="currentColor" /> : <Volume2 size={18} />}
+                                                        </button>
+                                                        <button onClick={(e) => selectedMessage && handleDeleteMessage(e as unknown as React.MouseEvent, selectedMessage)} className={styles.iconBtn} title="Delete"><Trash2 size={18} /></button>
+                                                    </div>
+                                                </div>
+
+                                                {/* THREAT WARNING */}
+                                                {selectedMessage.isThreat && (
+                                                    <div className={styles.threatBanner} onClick={() => setActiveFolder('security_report')} style={{ cursor: 'pointer' }}>
+                                                        <AlertTriangle size={20} />
+                                                        <span><strong>Security Warning:</strong> {selectedMessage.threatReason || "This email has been flagged as suspicious by heuristics. Proceed with caution."} <span style={{ textDecoration: 'underline', marginLeft: '8px' }}>View Details</span></span>
                                                     </div>
                                                 )}
 
-                                                {/* Regular Attachments (Not Locked) */}
-                                                {selectedMessage.attachments && selectedMessage.attachments.length > 0 && unlockedMessageId !== selectedMessage._id && (
-                                                    <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                                                        <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <Paperclip size={14} /> Attachments ({selectedMessage.attachments.length})
-                                                        </h4>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                            {selectedMessage.attachments.map((att, idx) => {
-                                                                const sizeStr = att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`;
-                                                                const scan = att.scanResult;
-                                                                const scanColor = scan?.verdict === 'safe' ? '#16a34a' : scan?.verdict === 'malicious' ? '#dc2626' : scan?.verdict === 'suspicious' ? '#f59e0b' : '#94a3b8';
-                                                                const scanBg = scan?.verdict === 'safe' ? 'rgba(34,197,94,0.08)' : scan?.verdict === 'malicious' ? 'rgba(239,68,68,0.08)' : scan?.verdict === 'suspicious' ? 'rgba(245,158,11,0.08)' : 'rgba(148,163,184,0.08)';
-                                                                const scanLabel = scan?.verdict === 'safe' ? '✓ Safe' : scan?.verdict === 'malicious' ? '✗ Malicious' : scan?.verdict === 'suspicious' ? '⚠ Suspicious' : '• Not scanned';
-                                                                const isImage = att.type?.startsWith('image/');
-                                                                return (
-                                                                    <div
-                                                                        key={idx}
-                                                                        style={{
-                                                                            display: 'flex', alignItems: 'center', gap: '12px',
-                                                                            padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: '10px',
-                                                                            border: '1px solid #e2e8f0', transition: 'all 0.2s', position: 'relative',
-                                                                        }}
-                                                                        onMouseOver={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
-                                                                        onMouseOut={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
-                                                                    >
-                                                                        {/* File Icon */}
-                                                                        <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', flexShrink: 0 }}>
-                                                                            {getFileIcon(att.type)}
-                                                                        </div>
+                                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '1rem 0' }}>{selectedMessage.subject}</h2>
+                                                <div className={styles.meta}>
+                                                    <span>From: <strong>{selectedMessage.from}</strong></span>
+                                                    <span>{new Date(selectedMessage.receivedAt).toLocaleString([], { hour12: true })}</span>
+                                                </div>
 
-                                                                        {/* File Info */}
-                                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                                            <div style={{ fontWeight: 500, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1e293b' }}>
-                                                                                {att.name}
-                                                                            </div>
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                                                                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{sizeStr}</span>
-                                                                                <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>•</span>
-                                                                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{att.type?.split('/')[1]?.toUpperCase() || 'FILE'}</span>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* VT Scan Badge */}
-                                                                        <div style={{
-                                                                            display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0,
-                                                                        }}>
-                                                                            <span style={{
-                                                                                display: 'inline-flex', alignItems: 'center', gap: '3px',
-                                                                                padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem',
-                                                                                fontWeight: 600, background: scanBg, color: scanColor,
-                                                                            }}>
-                                                                                {scanLabel}
-                                                                            </span>
-                                                                            <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>Scanned by MailCroc</span>
-                                                                        </div>
-
-                                                                        {/* Preview Button */}
-                                                                        {att.content && (
-                                                                            <button
-                                                                                onClick={(e) => { e.stopPropagation(); setPreviewAttachment(att); }}
-                                                                                style={{
-                                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                                    padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0',
-                                                                                    background: '#fff', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
-                                                                                }}
-                                                                                onMouseOver={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#93c5fd'; }}
-                                                                                onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-                                                                                title={`Preview ${att.name}`}
-                                                                            >
-                                                                                <Eye size={16} style={{ color: '#3b82f6' }} />
-                                                                            </button>
-                                                                        )}
-
-                                                                        {/* Download Button */}
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(att); }}
-                                                                            style={{
-                                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                                                padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0',
-                                                                                background: '#fff', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
-                                                                            }}
-                                                                            onMouseOver={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.borderColor = '#86efac'; }}
-                                                                            onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-                                                                            title={`Download ${att.name}`}
-                                                                        >
-                                                                            <Download size={16} style={{ color: '#16a34a' }} />
-                                                                        </button>
-
-                                                                        {/* Image Hover Preview (for image attachments) */}
-                                                                        {isImage && att.content && (
-                                                                            <div className={styles.attachmentPreview} style={{
-                                                                                position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
-                                                                                marginBottom: '8px', padding: '4px', background: '#fff', borderRadius: '8px',
-                                                                                boxShadow: '0 4px 16px rgba(0,0,0,0.15)', display: 'none', zIndex: 100,
-                                                                                maxWidth: '280px', maxHeight: '200px', overflow: 'hidden',
-                                                                            }}>
-                                                                                <img
-                                                                                    src={att.content.startsWith('data:') ? att.content : `data:${att.type};base64,${att.content.replace(/\\s+/g, '').replace(/-/g, '+').replace(/_/g, '/')}`}
-                                                                                    alt={att.name}
-                                                                                    style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }}
-                                                                                />
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })}
+                                                {/* IN-MAIL AI SUMMARY */}
+                                                {selectedMessage.summary && selectedMessage && (activeFolder !== 'sent') && (
+                                                    <div className={styles.inMailSummary}>
+                                                        <div className={styles.summaryHeader}>
+                                                            <div className={styles.summaryTitle}>
+                                                                <AILogo size={14} color="#84cc16" />
+                                                                <span>AI Summary</span>
+                                                            </div>
+                                                            <button onClick={() => {
+                                                                if (selectedMessage) {
+                                                                    setSelectedMessage({ ...selectedMessage, summary: undefined });
+                                                                }
+                                                            }} className={styles.closeSummary}>×</button>
+                                                        </div>
+                                                        <div className={styles.summaryContent}>
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+                                                                {selectedMessage.summary || ''}
+                                                            </ReactMarkdown>
                                                         </div>
                                                     </div>
                                                 )}
-
-                                            </>
-                                        )}
-                                    </div>
-
-                                    {/* Inline Reply - Now triggers Modal */}
-                                    <div className={styles.inlineReplyBox}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                                            <div className={styles.replyAvatar} style={{ overflow: 'hidden', position: 'relative' }}>
-                                                <img
-                                                    src={`https://unavatar.io/${extractEmailAddress(selectedMessage.from)}?fallback=false`}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
-                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                    alt="Avatar"
-                                                />
-                                                <User size={18} style={{ position: 'relative', zIndex: 1 }} />
                                             </div>
-                                            <div
-                                                className={styles.replyPlaceholderTrigger}
-                                                onClick={openReplyModal}
-                                            >
-                                                Reply to <strong>{selectedMessage.from}</strong>...
-                                            </div>
-                                            <button
-                                                className={styles.actionBtnAccent}
-                                                onClick={openReplyModal}
-                                                style={{ marginLeft: 'auto' }}
-                                            >
-                                                <Reply size={14} /> Reply
-                                            </button>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className={styles.placeholder}>
-                                    {/* AI Assistant Placeholder if selected */}
-                                    {showAiSidePanel ? (
-                                        <div className={styles.aiPanel}>
-                                            <h3><AILogo size={20} className="inline" color="black" /> AI Assistant</h3>
 
-                                            {summary ? (
-                                                <div className={styles.aiResult}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                                                        <strong>Result:</strong>
-                                                        <button onClick={() => setSummary(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={14} /></button>
+                                            <div id="email-content-export" className={styles.emailBody}>
+                                                {selectedMessage.text?.startsWith('MC-LOCKED:') && unlockedMessageId !== selectedMessage._id ? (
+                                                    <div className={styles.lockedMessageOverlay}>
+                                                        <div className={styles.lockIconBox}>
+                                                            <ShieldAlert size={48} className="text-red-500 mb-4" />
+                                                            <h3>This Email is Password Protected</h3>
+                                                            <p>The sender has secured this message. Please enter the shared code to unlock.</p>
+                                                            <div className={styles.unlockInputGroup}>
+                                                                <input
+                                                                    type="password"
+                                                                    placeholder="Enter shared code"
+                                                                    value={unlockInput}
+                                                                    onChange={(e) => setUnlockInput(e.target.value)}
+                                                                    className={styles.unlockInput}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
+                                                                            if (decrypted) {
+                                                                                try {
+                                                                                    const parsed = JSON.parse(decrypted);
+                                                                                    if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
+                                                                                        setUnlockedText(parsed.content || '');
+                                                                                        setUnlockedAttachments(parsed.attachments || []);
+                                                                                    } else {
+                                                                                        // Legacy format (just string)
+                                                                                        setUnlockedText(decrypted);
+                                                                                        setUnlockedAttachments([]);
+                                                                                    }
+                                                                                } catch {
+                                                                                    // Not JSON, assume legacy string
+                                                                                    setUnlockedText(decrypted);
+                                                                                    setUnlockedAttachments([]);
+                                                                                }
+                                                                                setUnlockedMessageId(selectedMessage._id);
+                                                                                addToast("Email unlocked!", "success");
+                                                                            } else {
+                                                                                addToast("Invalid code", "error");
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    className={styles.unlockBtn}
+                                                                    onClick={() => {
+                                                                        const decrypted = decrypt(selectedMessage.text.replace('MC-LOCKED:', ''), unlockInput);
+                                                                        if (decrypted) {
+                                                                            try {
+                                                                                const parsed = JSON.parse(decrypted);
+                                                                                if (typeof parsed === 'object' && (parsed.content || parsed.attachments)) {
+                                                                                    setUnlockedText(parsed.content || '');
+                                                                                    setUnlockedAttachments(parsed.attachments || []);
+                                                                                } else {
+                                                                                    setUnlockedText(decrypted);
+                                                                                    setUnlockedAttachments([]);
+                                                                                }
+                                                                            } catch {
+                                                                                setUnlockedText(decrypted);
+                                                                                setUnlockedAttachments([]);
+                                                                            }
+                                                                            setUnlockedMessageId(selectedMessage._id);
+                                                                            addToast("Email unlocked!", "success");
+                                                                        } else {
+                                                                            addToast("Invalid code", "error");
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    Unlock
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <TypewriterMarkdown text={summary} />
+                                                ) : (
+                                                    <>
+                                                        {selectedMessage.html && unlockedMessageId !== selectedMessage._id ? (
+                                                            <div dangerouslySetInnerHTML={{ __html: processHtml(selectedMessage.html) }} />
+                                                        ) : (
+                                                            <div className={styles.markdownBody}>
+                                                                {unlockedMessageId === selectedMessage._id ? (
+                                                                    <div>
+                                                                        {/* Render Unlocked Content (HTML support) */}
+                                                                        <div dangerouslySetInnerHTML={{ __html: processHtml(unlockedText || '') }} />
+
+                                                                        {/* Render Unlocked Attachments */}
+                                                                        {unlockedAttachments.length > 0 && (
+                                                                            <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                                                                                <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                    <Paperclip size={14} /> Attachments ({unlockedAttachments.length})
+                                                                                </h4>
+                                                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.5rem' }}>
+                                                                                    {unlockedAttachments.map((att, idx) => (
+                                                                                        <div
+                                                                                            key={idx}
+                                                                                            onClick={() => handleDownloadAttachment(att)}
+                                                                                            style={{
+                                                                                                display: 'flex', alignItems: 'center', gap: '10px',
+                                                                                                padding: '0.75rem', background: '#f8fafc', borderRadius: '8px',
+                                                                                                textDecoration: 'none', color: '#1e293b', border: '1px solid #e2e8f0',
+                                                                                                transition: 'all 0.2s', fontSize: '0.85rem', cursor: 'pointer'
+                                                                                            }}
+                                                                                            onMouseOver={e => e.currentTarget.style.borderColor = '#cbd5e1'}
+                                                                                            onMouseOut={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                                                                                        >
+                                                                                            <div style={{ background: '#fff', padding: '6px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                                                                                {getFileIcon(att.type)}
+                                                                                            </div>
+                                                                                            <div style={{ overflow: 'hidden' }}>
+                                                                                                <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{att.name}</div>
+                                                                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{(att.size / 1024).toFixed(1)} KB</div>
+                                                                                            </div>
+                                                                                            <Download size={14} className="ml-auto text-gray-400" />
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <ReactMarkdown
+                                                                        remarkPlugins={[remarkGfm]}
+                                                                        rehypePlugins={[rehypeSanitize]}
+                                                                    >
+                                                                        {selectedMessage.text}
+                                                                    </ReactMarkdown>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Regular Attachments (Not Locked) */}
+                                                        {selectedMessage.attachments && selectedMessage.attachments.length > 0 && unlockedMessageId !== selectedMessage._id && (
+                                                            <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                                                                <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <Paperclip size={14} /> Attachments ({selectedMessage.attachments.length})
+                                                                </h4>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                                    {selectedMessage.attachments.map((att, idx) => {
+                                                                        const sizeStr = att.size >= 1048576 ? `${(att.size / 1048576).toFixed(1)} MB` : `${(att.size / 1024).toFixed(1)} KB`;
+                                                                        const scan = att.scanResult;
+                                                                        const scanColor = scan?.verdict === 'safe' ? '#16a34a' : scan?.verdict === 'malicious' ? '#dc2626' : scan?.verdict === 'suspicious' ? '#f59e0b' : '#94a3b8';
+                                                                        const scanBg = scan?.verdict === 'safe' ? 'rgba(34,197,94,0.08)' : scan?.verdict === 'malicious' ? 'rgba(239,68,68,0.08)' : scan?.verdict === 'suspicious' ? 'rgba(245,158,11,0.08)' : 'rgba(148,163,184,0.08)';
+                                                                        const scanLabel = scan?.verdict === 'safe' ? '✓ Safe' : scan?.verdict === 'malicious' ? '✗ Malicious' : scan?.verdict === 'suspicious' ? '⚠ Suspicious' : '• Not scanned';
+                                                                        const isImage = att.type?.startsWith('image/');
+                                                                        return (
+                                                                            <div
+                                                                                key={idx}
+                                                                                style={{
+                                                                                    display: 'flex', alignItems: 'center', gap: '12px',
+                                                                                    padding: '0.75rem 1rem', background: '#f8fafc', borderRadius: '10px',
+                                                                                    border: '1px solid #e2e8f0', transition: 'all 0.2s', position: 'relative',
+                                                                                }}
+                                                                                onMouseOver={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
+                                                                                onMouseOut={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+                                                                            >
+                                                                                {/* File Icon */}
+                                                                                <div style={{ background: '#fff', padding: '8px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', flexShrink: 0 }}>
+                                                                                    {getFileIcon(att.type)}
+                                                                                </div>
+
+                                                                                {/* File Info */}
+                                                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                                                    <div style={{ fontWeight: 500, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#1e293b' }}>
+                                                                                        {att.name}
+                                                                                    </div>
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                                                                        <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{sizeStr}</span>
+                                                                                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>•</span>
+                                                                                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{att.type?.split('/')[1]?.toUpperCase() || 'FILE'}</span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {/* VT Scan Badge */}
+                                                                                <div style={{
+                                                                                    display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0,
+                                                                                }}>
+                                                                                    <span style={{
+                                                                                        display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                                                        padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem',
+                                                                                        fontWeight: 600, background: scanBg, color: scanColor,
+                                                                                    }}>
+                                                                                        {scanLabel}
+                                                                                    </span>
+                                                                                    <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>Scanned by MailCroc</span>
+                                                                                </div>
+
+                                                                                {/* Preview Button */}
+                                                                                {att.content && (
+                                                                                    <button
+                                                                                        onClick={(e) => { e.stopPropagation(); setPreviewAttachment(att); }}
+                                                                                        style={{
+                                                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                                            padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                                                                                            background: '#fff', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
+                                                                                        }}
+                                                                                        onMouseOver={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#93c5fd'; }}
+                                                                                        onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                                                                                        title={`Preview ${att.name}`}
+                                                                                    >
+                                                                                        <Eye size={16} style={{ color: '#3b82f6' }} />
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {/* Download Button */}
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); handleDownloadAttachment(att); }}
+                                                                                    style={{
+                                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                                        padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                                                                                        background: '#fff', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
+                                                                                    }}
+                                                                                    onMouseOver={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.borderColor = '#86efac'; }}
+                                                                                    onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                                                                                    title={`Download ${att.name}`}
+                                                                                >
+                                                                                    <Download size={16} style={{ color: '#16a34a' }} />
+                                                                                </button>
+
+                                                                                {/* Image Hover Preview (for image attachments) */}
+                                                                                {isImage && att.content && (
+                                                                                    <div className={styles.attachmentPreview} style={{
+                                                                                        position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+                                                                                        marginBottom: '8px', padding: '4px', background: '#fff', borderRadius: '8px',
+                                                                                        boxShadow: '0 4px 16px rgba(0,0,0,0.15)', display: 'none', zIndex: 100,
+                                                                                        maxWidth: '280px', maxHeight: '200px', overflow: 'hidden',
+                                                                                    }}>
+                                                                                        <img
+                                                                                            src={att.content.startsWith('data:') ? att.content : `data:${att.type};base64,${att.content.replace(/\\s+/g, '').replace(/-/g, '+').replace(/_/g, '/')}`}
+                                                                                            alt={att.name}
+                                                                                            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }}
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {/* Inline Reply - Now triggers Modal */}
+                                            <div className={styles.inlineReplyBox}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                                                    <div className={styles.replyAvatar} style={{ overflow: 'hidden', position: 'relative' }}>
+                                                        <img
+                                                            src={`https://unavatar.io/${extractEmailAddress(selectedMessage.from)}?fallback=false`}
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, zIndex: 2 }}
+                                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                            alt="Avatar"
+                                                        />
+                                                        <User size={18} style={{ position: 'relative', zIndex: 1 }} />
+                                                    </div>
+                                                    <div
+                                                        className={styles.replyPlaceholderTrigger}
+                                                        onClick={openReplyModal}
+                                                    >
+                                                        Reply to <strong>{selectedMessage.from}</strong>...
+                                                    </div>
+                                                    <button
+                                                        className={styles.actionBtnAccent}
+                                                        onClick={openReplyModal}
+                                                        style={{ marginLeft: 'auto' }}
+                                                    >
+                                                        <Reply size={14} /> Reply
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className={styles.placeholder}>
+                                            {/* AI Assistant Placeholder if selected */}
+                                            {showAiSidePanel ? (
+                                                <div className={styles.aiPanel}>
+                                                    <h3><AILogo size={20} className="inline" color="black" /> AI Assistant</h3>
+
+                                                    {summary ? (
+                                                        <div className={styles.aiResult}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                                                <strong>Result:</strong>
+                                                                <button onClick={() => setSummary(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={14} /></button>
+                                                            </div>
+                                                            <TypewriterMarkdown text={summary} />
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <p>I can help summarize emails, draft replies, or detect scams using free AI models.</p>
+                                                            <div className={styles.aiCapabilities}>
+                                                                {selectedMessage && (
+                                                                    <span className={styles.capChip} onClick={() => handleAiAction('summarize_selected')}>
+                                                                        {isSummarizing ? 'Thinking...' : 'Summarize This Email'}
+                                                                    </span>
+                                                                )}
+                                                                <span className={styles.capChip} onClick={() => handleAiAction('summarize')}>
+                                                                    {isSummarizing ? 'Thinking...' : 'Summarize Inbox'}
+                                                                </span>
+                                                                <span className={styles.capChip} onClick={() => handleAiAction('receipts')}>
+                                                                    {isSummarizing ? 'Scanning...' : 'Find receipts'}
+                                                                </span>
+                                                                <span className={styles.capChip} onClick={() => handleAiAction('draft')}>
+                                                                    Draft intro
+                                                                </span>
+                                                                <span className={styles.capChip} onClick={() => document.getElementById('vision-input')?.click()}>
+                                                                    Analyze Image
+                                                                </span>
+                                                                <input
+                                                                    type="file"
+                                                                    id="vision-input"
+                                                                    style={{ display: 'none' }}
+                                                                    accept="image/*"
+                                                                    onChange={async (e) => {
+                                                                        if (e.target.files?.[0]) {
+                                                                            const file = e.target.files[0];
+                                                                            setIsSummarizing(true);
+                                                                            addToast("Analyzing image...", "info");
+
+                                                                            // Helper to convert to Base64
+                                                                            const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+                                                                                const reader = new FileReader();
+                                                                                reader.readAsDataURL(file);
+                                                                                reader.onload = () => resolve(reader.result as string);
+                                                                                reader.onerror = error => reject(error);
+                                                                            });
+
+                                                                            try {
+                                                                                const base64Image = await toBase64(file);
+                                                                                // Log puter availability
+                                                                                console.log('Puter check:', (window as unknown as { puter?: unknown }).puter);
+
+                                                                                const resp = await (window as unknown as { puter: any }).puter.ai.chat("Describe this image in detail.", {
+                                                                                    model: 'gpt-4o',
+                                                                                    images: [base64Image]
+                                                                                });
+                                                                                const text = (resp as PuterResponse)?.message?.content || JSON.stringify(resp);
+                                                                                setSummary(text);
+                                                                                setShowSummaryModal(true);
+                                                                                addToast("Image analyzed!", "success");
+                                                                            } catch (err: unknown) {
+                                                                                console.error("Vision Error Object:", err);
+                                                                                addToast(`Vision Error: ${(err as Error)?.message || 'Unknown error'}`, "error");
+                                                                            } finally {
+                                                                                setIsSummarizing(false);
+                                                                                // Reset input
+                                                                                e.target.value = '';
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             ) : (
-                                                <>
-                                                    <p>I can help summarize emails, draft replies, or detect scams using free AI models.</p>
-                                                    <div className={styles.aiCapabilities}>
-                                                        {selectedMessage && (
-                                                            <span className={styles.capChip} onClick={() => handleAiAction('summarize_selected')}>
-                                                                {isSummarizing ? 'Thinking...' : 'Summarize This Email'}
-                                                            </span>
-                                                        )}
-                                                        <span className={styles.capChip} onClick={() => handleAiAction('summarize')}>
-                                                            {isSummarizing ? 'Thinking...' : 'Summarize Inbox'}
-                                                        </span>
-                                                        <span className={styles.capChip} onClick={() => handleAiAction('receipts')}>
-                                                            {isSummarizing ? 'Scanning...' : 'Find receipts'}
-                                                        </span>
-                                                        <span className={styles.capChip} onClick={() => handleAiAction('draft')}>
-                                                            Draft intro
-                                                        </span>
-                                                        <span className={styles.capChip} onClick={() => document.getElementById('vision-input')?.click()}>
-                                                            Analyze Image
-                                                        </span>
-                                                        <input
-                                                            type="file"
-                                                            id="vision-input"
-                                                            style={{ display: 'none' }}
-                                                            accept="image/*"
-                                                            onChange={async (e) => {
-                                                                if (e.target.files?.[0]) {
-                                                                    const file = e.target.files[0];
-                                                                    setIsSummarizing(true);
-                                                                    addToast("Analyzing image...", "info");
-
-                                                                    // Helper to convert to Base64
-                                                                    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
-                                                                        const reader = new FileReader();
-                                                                        reader.readAsDataURL(file);
-                                                                        reader.onload = () => resolve(reader.result as string);
-                                                                        reader.onerror = error => reject(error);
-                                                                    });
-
-                                                                    try {
-                                                                        const base64Image = await toBase64(file);
-                                                                        // Log puter availability
-                                                                        console.log('Puter check:', (window as unknown as { puter?: unknown }).puter);
-
-                                                                        const resp = await (window as unknown as { puter: any }).puter.ai.chat("Describe this image in detail.", {
-                                                                            model: 'gpt-4o',
-                                                                            images: [base64Image]
-                                                                        });
-                                                                        const text = (resp as PuterResponse)?.message?.content || JSON.stringify(resp);
-                                                                        setSummary(text);
-                                                                        setShowSummaryModal(true);
-                                                                        addToast("Image analyzed!", "success");
-                                                                    } catch (err: unknown) {
-                                                                        console.error("Vision Error Object:", err);
-                                                                        addToast(`Vision Error: ${(err as Error)?.message || 'Unknown error'}`, "error");
-                                                                    } finally {
-                                                                        setIsSummarizing(false);
-                                                                        // Reset input
-                                                                        e.target.value = '';
-                                                                    }
-                                                                }
-                                                            }
-                                                            }
-                                                        />
-                                                    </div>
-                                                </>
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <Mail size={48} color="#cbd5e1" style={{ margin: '0 auto 1rem' }} />
+                                                    <p>Select an item to read</p>
+                                                </div>
                                             )}
-                                        </div>
-                                    ) : (
-                                        <div style={{ textAlign: 'center' }}>
-                                            <Mail size={48} color="#cbd5e1" style={{ margin: '0 auto 1rem' }} />
-                                            <p>Select an item to read</p>
                                         </div>
                                     )}
                                 </div>
-                            )}
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -2437,79 +2549,8 @@ const MailBox = () => {
                 </div>
             )}
 
-            {/* Session Security Report Modal */}
-            {showSecurityReport && (
-                <div className={styles.modalOverlay} onClick={() => setShowSecurityReport(false)}>
-                    <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '560px' }}>
-                        <div className={styles.modalHeader}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <ShieldCheck size={20} className="text-green-500" /> Security Dashboard
-                            </h3>
-                            <button onClick={() => setShowSecurityReport(false)}><X size={20} /></button>
-                        </div>
 
-                        {/* Summary Stats Cards */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', padding: '0.75rem 0' }}>
-                            <div style={{ background: 'rgba(239,68,68,0.06)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center', border: '1px solid rgba(239,68,68,0.15)' }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#dc2626' }}>
-                                    {blockedHistory.filter(h => h.type === 'fraud').length}
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Threats Detected
-                                </div>
-                            </div>
-                            <div style={{ background: 'rgba(59,130,246,0.06)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center', border: '1px solid rgba(59,130,246,0.15)' }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2563eb' }}>
-                                    {blockedHistory.filter(h => h.type === 'tracker').length}
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Trackers Neutralized
-                                </div>
-                            </div>
-                            <div style={{ background: 'rgba(34,197,94,0.06)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center', border: '1px solid rgba(34,197,94,0.15)' }}>
-                                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a' }}>
-                                    {blockedHistory.length}
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    Total Events
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Event History */}
-                        <div style={{ maxHeight: '320px', overflowY: 'auto', padding: '0.5rem 0' }}>
-                            <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Event History</h4>
-                            {blockedHistory.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                                    <ShieldCheck size={40} style={{ color: '#16a34a', margin: '0 auto 0.75rem' }} />
-                                    <p style={{ color: '#16a34a', fontWeight: 600, margin: '0 0 0.25rem' }}>All Clear</p>
-                                    <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0 }}>No threats or trackers detected in this session.</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                    {blockedHistory.map((item, idx) => (
-                                        <div key={idx} style={{ padding: '0.625rem 0.75rem', background: '#f8fafc', borderRadius: '8px', borderLeft: `3px solid ${item.type === 'tracker' ? '#3b82f6' : '#ef4444'}` }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                                <strong style={{ fontSize: '0.8rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    {item.type === 'tracker' ? <><ShieldCheck size={12} style={{ color: '#3b82f6' }} /> Tracker Blocked</> : <><ShieldAlert size={12} style={{ color: '#ef4444' }} /> Fraud Detected</>}
-                                                </strong>
-                                                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{new Date(item.timestamp).toLocaleTimeString()}</span>
-                                            </div>
-                                            <p style={{ fontSize: '0.8rem', color: '#4b5563', margin: 0 }}>{item.detail}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #dcfce7' }}>
-                            <p style={{ fontSize: '0.75rem', color: '#166534', margin: 0, fontStyle: 'italic' }}>
-                                MailCroc actively neutralizes invisible tracking pixels and analyzes incoming mail for phishing, spoofing, and scam attempts in real-time.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* AI Summary Modal */}
             {showSummaryModal && summary && (

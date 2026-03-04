@@ -115,6 +115,15 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ success });
         }
 
+        if (action === 'clear-security' && address) {
+            const success = await updateEmailsByAddress(address, {
+                isThreat: false,
+                blockedTrackers: [],
+                threatReason: undefined,
+            });
+            return NextResponse.json({ success });
+        }
+
         if (action === 'audio' && emailId) {
             const found = await findEmailById(emailId);
             if (!found) return NextResponse.json({ error: 'Email not found' }, { status: 404 });

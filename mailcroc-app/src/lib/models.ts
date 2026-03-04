@@ -22,6 +22,8 @@ export interface IEmail {
     folder?: 'inbox' | 'sent' | 'trash' | 'spam' | 'drafts';
     category?: 'primary' | 'social' | 'updates' | 'promotions' | 'spam';
     isThreat?: boolean;
+    threatReason?: string;
+    blockedTrackers?: string[];
     summary?: string;
     ownerSessionId?: string;
     speechAudio?: string; // Base64 audio content

@@ -575,7 +575,11 @@ const MailBox = () => {
                 fetch('/api/cron/gmail-sync').catch(e => console.warn('Gmail Sync failed:', e));
             }
 
-            const res = await fetch(`/api/emails?address=${encodeURIComponent(emailAddress)}&sessionId=${sessionId}`, { headers: { 'x-api-key': 'public_beta_key_v1' } });
+            // Normalize @googlemail.com → @gmail.com for consistent DB lookups
+            const normalizedAddress = emailAddress.replace(/@googlemail\.com$/, '@gmail.com');
+            // Fetch from both the original and normalized addresses to ensure complete inbox
+            const fetchAddr = normalizedAddress !== emailAddress ? normalizedAddress : emailAddress;
+            const res = await fetch(`/api/emails?address=${encodeURIComponent(fetchAddr)}&sessionId=${sessionId}`, { headers: { 'x-api-key': 'public_beta_key_v1' } });
             if (res.ok) {
                 const data = await res.json();
 
@@ -709,7 +713,20 @@ const MailBox = () => {
         socket.on('connect', () => {
             console.log("🟢 Socket Connected!");
             setIsConnected(true);
-            if (emailAddress) socket.emit('join', emailAddress);
+            if (emailAddress) {
+                socket.emit('join', emailAddress);
+                // Also join the normalized variant so notifications from the webhook
+                // (which normalizes @googlemail.com → @gmail.com) are received
+                const normalized = emailAddress.replace(/@googlemail\.com$/, '@gmail.com');
+                if (normalized !== emailAddress) {
+                    socket.emit('join', normalized);
+                }
+                // And vice versa: if using @gmail.com, also listen on @googlemail.com
+                const googlemail = emailAddress.replace(/@gmail\.com$/, '@googlemail.com');
+                if (googlemail !== emailAddress) {
+                    socket.emit('join', googlemail);
+                }
+            }
             if (sessionId) socket.emit('join', sessionId);
         });
 

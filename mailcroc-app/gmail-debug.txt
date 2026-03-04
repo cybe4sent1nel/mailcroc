@@ -1,0 +1,109 @@
+ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+Γòæ    ≡ƒôº Gmail Debug Diagnostic           Γòæ
+ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+
+Γ£à Token refresh OK
+≡ƒô¼ Gmail Account: wecare.woven@gmail.com
+≡ƒôè Total Messages: 30
+
+--- Recent Messages (last 10) ---
+Found 10 messages
+
+ΓÜ¬ ID: 19cb74aa7a75096b
+   From: "Ravelry.com" <invitations@ravelry.com>
+   To: wecare.woven+windy-yacht63@googlemail.com
+   Delivered-To: wecare.woven+windy-yacht63@gmail.com
+   X-Original-To: (missing)
+   Subject: Your Ravelry.com sign up link
+   Date: Wed, 04 Mar 2026 00:20:43 -0500
+   Labels: IMPORTANT, CATEGORY_UPDATES, INBOX
+
+ΓÜ¬ ID: 19cb69155be7abef
+   From: Fahad Khan <fahadkhanxyz8816@gmail.com>
+   To: wecare.woven+ritzy-quartz46@gmail.com
+   Delivered-To: wecare.woven+ritzy-quartz46@gmail.com
+   X-Original-To: (missing)
+   Subject: Re: hi
+   Date: Wed, 4 Mar 2026 07:28:11 +0530
+   Labels: IMPORTANT, CATEGORY_PERSONAL, INBOX
+
+ΓÜ¬ ID: 19cb68abf350e821
+   From: Fahad Khan <fahadkhanxyz8816@gmail.com>
+   To: wecare.woven+ritzy-quartz46@gmail.com
+   Delivered-To: wecare.woven+ritzy-quartz46@gmail.com
+   X-Original-To: (missing)
+   Subject: Re: hi
+   Date: Wed, 4 Mar 2026 07:20:58 +0530
+   Labels: IMPORTANT, CATEGORY_PERSONAL, INBOX
+
+ΓÜ¬ ID: 19cb653c8ef78fd4
+   From: Fahad Khan <fahadkhanxyz8816@gmail.com>
+   To: wecare.woven+ritzy-quartz46@gmail.com
+   Delivered-To: wecare.woven+ritzy-quartz46@gmail.com
+   X-Original-To: (missing)
+   Subject: Re: hi
+   Date: Wed, 4 Mar 2026 06:20:58 +0530
+   Labels: IMPORTANT, CATEGORY_PERSONAL, INBOX
+
+ΓÜ¬ ID: 19cb651a95acee87
+   From: Fahad Khan <fahadkhanxyz8816@gmail.com>
+   To: wecare.woven+ritzy-quartz46@gmail.com
+   Delivered-To: wecare.woven+ritzy-quartz46@gmail.com
+   X-Original-To: (missing)
+   Subject: Re: hi
+   Date: Wed, 4 Mar 2026 06:18:38 +0530
+   Labels: IMPORTANT, CATEGORY_PERSONAL, INBOX
+
+ΓÜ¬ ID: 19cb65114018b7a5
+   From: wecare.woven@gmail.com
+   To: fahadkhanxyz8816@gmail.com
+   Delivered-To: (missing)
+   X-Original-To: (missing)
+   Subject: hi
+   Date: Wed, 04 Mar 2026 00:48:12 +0000
+   Labels: SENT
+
+ΓÜ¬ ID: 19cb45baa5b10e2c
+   From: "newsletter_groovy-dragon18@mailpanda.qzz.io" <relay@mailpanda.qzz.io>
+   To: fahadkhanxyz8816@gmail.com
+   Delivered-To: (missing)
+   X-Original-To: (missing)
+   Subject: Echo from the secure cloud
+   Date: Tue, 03 Mar 2026 15:40:31 +0000
+   Labels: SENT
+
+ΓÜ¬ ID: 19cb45b12076807b
+   From: "newsletter_groovy-dragon18@mailpanda.qzz.io" <relay@mailpanda.qzz.io>
+   To: fahadkhanxyz8816@gmail.com
+   Delivered-To: (missing)
+   X-Original-To: (missing)
+   Subject: Sent from a hidden crocodilian lair
+   Date: Tue, 03 Mar 2026 15:39:52 +0000
+   Labels: SENT
+
+ΓÜ¬ ID: 19cb1ca04940e40f
+   From: Google <no-reply@accounts.google.com>
+   To: wecarewoven@gmail.com
+   Delivered-To: wecarewoven@gmail.com
+   X-Original-To: (missing)
+   Subject: Your Google Account Recovery Request
+   Date: Tue, 03 Mar 2026 03:42:11 GMT
+   Labels: IMPORTANT, CATEGORY_UPDATES, INBOX
+
+ΓÜ¬ ID: 19cacacf5ba64584
+   From: "zigzag-barrel45+oets@mailpanda.qzz.io" <relay@mailpanda.qzz.io>
+   To: fahadkhanxyz8816@gmail.com
+   Delivered-To: (missing)
+   X-Original-To: (missing)
+   Subject: Top secret (not really)
+   Date: Mon, 02 Mar 2026 03:52:20 +0000
+   Labels: SENT
+
+--- Unread Messages ---
+Unread count: 0
+
+--- Forwarding Settings ---
+  ≡ƒôº inbox@mailcroc.qzz.io ΓÇö accepted
+
+--- Gmail Filters ---
+  Failed to check filters: Unexpected end of JSON input

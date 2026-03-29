@@ -21,7 +21,14 @@ const LogoLoop: React.FC<LogoLoopProps> = ({ logos }) => {
             <div className="logo-loop-track">
                 {displayLogos.map((logo, index) => (
                     <div key={index} className="logo-item">
-                        <img src={logo.src} alt={logo.alt || 'brand logo'} />
+                        <img
+                            src={logo.src}
+                            alt={logo.alt || 'brand logo'}
+                            onError={(event) => {
+                                event.currentTarget.onerror = null;
+                                event.currentTarget.src = '/logo.png';
+                            }}
+                        />
                     </div>
                 ))}
             </div>
